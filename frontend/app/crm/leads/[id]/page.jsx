@@ -134,19 +134,32 @@ export default function LeadDetailPage({ params }) {
   const a = lead.attribution || {};
   const attrExtra = typeof a.extra === 'string' ? JSON.parse(a.extra || '{}') : a.extra || {};
   const openDups = lead.duplicates?.filter((d) => d.status === 'OPEN') || [];
+  const isCareer = String(lead.form_type || '').toLowerCase() === 'career' || lead.junk_reason === 'career';
+  const pipeKey = isCareer ? 'career' : String(lead.website_code || '').toLowerCase();
+  const backHref = ['mpf', 'rmw', 'ct', 'career'].includes(pipeKey) ? `/crm/pipeline/${pipeKey}` : '/crm/leads';
+  const backLabel = isCareer ? 'Career Leads' : lead.website_code ? `${lead.website_code} Leads` : 'Leads';
 
   return (
-    <div className="space-y-5">
-      <div>
-        <Link href="/crm/leads" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" />Leads</Link>
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <div className="space-y-4">
+      <div className="panel">
+        <div className="flex items-center gap-1 border-b px-3 py-1.5 text-[12px] text-slate-500">
+          <Link href={backHref} className="inline-flex items-center gap-1 hover:text-[hsl(var(--primary))]"><ArrowLeft className="h-3.5 w-3.5" />{backLabel}</Link>
+          <span>/</span><span className="font-mono">{lead.external_lead_id}</span>
+        </div>
+        <div className="flex flex-col gap-3 px-3 py-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-semibold">{lead.name || 'Unnamed lead'}</h1>
+              <h1 className="text-[18px] font-semibold text-slate-900">{lead.name || 'Unnamed lead'}</h1>
               <WebsiteBadge code={lead.website_code} />
               <StatusBadge name={lead.status_name} color={lead.status_color} />
             </div>
-            <p className="mt-1 font-mono text-xs text-muted-foreground">{lead.external_lead_id} · received {formatDateTime(lead.external_created_at || lead.created_at)}</p>
+            <div className="mt-1.5 flex flex-wrap gap-x-5 gap-y-1 text-[12px] text-slate-600">
+              <span><span className="kv-label mr-1">Owner</span>{lead.assigned_user_name || <span className="text-amber-700">Unassigned</span>}</span>
+              <span><span className="kv-label mr-1">Received</span>{formatDateTime(lead.external_created_at || lead.created_at)}</span>
+              <span><span className="kv-label mr-1">Source</span>{[lead.source, lead.medium !== 'none' && lead.medium].filter(Boolean).join(' / ') || '—'}</span>
+              {lead.form_type && <span><span className="kv-label mr-1">Form</span>{lead.form_type}</span>}
+              <span><span className="kv-label mr-1">Next follow-up</span>{lead.next_followup_at ? <span className={new Date(lead.next_followup_at) < new Date() ? 'font-medium text-red-700' : ''}>{formatDateTime(lead.next_followup_at)}</span> : '—'}</span>
+            </div>
             {lead.merged_into_lead_id && <p className="mt-2 text-sm text-amber-700">This lead was merged into <Link className="underline" href={`/crm/leads/${lead.merged_into_lead_id}`}>lead #{lead.merged_into_lead_id}</Link>.</p>}
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -185,8 +198,8 @@ export default function LeadDetailPage({ params }) {
         </Card>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-3">
-        <div className="space-y-5 lg:col-span-1">
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="space-y-4 lg:col-span-1">
           <Card>
             <CardHeader><CardTitle>Lead information</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">

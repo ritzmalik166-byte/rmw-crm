@@ -50,7 +50,8 @@ const schema = z.object({
   MAIL_FROM: z.string().default('RMW CRM <no-reply@ritzmediaworld.com>'),
 
   MPF_API_URL: z.string().optional(),
-  MPF_CRM_EXPORT_KEY: z.string().optional(),
+  MPF_ADMIN_EMAIL: z.string().optional(),
+  MPF_ADMIN_PASSWORD: z.string().optional(),
   RMW_ENQUIRY_LIST_URL: z.string().optional(),
   CT_API_URL: z.string().optional(),
   CT_ADMIN_EMAIL: z.string().optional(),

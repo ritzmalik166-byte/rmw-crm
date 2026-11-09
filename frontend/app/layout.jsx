@@ -9,7 +9,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 export const metadata = {
   title: { default: 'RMW CRM', template: '%s · RMW CRM' },
   description: 'Centralised lead management for MPF, RMW and CT',
-  icons: { icon: '/icon.svg' },
+  icons: { icon: '/rmw-logo.png', apple: '/rmw-logo.png' },
   robots: { index: false, follow: false },
 };
 

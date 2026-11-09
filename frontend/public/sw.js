@@ -8,8 +8,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(self.registration.showNotification(data.title || 'RMW CRM', {
     body: data.body || '',
     tag: data.tag || undefined,
-    icon: '/icon.svg',
-    badge: '/icon.svg',
+    icon: '/rmw-logo.png',
+    badge: '/rmw-logo.png',
     data: { url: data.url || '/crm/notifications' },
   }));
 });

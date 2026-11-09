@@ -43,6 +43,7 @@ export const crmController = {
     ok(res, { rows, meta: pageMeta(q.page, q.limit, total) });
   },
   async resolveDuplicate(req, res) { await leadService.resolveDuplicate(req, Number(req.params.id), req.body); ok(res, null, 'Duplicate resolved'); },
+  async pipelines(req, res) { ok(res, await leadService.pipelineCounts(req)); },
   async lookups(req, res) {
     const [statuses, sources, users] = await Promise.all([leadService.statuses(), leadService.sources(), leadService.assignableUsers(req)]);
     ok(res, { statuses, sources, websites: req.auth.ctx.websites, users });

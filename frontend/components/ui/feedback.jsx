@@ -58,10 +58,10 @@ export function Pagination({ meta, onPage }) {
 
 export function PageHeader({ title, description, actions }) {
   return (
-    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mb-3 flex flex-col gap-2 border-b pb-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
-        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+        <h1 className="text-[17px] font-semibold text-slate-900">{title}</h1>
+        {description && <p className="mt-0.5 text-[12px] text-muted-foreground">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
@@ -70,12 +70,12 @@ export function PageHeader({ title, description, actions }) {
 
 export function StatCard({ label, value, hint, icon: Icon, tone }) {
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="rounded border border-l-[3px] border-l-[hsl(var(--primary))] bg-card px-3 py-2.5">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
         {Icon && <Icon className={cn('h-4 w-4 text-muted-foreground', tone === 'danger' && 'text-red-500', tone === 'warning' && 'text-amber-500', tone === 'success' && 'text-emerald-600')} />}
       </div>
-      <p className="mt-2 text-2xl font-semibold tabular-nums">{value ?? '—'}</p>
+      <p className="mt-1 text-xl font-semibold tabular-nums text-slate-900">{value ?? '—'}</p>
       {hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
     </div>
   );

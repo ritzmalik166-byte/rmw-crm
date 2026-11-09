@@ -31,9 +31,18 @@ async function getJson(url, init = {}) {
 
 const FETCHERS = {
   async MPF() {
-    if (!env.MPF_API_URL || !env.MPF_CRM_EXPORT_KEY) throw new AppError('Set MPF_API_URL and MPF_CRM_EXPORT_KEY to sync MPF', { status: 400, errorCode: 'SYNC_NOT_CONFIGURED' });
-    const rows = await getJson(`${env.MPF_API_URL.replace(/\/$/, '')}/enquiry/crm-export`, { headers: { 'x-mpf-crm-key': env.MPF_CRM_EXPORT_KEY } });
-    return Array.isArray(rows) ? rows : [];
+    // Same enquiry list the MPF admin panel uses: admin-portal login -> JWT -> GET /enquiry/get-all.
+    // A SUPERADMIN account is needed (ADMIN accounts additionally require the enquiry PIN unlock).
+    if (!env.MPF_API_URL || !env.MPF_ADMIN_EMAIL || !env.MPF_ADMIN_PASSWORD) throw new AppError('Set MPF_API_URL, MPF_ADMIN_EMAIL and MPF_ADMIN_PASSWORD to sync MPF', { status: 400, errorCode: 'SYNC_NOT_CONFIGURED' });
+    const base = env.MPF_API_URL.replace(/\/$/, '');
+    const login = await fetch(`${base}/admin-portal/auth/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: env.MPF_ADMIN_EMAIL, password: env.MPF_ADMIN_PASSWORD }), signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    const auth = await login.json().catch(() => ({}));
+    if (!login.ok || !auth.token) throw new AppError(`MPF admin login failed (${login.status})${auth.message ? `: ${auth.message}` : ''}`, { status: 502, errorCode: 'SOURCE_AUTH_FAILED' });
+    const rows = await getJson(`${base}/enquiry/get-all`, { headers: { Authorization: `Bearer ${auth.token}`, cookie: `token=${auth.token}` } });
+    return Array.isArray(rows) ? rows : rows?.data || [];
   },
 
   async RMW() {

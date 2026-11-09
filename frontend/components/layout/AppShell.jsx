@@ -69,27 +69,29 @@ function Shell({ area, nav, children }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const areaLabel = AREAS.find((a) => a.key === area)?.label;
+  // Pipeline counts power the sidebar badges (one cheap query, refreshed by socket invalidations of ['leads']).
+  const needsCounts = nav.some((g) => g.items.some((i) => i.countKey));
+  const { data: pipe } = useQuery({ queryKey: ['leads', 'pipelines'], queryFn: () => api('/crm/pipelines'), enabled: needsCounts, staleTime: 60_000 });
+  const home = `/${area === 'superAdmin' ? 'super-admin' : area}/dashboard`;
 
   const sidebar = (
-    <nav className="flex h-full flex-col">
-      <div className="flex h-14 items-center gap-2 border-b px-4">
-        <img src="/icon.svg" alt="" className="h-7 w-7" />
-        <div className="leading-tight">
-          <p className="text-sm font-semibold">RMW CRM</p>
-          <p className="text-[11px] text-muted-foreground">{areaLabel}</p>
-        </div>
-      </div>
-      <div className="flex-1 space-y-5 overflow-y-auto p-3">
+    <nav className="flex h-full flex-col bg-white">
+      <div className="flex-1 overflow-y-auto py-2">
         {nav.map((group) => (
-          <div key={group.title || 'main'}>
-            {group.title && <p className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{group.title}</p>}
-            <ul className="space-y-0.5">
+          <div key={group.title || 'main'} className="mb-1">
+            {group.title && <p className="px-4 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">{group.title}</p>}
+            <ul>
               {group.items.filter((i) => !i.hidden).map((item) => {
-                const active = pathname === item.href || (item.href !== `/${area === 'superAdmin' ? 'super-admin' : area}/dashboard` && pathname.startsWith(`${item.href}/`));
+                const active = item.exact ? pathname === item.href : (pathname === item.href || (item.href !== home && pathname.startsWith(`${item.href}/`)));
+                const c = item.countKey ? pipe?.counts?.[item.countKey] : null;
                 return (
                   <li key={item.href}>
-                    <Link href={item.href} onClick={() => setOpen(false)} className={cn('flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors', active ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100')}>
-                      <item.icon className="h-4 w-4" />{item.label}
+                    <Link href={item.href} onClick={() => setOpen(false)} className={cn('relative flex items-center gap-2.5 px-4 py-[7px] text-[13px] transition-colors',
+                      active ? 'bg-[hsl(213_70%_95%)] font-semibold text-[hsl(var(--primary))] before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-[hsl(var(--primary))]' : 'text-slate-700 hover:bg-slate-50')}>
+                      {item.logo ? <img src={item.logo} alt="" className="h-[18px] w-[18px] shrink-0 object-contain" /> : <item.icon className="h-4 w-4 shrink-0" />}
+                      <span className="flex-1 truncate">{item.label}</span>
+                      {c && <span className="tabular-nums text-[11px] text-slate-500">{c.total}</span>}
+                      {c?.new_leads > 0 && <span className="rounded-sm bg-blue-600 px-1 text-[10px] font-semibold leading-4 text-white" title={`${c.new_leads} new`}>{c.new_leads}</span>}
                     </Link>
                   </li>
                 );
@@ -98,39 +100,40 @@ function Shell({ area, nav, children }) {
           </div>
         ))}
       </div>
+      <div className="border-t px-4 py-2 text-[10px] text-slate-400">RMW CRM · {areaLabel}</div>
     </nav>
   );
 
   return (
     <div className="min-h-screen">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 border-r bg-white lg:block">{sidebar}</aside>
-      {open && (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 w-64 bg-white shadow-xl">
-            <button className="absolute right-3 top-4" onClick={() => setOpen(false)} aria-label="Close menu"><X className="h-5 w-5" /></button>
-            {sidebar}
-          </aside>
-        </div>
-      )}
-      <div className="lg:pl-60">
-        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-white/95 px-4 backdrop-blur">
-          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu"><Menu /></Button>
-          <div className="hidden items-center gap-1 rounded-lg bg-slate-100 p-1 sm:flex">
+      <header className="sticky top-0 z-30 bg-[hsl(var(--primary))] text-white">
+        <div className="flex h-12 items-center gap-3 px-3 sm:px-4">
+          <button className="rounded p-1 hover:bg-white/10 lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu"><Menu className="h-5 w-5" /></button>
+          <Link href={home} className="flex items-center gap-2">
+            <img src="/rmw-mark.png" alt="Ritz Media World" className="h-8 w-8 rounded-sm bg-white object-contain p-0.5" />
+            <span className="hidden leading-tight sm:block">
+              <span className="block text-[13px] font-semibold">RMW CRM</span>
+              <span className="block text-[10px] text-white/70">Ritz Media World Group · Lead Management</span>
+            </span>
+          </Link>
+          <div className="ml-3 hidden h-full items-stretch md:flex">
             {AREAS.filter((a) => me?.areas?.[a.key]).map((a) => (
-              <Link key={a.key} href={a.href} className={cn('flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium', a.key === area ? 'bg-white shadow-sm' : 'text-slate-600 hover:text-slate-900')}>
+              <Link key={a.key} href={a.href} className={cn('flex items-center gap-1.5 border-b-2 px-3 text-[12px] font-medium', a.key === area ? 'border-[hsl(var(--saffron))] bg-white/10 text-white' : 'border-transparent text-white/75 hover:bg-white/5 hover:text-white')}>
                 <a.icon className="h-3.5 w-3.5" />{a.label}
               </Link>
             ))}
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1.5 [&_button]:text-white [&_button:hover]:bg-white/10">
             <LiveDot />
             <NotificationBell />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-slate-100">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">{me?.user?.full_name?.[0]?.toUpperCase()}</span>
-                  <span className="hidden text-sm font-medium md:block">{me?.user?.full_name}</span>
+                <button className="flex items-center gap-2 rounded px-1.5 py-1">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 text-xs font-semibold ring-1 ring-white/30">{me?.user?.full_name?.[0]?.toUpperCase()}</span>
+                  <span className="hidden text-left leading-tight md:block">
+                    <span className="block text-[12px] font-medium">{me?.user?.full_name}</span>
+                    <span className="block text-[10px] text-white/70">{me?.roles?.[0]?.replace(/_/g, ' ').toLowerCase()}</span>
+                  </span>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
@@ -147,8 +150,25 @@ function Shell({ area, nav, children }) {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </header>
-        <main className="mx-auto max-w-[1400px] p-4 sm:p-6">{children}</main>
+        </div>
+        <div className="h-[3px] bg-[hsl(var(--saffron))]" />
+      </header>
+
+      <aside className="fixed bottom-0 left-0 top-[51px] z-20 hidden w-56 border-r lg:block">{sidebar}</aside>
+      {open && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setOpen(false)} />
+          <aside className="absolute inset-y-0 left-0 w-64 shadow-xl">
+            <div className="flex h-12 items-center justify-between bg-[hsl(var(--primary))] px-4 text-white">
+              <span className="text-[13px] font-semibold">RMW CRM</span>
+              <button onClick={() => setOpen(false)} aria-label="Close menu"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="h-[calc(100%-3rem)]">{sidebar}</div>
+          </aside>
+        </div>
+      )}
+      <div className="lg:pl-56">
+        <main className="mx-auto max-w-[1500px] p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ r.use(authenticate, requireArea('crm'));
 
 r.get('/dashboard', h(c.dashboard));
 r.get('/lookups', h(c.lookups));
+r.get('/pipelines', requirePermission('lead.view'), h(c.pipelines));
 
 r.get('/leads', requirePermission('lead.view'), validate(s.listQuery, 'query'), h(c.listLeads));
 r.get('/leads/export', requirePermission('lead.export'), validate(s.listQuery, 'query'), h(c.exportLeads));

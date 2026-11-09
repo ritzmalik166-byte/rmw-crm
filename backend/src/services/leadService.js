@@ -20,6 +20,18 @@ const LIST_SELECT = `l.id, l.external_lead_id, l.name, l.phone, l.email, l.locat
 const LIST_FROM = `FROM leads l JOIN websites w ON w.id = l.website_id JOIN lead_statuses s ON s.id = l.status_id
   LEFT JOIN users u ON u.id = l.assigned_user_id LEFT JOIN lead_attributions a ON a.lead_id = l.id`;
 
+// COALESCE on both columns: a NULL here would make NOT(...) NULL and silently drop every general lead.
+const IS_CAREER = "(LOWER(COALESCE(l.form_type, '')) = 'career' OR COALESCE(l.junk_reason, '') = 'career')";
+const siteIs = (code) => `l.website_id = (SELECT id FROM websites WHERE code = '${code}')`;
+// Separate pipelines. Career applications arrive via RMW (etype=career) but are tracked on their own.
+export const PIPELINES = {
+  mpf: { sql: siteIs('MPF'), params: [] },
+  ct: { sql: siteIs('CT'), params: [] },
+  rmw: { sql: `${siteIs('RMW')} AND NOT ${IS_CAREER}`, params: [] },
+  career: { sql: IS_CAREER, params: [] },
+  general: { sql: `NOT ${IS_CAREER}`, params: [] },
+};
+
 function buildFilters(req, f) {
   const vis = leadVisibilitySql(req);
   const where = [vis.sql, 'l.merged_into_lead_id IS NULL'];
@@ -31,8 +43,14 @@ function buildFilters(req, f) {
   if (f.assignedUserId === 'unassigned') where.push('l.assigned_user_id IS NULL');
   else if (f.assignedUserId === 'me') { where.push('l.assigned_user_id = ?'); params.push(req.auth.user.id); }
   else if (f.assignedUserId) { where.push('l.assigned_user_id = ?'); params.push(Number(f.assignedUserId)); }
-  if (f.junk === 'only') where.push('l.junk_reason IS NOT NULL');
-  else if (f.junk !== 'all') where.push('l.junk_reason IS NULL');
+  const pipe = PIPELINES[f.pipeline];
+  if (pipe) { where.push(pipe.sql); params.push(...pipe.params); }
+  if (f.formType) { where.push('l.form_type = ?'); params.push(f.formType); }
+  if (f.interest) { where.push('l.interest LIKE ?'); params.push(`%${f.interest}%`); }
+  // In the Career pipeline, "career" is the lead type, not junk.
+  const junkCol = f.pipeline === 'career' ? "NULLIF(l.junk_reason, 'career')" : 'l.junk_reason';
+  if (f.junk === 'only') where.push(`${junkCol} IS NOT NULL`);
+  else if (f.junk !== 'all') where.push(`${junkCol} IS NULL`);
   if (f.from) { where.push(`${RECEIVED} >= ?`); params.push(new Date(f.from)); }
   if (f.to) { where.push(`${RECEIVED} <= ?`); params.push(new Date(f.to)); }
   if (f.duplicates) where.push('l.is_duplicate_suspect = 1');
@@ -306,6 +324,29 @@ export const leadService = {
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
     return [cols.join(','), ...rows.map((r) => cols.map((c) => esc(r[c])).join(','))].join('\n');
+  },
+
+  /** Per-pipeline counts for navigation and the dashboard (respects website access and visibility). */
+  async pipelineCounts(req) {
+    const vis = leadVisibilitySql(req);
+    const out = {};
+    for (const [key, p] of Object.entries(PIPELINES)) {
+      const junkCol = key === 'career' ? "NULLIF(l.junk_reason, 'career')" : 'l.junk_reason';
+      const [r] = await query(
+        `SELECT COUNT(*) total, SUM(s.code = 'NEW') new_leads, SUM(l.assigned_user_id IS NULL) unassigned, SUM(s.is_conversion) converted,
+           SUM(${RECEIVED} >= UTC_DATE()) today,
+           SUM(EXISTS (SELECT 1 FROM lead_followups f WHERE f.lead_id = l.id AND (f.status = 'OVERDUE' OR (f.status = 'UPCOMING' AND f.due_at < NOW(3))))) overdue
+         FROM leads l JOIN lead_statuses s ON s.id = l.status_id
+         WHERE ${vis.sql} AND l.merged_into_lead_id IS NULL AND ${junkCol} IS NULL AND ${p.sql}`,
+        [...vis.params, ...p.params],
+      );
+      out[key] = Object.fromEntries(Object.entries(r).map(([k, v]) => [k, Number(v || 0)]));
+    }
+    const forms = await query(
+      `SELECT w.code website, l.form_type, COUNT(*) c FROM leads l JOIN websites w ON w.id = l.website_id
+       WHERE ${vis.sql} AND l.form_type IS NOT NULL GROUP BY w.code, l.form_type ORDER BY c DESC`, vis.params,
+    );
+    return { counts: out, formTypes: forms };
   },
 
   statuses: () => query('SELECT * FROM lead_statuses ORDER BY sort_order'),
