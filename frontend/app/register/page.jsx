@@ -9,8 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Input, Select, Textarea } from '@/components/ui/input';
 import { Field } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/controls';
+import { AvatarUploader } from '@/components/ui/avatar';
 
-const empty = { fullName: '', mobile: '', email: '', password: '', confirmPassword: '', departmentId: '', teamId: '', websiteIds: [], notes: '' };
+const empty = { avatar: null, fullName: '', mobile: '', email: '', password: '', confirmPassword: '', departmentId: '', teamId: '', websiteIds: [], notes: '' };
 
 export default function RegisterPage() {
   const { data: cfg } = useQuery({ queryKey: ['public-config'], queryFn: () => api('/auth/public-config') });
@@ -26,6 +27,7 @@ export default function RegisterPage() {
   const submit = async (e) => {
     e.preventDefault();
     setError(''); setErrors({});
+    if (!form.avatar) { setErrors({ avatar: 'Upload a profile picture' }); return; }
     if (form.password !== form.confirmPassword) { setErrors({ confirmPassword: 'Passwords do not match' }); return; }
     setBusy(true);
     try {
@@ -58,6 +60,9 @@ export default function RegisterPage() {
     <AuthCard title="Request CRM access" description="Your account becomes active after Super Admin approval." footer={<>Already have an account? <Link href="/login" className="font-medium text-foreground hover:underline">Sign in</Link></>}>
       <form onSubmit={submit} className="space-y-4">
         <FormError message={error} />
+        <Field label="Profile picture" error={errors.avatar} hint="Required. Helps approvers and teammates recognise you.">
+          <AvatarUploader size="h-16 w-16 text-lg" src={form.avatar} name={form.fullName} onChange={(avatar) => { setForm((f) => ({ ...f, avatar })); setErrors((e) => ({ ...e, avatar: undefined })); }} />
+        </Field>
         <Field label="Full name" htmlFor="fullName" error={errors.fullName}><Input id="fullName" value={form.fullName} onChange={set('fullName')} required autoComplete="name" /></Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Mobile" htmlFor="mobile" error={errors.mobile}><Input id="mobile" type="tel" value={form.mobile} onChange={set('mobile')} required autoComplete="tel" /></Field>

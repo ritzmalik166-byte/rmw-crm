@@ -61,7 +61,7 @@ export function AvatarUploader({ src, name, onChange, size = 'h-24 w-24 text-2xl
     e.target.value = '';
     if (!file) return;
     try {
-      const data = await resizeImage(file, 512);
+      const data = await resizeImage(file, 384);
       if (pickTarget.current === 'modal') setPreview(data);
       else await run(data);
     } catch (err) { toast.error(err.message); }

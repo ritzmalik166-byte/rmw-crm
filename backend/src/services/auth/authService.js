@@ -87,7 +87,7 @@ export const authService = {
     if (existing) throw conflict('An account with this email or mobile already exists', 'ACCOUNT_EXISTS');
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
     const { userId, requestId } = await transaction(async (conn) => {
-      const id = await userRepo.create({ fullName: data.fullName, email: data.email, mobile: data.mobile, passwordHash, departmentId: data.departmentId || null }, conn);
+      const id = await userRepo.create({ fullName: data.fullName, email: data.email, mobile: data.mobile, avatar: data.avatar, passwordHash, departmentId: data.departmentId || null }, conn);
       const [r] = await conn.query(
         'INSERT INTO user_registration_requests (user_id, requested_department_id, requested_team_id, requested_website_ids, notes) VALUES (?, ?, ?, ?, ?)',
         [id, data.departmentId || null, data.teamId || null, JSON.stringify(data.websiteIds || []), data.notes || null],

@@ -1,11 +1,12 @@
 'use client';
 import Link from 'next/link';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Users2, UserX, Sparkles, CalendarClock, AlertTriangle, Trophy, Percent, UserPlus, Plug } from 'lucide-react';
 import { api } from '@/lib/api';
 import { timeAgo, titleCase } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge, WebsiteBadge } from '@/components/ui/badge';
+import { Badge, WebsiteBadge, WEBSITE_LOGOS } from '@/components/ui/badge';
 import { ErrorState, PageHeader, Skeleton, StatCard, EmptyState } from '@/components/ui/feedback';
 
 function ActivityList({ rows }) {
@@ -58,9 +59,10 @@ export function AdminDashboard() {
 }
 
 export function SuperAdminDashboard() {
+  const [period, setPeriod] = useState('all');
   const iso = (d) => d.toISOString();
-  const range = { from: iso(new Date(Date.now() - 30 * 86400_000)), to: iso(new Date()) };
-  const analytics = useQuery({ queryKey: ['admin', 'analytics', 'sa-dash'], queryFn: () => api(`/admin/analytics?from=${range.from}&to=${range.to}`), refetchInterval: 120_000 });
+  const range = { from: period === 'all' ? '2000-01-01T00:00:00.000Z' : iso(new Date(Date.now() - Number(period) * 86400_000)), to: iso(new Date()) };
+  const analytics = useQuery({ queryKey: ['admin', 'analytics', 'sa-dash', period], queryFn: () => api(`/admin/analytics?from=${range.from}&to=${range.to}`), refetchInterval: 120_000 });
   const integrations = useQuery({ queryKey: ['admin', 'integrations'], queryFn: () => api('/admin/integrations'), refetchInterval: 60_000 });
   const pending = useQuery({ queryKey: ['admin', 'requests', 'pending-count'], queryFn: () => api('/admin/user-requests?status=PENDING_APPROVAL&limit=1') });
   const dash = useQuery({ queryKey: ['dashboard', 'crm'], queryFn: () => api('/crm/dashboard') });
@@ -72,7 +74,15 @@ export function SuperAdminDashboard() {
 
   return (
     <>
-      <PageHeader title="Super Admin dashboard" description="Last 30 days across every website." />
+      <PageHeader
+        title="Super Admin dashboard"
+        description={period === 'all' ? 'All leads across every website.' : `Last ${period} days across every website.`}
+        actions={
+          <select value={period} onChange={(e) => setPeriod(e.target.value)} className="h-8 rounded border bg-background px-2 text-sm" aria-label="Period">
+            <option value="all">All time</option><option value="30">Last 30 days</option><option value="7">Last 7 days</option>
+          </select>
+        }
+      />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Total leads" value={a.totals.total.toLocaleString('en-IN')} icon={Users2} />
         <StatCard label="Conversion rate" value={`${a.totals.conversionRate}%`} hint={`${a.totals.converted} converted`} icon={Percent} />
@@ -80,7 +90,7 @@ export function SuperAdminDashboard() {
         <StatCard label="Unassigned" value={a.totals.unassigned} icon={UserX} tone={a.totals.unassigned ? 'warning' : undefined} />
       </div>
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
-        {['MPF', 'RMW', 'CT'].map((c) => <StatCard key={c} label={`${c} leads`} value={site(c).toLocaleString('en-IN')} />)}
+        {['MPF', 'RMW', 'CT'].map((c) => <StatCard key={c} label={`${c} leads`} logo={WEBSITE_LOGOS[c]} value={site(c).toLocaleString('en-IN')} />)}
       </div>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-3">

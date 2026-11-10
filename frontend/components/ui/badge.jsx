@@ -25,8 +25,17 @@ function StatusBadge({ name, color }) {
 }
 
 const WEBSITE_STYLES = { MPF: 'bg-teal-50 text-teal-700 ring-teal-200', RMW: 'bg-rose-50 text-rose-700 ring-rose-200', CT: 'bg-purple-50 text-purple-700 ring-purple-200' };
-function WebsiteBadge({ code }) {
-  return <span className={cn('inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-semibold tracking-wide ring-1 ring-inset', WEBSITE_STYLES[code] || STATUS_COLORS.slate)}>{code}</span>;
+const WEBSITE_LOGOS = { MPF: '/mpf-mark.png', RMW: '/rmw-mark.png', CT: '/ct-mark.png' };
+function WebsiteLogo({ code, className }) {
+  const src = WEBSITE_LOGOS[String(code || '').toUpperCase()];
+  return src ? <img src={src} alt="" aria-hidden className={cn('h-4 w-4 shrink-0 object-contain', className)} /> : null;
+}
+function WebsiteBadge({ code, logo = true }) {
+  return (
+    <span className={cn('inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold tracking-wide ring-1 ring-inset', WEBSITE_STYLES[code] || STATUS_COLORS.slate)}>
+      {logo && <WebsiteLogo code={code} className="h-3.5 w-3.5" />}{code}
+    </span>
+  );
 }
 
 const ACCOUNT_VARIANT = { ACTIVE: 'success', PENDING_APPROVAL: 'warning', APPROVED: 'success', REJECTED: 'danger', DISABLED: 'secondary', SUSPENDED: 'danger' };
@@ -35,4 +44,4 @@ function AccountStatusBadge({ status }) {
   return <Badge variant={ACCOUNT_VARIANT[status] || 'secondary'}>{label}</Badge>;
 }
 
-export { Badge, badgeVariants, StatusBadge, WebsiteBadge, AccountStatusBadge };
+export { Badge, badgeVariants, StatusBadge, WebsiteBadge, WebsiteLogo, WEBSITE_LOGOS, AccountStatusBadge };

@@ -14,6 +14,7 @@ export const auth = {
     email: emailSchema,
     password: passwordSchema,
     confirmPassword: z.string(),
+    avatar: avatarSchema.refine(Boolean, 'Upload a profile picture'),
     departmentId: optId,
     teamId: optId,
     websiteIds: z.array(id).max(10).default([]),

@@ -9,10 +9,10 @@ export const userRepo = {
   findAuthById: (id) => one('SELECT * FROM users WHERE id = ?', [id]),
   existsEmailOrMobile: (email, mobile) => one('SELECT id, email, mobile FROM users WHERE email = ? OR mobile = ? LIMIT 1', [email, mobile]),
 
-  async create({ fullName, email, mobile, passwordHash, status = 'PENDING_APPROVAL', departmentId = null }, conn) {
+  async create({ fullName, email, mobile, passwordHash, status = 'PENDING_APPROVAL', departmentId = null, avatar = null }, conn) {
     const res = await query(
-      'INSERT INTO users (full_name, email, mobile, password_hash, status, department_id, password_changed_at) VALUES (?, ?, ?, ?, ?, ?, NOW(3))',
-      [fullName, email, mobile, passwordHash, status, departmentId], conn,
+      'INSERT INTO users (full_name, email, mobile, avatar, password_hash, status, department_id, password_changed_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(3))',
+      [fullName, email, mobile, avatar, passwordHash, status, departmentId], conn,
     );
     return res.insertId;
   },

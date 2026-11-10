@@ -87,11 +87,11 @@ export function PageHeader({ title, description, actions }) {
   );
 }
 
-export function StatCard({ label, value, hint, icon: Icon, tone }) {
+export function StatCard({ label, value, hint, icon: Icon, tone, logo }) {
   return (
     <div className="rounded border border-l-[3px] border-l-[hsl(var(--primary))] bg-card px-3 py-2.5">
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">{logo && <img src={logo} alt="" aria-hidden className="h-4 w-4 object-contain" />}{label}</p>
         {Icon && <Icon className={cn('h-4 w-4 text-muted-foreground', tone === 'danger' && 'text-red-500', tone === 'warning' && 'text-amber-500', tone === 'success' && 'text-emerald-600')} />}
       </div>
       <p className="mt-1 text-xl font-semibold tabular-nums text-slate-900">{value ?? '—'}</p>

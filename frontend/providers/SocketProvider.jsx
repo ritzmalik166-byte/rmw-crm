@@ -30,7 +30,8 @@ export function SocketProvider({ children }) {
     socket.on('disconnect', () => setConnected(false));
     socket.on('NEW_LEAD', (l) => {
       invalidateLeads();
-      toast.info(`New ${l.website} lead`, { description: l.name || l.externalLeadId, action: { label: 'Open', onClick: () => router.push(`/crm/leads/${l.id}`) } });
+      qc.invalidateQueries({ queryKey: ['pipelines'] });
+      toast.info(`New ${l.website} ${l.kind || 'lead'}`, { duration: 10_000, description: l.name || l.externalLeadId, action: { label: 'Open', onClick: () => router.push(`/crm/leads/${l.id}`) } });
     });
     socket.on('LEAD_ASSIGNED', (l) => invalidateLeads(l.id));
     socket.on('LEAD_REASSIGNED', (l) => invalidateLeads(l.id));
@@ -42,6 +43,7 @@ export function SocketProvider({ children }) {
     });
     socket.on('NEW_NOTIFICATION', (n) => {
       qc.invalidateQueries({ queryKey: ['notifications'] });
+      if (n.type === 'NEW_LEAD') return; // already shown by the NEW_LEAD event for everyone on that website
       toast(n.title, { description: n.body || undefined, action: n.link ? { label: 'View', onClick: () => router.push(n.link) } : undefined });
     });
     socket.on('FORCE_LOGOUT', () => {

@@ -141,13 +141,18 @@ export async function upsertCanonicalLead(website, c, { silent = false } = {}) {
     return { leadId, created: true, externalLeadId, assignee, duplicates, junk };
   });
 
-  if (result.created && !silent && !result.junk) {
+  // Pull sync passes silent: true; it still alerts for genuinely new enquiries (submitted in the last day),
+  // so a backfill of old leads does not flood everyone with notifications.
+  const fresh = !c.externalCreatedAt || Date.now() - new Date(c.externalCreatedAt).getTime() < 24 * 3600_000;
+  const isCareer = result.junk === 'career';
+  if (result.created && (!silent || fresh) && (!result.junk || isCareer)) {
     await audit('LEAD_CREATED', { entityType: 'lead', entityId: result.leadId, meta: { website: website.code, externalLeadId, via: 'integration' } });
-    const summary = { id: result.leadId, externalLeadId, website: website.code, name: c.name, interest: c.interest };
+    const kind = isCareer ? 'career application' : 'lead';
+    const summary = { id: result.leadId, externalLeadId, website: website.code, name: c.name, interest: c.interest, kind };
     emitToWebsite(website.id, EVENTS.NEW_LEAD, summary);
     const watchers = await userRepo.usersWithPermission('lead.assign', website.id);
     await notificationService.notifyMany(watchers.map((w) => w.id), {
-      type: 'NEW_LEAD', title: `New ${website.code} lead`, body: `${c.name || 'Unnamed'}${c.interest ? ` · ${c.interest}` : ''}`,
+      type: 'NEW_LEAD', title: `New ${website.code} ${kind}`, body: `${c.name || 'Unnamed'}${c.interest ? ` · ${c.interest}` : ''}`,
       link: `/crm/leads/${result.leadId}`, data: { leadId: result.leadId },
     });
     if (result.assignee) {
