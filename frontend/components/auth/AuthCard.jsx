@@ -1,4 +1,4 @@
-export function AuthCard({ title, description, children, footer }) {
+export function AuthCard({ title, description, children, footer, wide = false }) {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="bg-[hsl(var(--primary))] text-white">
@@ -11,8 +11,8 @@ export function AuthCard({ title, description, children, footer }) {
         </div>
         <div className="h-[3px] bg-[hsl(var(--saffron))]" />
       </header>
-      <div className="flex flex-1 items-start justify-center px-4 py-10 sm:items-center">
-        <div className="w-full max-w-md">
+      <div className={`flex flex-1 items-start justify-center px-4 sm:items-center ${wide ? 'py-4' : 'py-10'}`}>
+        <div className={`w-full ${wide ? 'max-w-5xl' : 'max-w-md'}`}>
           <div className="panel overflow-hidden">
             <div className="border-b bg-[hsl(214_25%_97%)] px-5 py-3">
               <h1 className="text-[15px] font-semibold text-slate-900">{title}</h1>
@@ -21,7 +21,7 @@ export function AuthCard({ title, description, children, footer }) {
             <div className="p-5">{children}</div>
           </div>
           {footer && <div className="mt-3 text-center text-[12px] text-muted-foreground">{footer}</div>}
-          <p className="mt-6 text-center text-[11px] text-slate-400">Authorised users only. All access is logged and monitored.</p>
+          <p className={`${wide ? 'mt-2' : 'mt-6'} text-center text-[11px] text-slate-400`}>Authorised users only. All access is logged and monitored.</p>
         </div>
       </div>
     </div>
