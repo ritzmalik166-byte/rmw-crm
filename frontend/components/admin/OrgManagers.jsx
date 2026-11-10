@@ -14,7 +14,7 @@ import { Badge, StatusBadge, WebsiteBadge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/controls';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { EmptyState, ErrorState, PageHeader, TableSkeleton } from '@/components/ui/feedback';
+import { EmptyState, ErrorState, PageHeader, Skeleton, TableSkeleton } from '@/components/ui/feedback';
 import { useOrg, MultiCheck } from './common';
 
 function useSave(key, okMsg) {
@@ -81,14 +81,23 @@ function MembersDialog({ team, onClose }) {
   const [leads, setLeads] = useState([]);
   useEffect(() => { if (members) { setIds(members.map((m) => m.id)); setLeads(members.filter((m) => m.is_lead).map((m) => m.id)); } }, [members]);
   const m = useMutation(useSave(['admin', 'teams'], 'Members updated')(() => api(`/admin/teams/${team.id}/members`, { method: 'PUT', body: { members: ids.map((userId) => ({ userId, isLead: leads.includes(userId) })) } }), onClose));
-  const options = (users?.rows || []).map((u) => ({ id: u.id, name: u.full_name }));
+  const options = (users?.rows || []).map((u) => ({ id: u.id, name: u.full_name, avatar: u.avatar || null }));
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-xl">
         <DialogHeader><DialogTitle>{team.name} members</DialogTitle></DialogHeader>
-        <Field label="Members"><MultiCheck options={options} value={ids} onChange={setIds} /></Field>
-        {ids.length > 0 && <Field label="Team leads"><MultiCheck options={options.filter((o) => ids.includes(o.id))} value={leads} onChange={setLeads} /></Field>}
-        <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button loading={m.isPending} onClick={() => m.mutate()}>Save members</Button></DialogFooter>
+        {(!users || !members) ? (
+          <div className="space-y-3" aria-busy="true" aria-label="Loading people">
+            <Skeleton className="h-4 w-20" />
+            <div className="flex flex-wrap gap-x-4 gap-y-2">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="flex items-center gap-2"><Skeleton className="h-4 w-4 rounded-sm" /><Skeleton className="h-6 w-6 rounded-full" /><Skeleton className="h-4 w-20" /></div>)}</div>
+            <Skeleton className="h-4 w-24" />
+            <div className="flex gap-4">{Array.from({ length: 2 }).map((_, i) => <div key={i} className="flex items-center gap-2"><Skeleton className="h-4 w-4 rounded-sm" /><Skeleton className="h-6 w-6 rounded-full" /><Skeleton className="h-4 w-20" /></div>)}</div>
+          </div>
+        ) : <>
+        <Field label="Members"><MultiCheck options={options} value={ids} onChange={setIds} title={`${team.name}: members`} /></Field>
+        {ids.length > 0 && <Field label="Team leads"><MultiCheck options={options.filter((o) => ids.includes(o.id))} value={leads} onChange={setLeads} title={`${team.name}: team leads`} /></Field>}
+        </>}
+        <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button loading={m.isPending} disabled={!users || !members} onClick={() => m.mutate()}>Save members</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );
