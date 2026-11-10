@@ -3,6 +3,7 @@
  * Read-only against the source sites. Upserts on (website, external id), so it is safe to run repeatedly.
  *
  *  MPF  GET  {MPF_API_URL}/enquiry/crm-export            header x-mpf-crm-key: MPF_CRM_EXPORT_KEY
+ *       (fallback: admin-portal login -> GET /enquiry/get-all with MPF_ADMIN_EMAIL / MPF_ADMIN_PASSWORD)
  *  RMW  GET  {RMW_ENQUIRY_LIST_URL}                      (public endpoint on rmw-backend)
  *  CT   POST {CT_API_URL}/api/auth/login -> ct_admin_token cookie, then GET /api/leads?page=&limit=100
  */
@@ -31,18 +32,27 @@ async function getJson(url, init = {}) {
 
 const FETCHERS = {
   async MPF() {
-    // Same enquiry list the MPF admin panel uses: admin-portal login -> JWT -> GET /enquiry/get-all.
-    // A SUPERADMIN account is needed (ADMIN accounts additionally require the enquiry PIN unlock).
-    if (!env.MPF_API_URL || !env.MPF_ADMIN_EMAIL || !env.MPF_ADMIN_PASSWORD) throw new AppError('Set MPF_API_URL, MPF_ADMIN_EMAIL and MPF_ADMIN_PASSWORD to sync MPF', { status: 400, errorCode: 'SYNC_NOT_CONFIGURED' });
+    if (!env.MPF_API_URL) throw new AppError('Set MPF_API_URL to sync MPF', { status: 400, errorCode: 'SYNC_NOT_CONFIGURED' });
     const base = env.MPF_API_URL.replace(/\/$/, '');
+    const asRows = (b) => (Array.isArray(b) ? b : b?.data || []);
+    // Preferred: one call to MPF's dedicated export API (all enquiries, key-protected).
+    if (env.MPF_CRM_EXPORT_KEY) {
+      try {
+        return asRows(await getJson(`${base}/enquiry/crm-export`, { headers: { 'x-mpf-crm-key': env.MPF_CRM_EXPORT_KEY } }));
+      } catch (err) {
+        if (!env.MPF_ADMIN_EMAIL) throw err;
+        logger.warn({ err: err.message }, 'MPF crm-export failed; falling back to admin login');
+      }
+    }
+    // Fallback: same list the MPF admin panel uses (SUPERADMIN login -> JWT -> GET /enquiry/get-all).
+    if (!env.MPF_ADMIN_EMAIL || !env.MPF_ADMIN_PASSWORD) throw new AppError('Set MPF_CRM_EXPORT_KEY (or MPF_ADMIN_EMAIL/MPF_ADMIN_PASSWORD) to sync MPF', { status: 400, errorCode: 'SYNC_NOT_CONFIGURED' });
     const login = await fetch(`${base}/admin-portal/auth/login`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: env.MPF_ADMIN_EMAIL, password: env.MPF_ADMIN_PASSWORD }), signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     const auth = await login.json().catch(() => ({}));
     if (!login.ok || !auth.token) throw new AppError(`MPF admin login failed (${login.status})${auth.message ? `: ${auth.message}` : ''}`, { status: 502, errorCode: 'SOURCE_AUTH_FAILED' });
-    const rows = await getJson(`${base}/enquiry/get-all`, { headers: { Authorization: `Bearer ${auth.token}`, cookie: `token=${auth.token}` } });
-    return Array.isArray(rows) ? rows : rows?.data || [];
+    return asRows(await getJson(`${base}/enquiry/get-all`, { headers: { Authorization: `Bearer ${auth.token}`, cookie: `token=${auth.token}` } }));
   },
 
   async RMW() {
@@ -73,8 +83,11 @@ const FETCHERS = {
   },
 };
 
-/** Sync one website. Returns counts; individual bad rows are skipped and reported, not fatal. */
-export async function syncWebsite(code) {
+/**
+ * Sync one website. Incremental by default: only enquiries not yet in the CRM are written (one lookup query for
+ * existing ids), so a run with nothing new costs a single API call + one SELECT. Pass { full: true } to re-upsert all.
+ */
+export async function syncWebsite(code, { full = false } = {}) {
   const website = await one('SELECT id, code, domain, external_id_prefix FROM websites WHERE code = ? AND is_active = 1', [code]);
   if (!website) throw new AppError(`Website ${code} not found or inactive`, { status: 404, errorCode: 'NOT_FOUND' });
   const started = Date.now();
@@ -85,6 +98,12 @@ export async function syncWebsite(code) {
     const adapter = getAdapter(code);
     // Oldest first, so repeat submissions are detected against the original enquiry.
     const items = rows.map((row) => { try { return { row, c: adapter.normalize(row) }; } catch (err) { return { row, err }; } });
+    if (!full) {
+      const have = new Set((await query('SELECT external_lead_id FROM leads WHERE website_id = ?', [website.id])).map((r) => r.external_lead_id));
+      const fresh = items.filter((it) => it.err || !have.has(`${website.external_id_prefix}-${it.c.externalRawId}`));
+      result.skipped = items.length - fresh.length;
+      items.length = 0; items.push(...fresh);
+    }
     items.sort((a, b) => (a.c?.externalCreatedAt?.getTime() ?? 0) - (b.c?.externalCreatedAt?.getTime() ?? 0));
     for (const { row, c, err: normErr } of items) {
       try {

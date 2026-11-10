@@ -61,7 +61,7 @@ export const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: env.DB_POOL_SIZE,
   maxIdle: env.DB_POOL_SIZE,
-  idleTimeout: 60_000,
+  idleTimeout: 30_000,
   enableKeepAlive: true,
   keepAliveInitialDelay: 10_000,
   timezone: 'Z',
@@ -77,9 +77,22 @@ pool.on('connection', (conn) =>
 );
 
 /** Run a query on the pool (or on a transaction connection when provided). */
+const RETRYABLE = new Set(['ECONNRESET', 'PROTOCOL_CONNECTION_LOST', 'EPIPE', 'ETIMEDOUT']);
+
 export async function query(sql, params = [], conn = null) {
-  const [rows] = await (conn || pool).query(sql, params);
-  return rows;
+  // Pooled connections can be dropped by the network (firewall SSL inspection / idle timeout).
+  // Retry on a fresh connection with a short backoff. Never retry inside a transaction.
+  const attempts = conn ? 1 : 4;
+  for (let i = 1; ; i += 1) {
+    try {
+      const [rows] = await (conn || pool).query(sql, params);
+      return rows;
+    } catch (err) {
+      if (i >= attempts || !RETRYABLE.has(err.code)) throw err;
+      if (i === 1) logger.warn({ code: err.code }, 'DB connection dropped; retrying query');
+      await new Promise((r) => setTimeout(r, 150 * i));
+    }
+  }
 }
 
 export async function one(sql, params = [], conn = null) {
