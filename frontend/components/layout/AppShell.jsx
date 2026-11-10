@@ -10,6 +10,62 @@ import { api } from '@/lib/api';
 import { cn, timeAgo } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/controls';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/feedback';
+import { skeletonFor } from '@/components/ui/skeletons';
+import { UserAvatar } from '@/components/ui/avatar';
+
+function LogoutDialog({ open, onOpenChange }) {
+  const { logout, loggingOut } = useAuth();
+  return (
+    <Dialog open={open} onOpenChange={(v) => !loggingOut && onOpenChange(v)}>
+      <DialogContent className="max-w-sm text-center sm:text-center" onInteractOutside={(e) => loggingOut && e.preventDefault()}>
+        <DialogHeader className="items-center">
+          <span className="mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600"><LogOut className="h-5 w-5" /></span>
+          <DialogTitle>Log out of RMW CRM?</DialogTitle>
+          <DialogDescription>You will need to sign in again to access your leads.</DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="sm:justify-center">
+          <Button variant="outline" disabled={loggingOut} onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="destructive" loading={loggingOut} onClick={logout}>{loggingOut ? 'Logging out…' : 'Log out'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Full-page placeholder shaped like the app shell (used while the session loads). */
+function ShellSkeleton({ path }) {
+  return (
+    <div className="min-h-screen">
+      <div className="flex h-12 items-center gap-3 bg-[hsl(var(--primary))] px-4 [&>*]:bg-white/15">
+        <Skeleton className="h-8 w-8 rounded-sm" />
+        <div className="hidden space-y-1.5 bg-transparent sm:block [&>*]:bg-white/20"><Skeleton className="h-3 w-20" /><Skeleton className="h-2 w-44" /></div>
+        <div className="ml-3 hidden gap-4 bg-transparent md:flex [&>*]:bg-white/20">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-3.5 w-16" />)}</div>
+        <div className="ml-auto flex items-center gap-3 bg-transparent [&>*]:bg-white/20"><Skeleton className="h-5 w-5 rounded-full" /><Skeleton className="h-7 w-7 rounded-full" /><Skeleton className="hidden h-3 w-24 md:block" /></div>
+      </div>
+      <div className="h-[3px] bg-[hsl(var(--saffron))]" />
+      <aside className="fixed bottom-0 left-0 top-[51px] hidden w-56 border-r bg-white py-3 lg:block">
+        {[1, 4, 1, 2, 2].map((items, g) => (
+          <div key={g} className="mb-3">
+            {g > 0 && <Skeleton className="mx-4 mb-2 mt-3 h-2.5 w-24" />}
+            {Array.from({ length: items }).map((_, i) => (
+              <div key={i} className="flex items-center gap-2.5 px-4 py-[9px]"><Skeleton className="h-4 w-4 shrink-0" /><Skeleton className="h-3 flex-1" />{g === 1 && i > 0 && <Skeleton className="h-3 w-8" />}</div>
+            ))}
+          </div>
+        ))}
+      </aside>
+      <div className="lg:pl-56">
+        <main className="mx-auto max-w-[1500px] p-4 sm:p-6">
+          {skeletonFor(path)}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+/** Plain left-clicks only; ctrl/cmd/middle-click open a new tab and must not trigger the skeleton. */
+const isPlainClick = (e) => e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
 
 const AREAS = [
   { key: 'crm', label: 'CRM', href: '/crm/dashboard', icon: Briefcase },
@@ -65,9 +121,17 @@ function LiveDot() {
 }
 
 function Shell({ area, nav, children }) {
-  const { me, logout } = useAuth();
+  const { me } = useAuth();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  // Destination of an in-flight tab change; the content area shows a skeleton until it arrives.
+  const [pendingHref, setPendingHref] = useState(null);
+  useEffect(() => { setPendingHref(null); }, [pathname]);
+  const navigate = (href) => (e) => {
+    setOpen(false);
+    if (isPlainClick(e) && href !== pathname) setPendingHref(href);
+  };
   const areaLabel = AREAS.find((a) => a.key === area)?.label;
   // Pipeline counts power the sidebar badges (one cheap query, refreshed by socket invalidations of ['leads']).
   const needsCounts = nav.some((g) => g.items.some((i) => i.countKey));
@@ -86,7 +150,7 @@ function Shell({ area, nav, children }) {
                 const c = item.countKey ? pipe?.counts?.[item.countKey] : null;
                 return (
                   <li key={item.href}>
-                    <Link href={item.href} onClick={() => setOpen(false)} className={cn('relative flex items-center gap-2.5 px-4 py-[7px] text-[13px] transition-colors',
+                    <Link href={item.href} onClick={navigate(item.href)} className={cn('relative flex items-center gap-2.5 px-4 py-[7px] text-[13px] transition-colors',
                       active ? 'bg-[hsl(213_70%_95%)] font-semibold text-[hsl(var(--primary))] before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-[hsl(var(--primary))]' : 'text-slate-700 hover:bg-slate-50')}>
                       {item.logo ? <img src={item.logo} alt="" className="h-[18px] w-[18px] shrink-0 object-contain" /> : <item.icon className="h-4 w-4 shrink-0" />}
                       <span className="flex-1 truncate">{item.label}</span>
@@ -118,7 +182,7 @@ function Shell({ area, nav, children }) {
           </Link>
           <div className="ml-3 hidden h-full items-stretch md:flex">
             {AREAS.filter((a) => me?.areas?.[a.key]).map((a) => (
-              <Link key={a.key} href={a.href} className={cn('flex items-center gap-1.5 border-b-2 px-3 text-[12px] font-medium', a.key === area ? 'border-[hsl(var(--saffron))] bg-white/10 text-white' : 'border-transparent text-white/75 hover:bg-white/5 hover:text-white')}>
+              <Link key={a.key} href={a.href} onClick={navigate(a.href)} className={cn('flex items-center gap-1.5 border-b-2 px-3 text-[12px] font-medium', a.key === area ? 'border-[hsl(var(--saffron))] bg-white/10 text-white' : 'border-transparent text-white/75 hover:bg-white/5 hover:text-white')}>
                 <a.icon className="h-3.5 w-3.5" />{a.label}
               </Link>
             ))}
@@ -129,7 +193,7 @@ function Shell({ area, nav, children }) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 rounded px-1.5 py-1">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 text-xs font-semibold ring-1 ring-white/30">{me?.user?.full_name?.[0]?.toUpperCase()}</span>
+                  <UserAvatar src={me?.user?.avatar} name={me?.user?.full_name} className="h-7 w-7 bg-white/15 text-white ring-1 ring-white/30" />
                   <span className="hidden text-left leading-tight md:block">
                     <span className="block text-[12px] font-medium">{me?.user?.full_name}</span>
                     <span className="block text-[10px] text-white/70">{me?.roles?.[0]?.replace(/_/g, ' ').toLowerCase()}</span>
@@ -146,7 +210,7 @@ function Shell({ area, nav, children }) {
                 <DropdownMenuItem asChild><Link href="/crm/settings"><Settings />Settings</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/crm/settings/security"><ShieldCheck />Security &amp; devices</Link></DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout}><LogOut />Sign out</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setLogoutOpen(true)}><LogOut />Log out</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -168,23 +232,25 @@ function Shell({ area, nav, children }) {
         </div>
       )}
       <div className="lg:pl-56">
-        <main className="mx-auto max-w-[1500px] p-4 sm:p-6">{children}</main>
+        <main className="mx-auto max-w-[1500px] p-4 sm:p-6">{pendingHref ? skeletonFor(pendingHref) : children}</main>
       </div>
+      <LogoutDialog open={logoutOpen} onOpenChange={setLogoutOpen} />
     </div>
   );
 }
 
 /** Wraps an area: requires sign-in and the area permission. The API enforces the same rules independently. */
 export function AreaShell({ area, nav, children }) {
-  const { me, loading } = useAuth();
+  const { me, loading, loggingOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   useEffect(() => {
-    if (!loading && !me) router.replace(`/login?next=${encodeURIComponent(pathname)}`);
-  }, [loading, me, router, pathname]);
-  if (loading || !me) {
-    return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+    if (!loading && !me && !loggingOut) router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+  }, [loading, me, loggingOut, router, pathname]);
+  if (loggingOut && !me) {
+    return <div className="flex min-h-screen flex-col items-center justify-center gap-3 text-sm text-muted-foreground"><Loader2 className="h-6 w-6 animate-spin" />Logging out…</div>;
   }
+  if (loading || !me) return <ShellSkeleton path={pathname} />;
   if (!me.areas?.[area]) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 p-6 text-center">

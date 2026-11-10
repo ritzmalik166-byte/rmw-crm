@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { passwordSchema, mobileSchema, emailSchema } from './common.js';
+import { passwordSchema, mobileSchema, emailSchema, avatarSchema } from './common.js';
 
 const id = z.coerce.number().int().positive();
 const optId = id.optional().nullable();
@@ -32,6 +32,9 @@ export const auth = {
     .refine((d) => d.password === d.confirmPassword, { message: 'Passwords do not match', path: ['confirmPassword'] }),
   changePassword: z.object({ currentPassword: z.string().min(1), newPassword: passwordSchema }),
   profile: z.object({ fullName: str(150).min(2) }),
+  avatar: z.object({ avatar: avatarSchema }),
+  mobileChangeRequest: z.object({ mobile: mobileSchema, currentPassword: z.string().min(1).max(128) }),
+  mobileChangeVerify: z.object({ otp: z.string().trim().regex(/^\d{4,8}$/, 'Enter the code you received') }),
 };
 
 export const pagination = z.object({ page: z.coerce.number().int().min(1).default(1), limit: z.coerce.number().int().min(1).max(100).default(25) });
@@ -83,7 +86,7 @@ export const admin = {
     departmentId: optId, teamIds: z.array(id).default([]), websiteIds: z.array(id).default([]),
   }),
   userUpdate: z.object({
-    fullName: str(150).min(2).optional(), email: emailSchema.optional(), mobile: mobileSchema.optional(), roleId: id.optional(),
+    fullName: str(150).min(2).optional(), email: emailSchema.optional(), mobile: mobileSchema.optional(), avatar: avatarSchema.optional(), roleId: id.optional(),
     departmentId: optId, teamIds: z.array(id).optional(), websiteIds: z.array(id).optional(),
   }),
   userStatus: z.object({ status: z.enum(['ACTIVE', 'DISABLED', 'SUSPENDED']), reason: optStr(500) }),

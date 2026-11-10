@@ -46,6 +46,15 @@ export const authController = {
     ok(res, null, 'Profile updated');
   },
 
+  async updateAvatar(req, res) {
+    await userRepo.update(req.auth.user.id, { avatar: req.body.avatar });
+    await audit('USER_UPDATED', { actorId: req.auth.user.id, entityType: 'user', entityId: req.auth.user.id, req, meta: { fields: ['avatar'], self: true, removed: !req.body.avatar } });
+    ok(res, null, req.body.avatar ? 'Profile picture updated' : 'Profile picture removed');
+  },
+
+  async requestMobileChange(req, res) { ok(res, await authService.requestMobileChange(req, req.body), 'Verification code sent to the new number'); },
+  async verifyMobileChange(req, res) { ok(res, await authService.verifyMobileChange(req, req.body), 'Mobile number updated'); },
+
   /** Public data needed by the registration and login screens. */
   async publicConfig(_req, res) {
     const [departments, teams, websites] = await Promise.all([

@@ -6,7 +6,7 @@
   "main": "src/server.js",
   "engines": { "node": ">=20" },
   "scripts": {
-    "dev": "node --watch src/server.js",
+    "dev": "node --use-system-ca --watch src/server.js",
     "start": "node src/server.js",
     "worker": "node src/workers/index.js",
     "migrate": "node src/db/migrate.js",

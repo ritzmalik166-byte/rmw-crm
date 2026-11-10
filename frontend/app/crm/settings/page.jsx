@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { BellRing } from 'lucide-react';
+import { BellRing, Globe, Mail, Phone, Users2 } from 'lucide-react';
 import { api, apiMessage } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
 import { enablePush, disablePush, currentSubscription, pushSupported } from '@/lib/push';
@@ -14,11 +14,42 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Switch } from '@/components/ui/controls';
 import { WebsiteBadge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/feedback';
+import { AvatarUploader } from '@/components/ui/avatar';
 
 const TYPE_LABELS = {
   NEW_LEAD: 'New lead on my websites', LEAD_ASSIGNED: 'Lead assigned to me', LEAD_REASSIGNED: 'Lead reassigned to me',
   FOLLOWUP_DUE: 'Follow-up due soon', FOLLOWUP_OVERDUE: 'Follow-up overdue', SYSTEM: 'System alerts', ACCOUNT_REQUEST: 'New account requests',
 };
+
+function ProfileSummary() {
+  const { me, refetch } = useAuth();
+  const saveAvatar = async (avatar) => {
+    try {
+      await api('/auth/me/avatar', { method: 'PUT', body: { avatar } });
+      toast.success(avatar ? 'Profile picture updated' : 'Profile picture removed');
+      await refetch();
+    } catch (e) { toast.error(apiMessage(e)); throw e; }
+  };
+  const u = me?.user;
+  return (
+    <Card className="overflow-hidden lg:sticky lg:top-20">
+      <div className="h-20 bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(213_60%_45%)]" />
+      <CardContent className="-mt-12 space-y-5">
+        <AvatarUploader src={u?.avatar} name={u?.full_name} onChange={saveAvatar} />
+        <div>
+          <p className="text-lg font-semibold leading-tight">{u?.full_name}</p>
+          <p className="text-sm capitalize text-muted-foreground">{me?.roles?.map((r) => r.replace(/_/g, ' ').toLowerCase()).join(', ')}</p>
+        </div>
+        <dl className="space-y-3 text-sm">
+          <div className="flex items-center gap-2.5"><Mail className="h-4 w-4 shrink-0 text-muted-foreground" /><span className="truncate">{u?.email}</span></div>
+          <div className="flex items-center gap-2.5"><Phone className="h-4 w-4 shrink-0 text-muted-foreground" /><span className="tabular-nums">{u?.mobile}</span></div>
+          {me?.teams?.length > 0 && <div className="flex items-center gap-2.5"><Users2 className="h-4 w-4 shrink-0 text-muted-foreground" /><span>{me.teams.map((t) => t.name).join(', ')}</span></div>}
+          <div className="flex items-center gap-2.5"><Globe className="h-4 w-4 shrink-0 text-muted-foreground" /><div className="flex flex-wrap gap-1.5">{me?.websites?.map((w) => <WebsiteBadge key={w.id} code={w.code} />)}</div></div>
+        </dl>
+      </CardContent>
+    </Card>
+  );
+}
 
 function Profile() {
   const { me, refetch } = useAuth();
@@ -26,13 +57,81 @@ function Profile() {
   const m = useMutation({ mutationFn: () => api('/auth/me', { method: 'PATCH', body: { fullName: name } }), onSuccess: () => { toast.success('Profile updated'); refetch(); }, onError: (e) => toast.error(apiMessage(e)) });
   return (
     <Card>
-      <CardHeader><CardTitle>Profile</CardTitle><CardDescription>Email and mobile changes are made by an administrator.</CardDescription></CardHeader>
-      <CardContent className="grid gap-4 sm:grid-cols-2">
-        <Field label="Full name"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
-        <Field label="Email"><Input value={me?.user?.email || ''} disabled /></Field>
-        <Field label="Mobile"><Input value={me?.user?.mobile || ''} disabled /></Field>
-        <Field label="Website access"><div className="flex h-9 items-center gap-1.5">{me?.websites?.map((w) => <WebsiteBadge key={w.id} code={w.code} />)}</div></Field>
-        <div className="sm:col-span-2"><Button onClick={() => m.mutate()} loading={m.isPending} disabled={!name.trim() || name === me?.user?.full_name}>Save</Button></div>
+      <CardHeader><CardTitle>Profile</CardTitle><CardDescription>Your email address can only be changed by an administrator.</CardDescription></CardHeader>
+      <CardContent>
+        <form className="grid gap-4 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); m.mutate(); }}>
+          <Field label="Full name"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
+          <Field label="Email"><Input value={me?.user?.email || ''} disabled /></Field>
+          <div className="sm:col-span-2"><Button type="submit" loading={m.isPending} disabled={!name.trim() || name === me?.user?.full_name}>Save</Button></div>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Two steps: new number + current password, then the OTP sent to the new number. */
+function MobileNumber() {
+  const { me, refetch } = useAuth();
+  const [step, setStep] = useState('view'); // view | form | otp
+  const [mobile, setMobile] = useState('');
+  const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
+  const [sent, setSent] = useState(null);
+  const [cooldown, setCooldown] = useState(0);
+  useEffect(() => {
+    if (cooldown <= 0) return undefined;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+  const reset = () => { setStep('view'); setMobile(''); setPassword(''); setOtp(''); setSent(null); };
+
+  const request = useMutation({
+    mutationFn: () => api('/auth/me/mobile/request', { method: 'POST', body: { mobile, currentPassword: password } }),
+    onSuccess: (r) => { setSent(r); setCooldown(r?.resendIn || 60); setStep('otp'); toast.success(`Code sent to ${r.maskedMobile}`); },
+    onError: (e) => { toast.error(apiMessage(e)); if (e.details?.retryAfter) setCooldown(e.details.retryAfter); },
+  });
+  const verify = useMutation({
+    mutationFn: () => api('/auth/me/mobile/verify', { method: 'POST', body: { otp } }),
+    onSuccess: async () => { toast.success('Mobile number updated'); await refetch(); reset(); },
+    onError: (e) => { toast.error(apiMessage(e)); if (e.errorCode === 'CHALLENGE_EXPIRED') setStep('form'); },
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Mobile number</CardTitle>
+        <CardDescription>Used for sign-in codes. A new number must be verified with a code sent to it.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {step === 'view' && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-4 py-3">
+            <div className="flex items-center gap-3"><Phone className="h-4 w-4 text-muted-foreground" /><span className="font-medium tabular-nums">{me?.user?.mobile}</span></div>
+            <Button variant="outline" size="sm" onClick={() => setStep('form')}>Change number</Button>
+          </div>
+        )}
+        {step === 'form' && (
+          <form className="grid gap-4 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); request.mutate(); }}>
+            <Field label="New mobile number"><Input type="tel" inputMode="tel" autoComplete="tel" placeholder="98XXXXXXXX" value={mobile} onChange={(e) => setMobile(e.target.value)} required autoFocus /></Field>
+            <Field label="Current password" hint="Confirms it's really you"><Input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></Field>
+            <div className="flex gap-2 sm:col-span-2">
+              <Button type="submit" loading={request.isPending} disabled={cooldown > 0}>{request.isPending ? 'Sending code…' : cooldown > 0 ? `Send code (${cooldown}s)` : 'Send code'}</Button>
+              <Button type="button" variant="ghost" onClick={reset}>Cancel</Button>
+            </div>
+          </form>
+        )}
+        {step === 'otp' && (
+          <form className="max-w-sm space-y-4" onSubmit={(e) => { e.preventDefault(); verify.mutate(); }}>
+            <p className="text-sm text-muted-foreground">Enter the code sent to <span className="font-medium text-foreground">{sent?.maskedMobile}</span>.</p>
+            <Field label="Verification code"><Input inputMode="numeric" autoComplete="one-time-code" maxLength={8} autoFocus value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} className="text-center text-lg tracking-[0.4em]" required /></Field>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="submit" loading={verify.isPending} disabled={otp.length < 4}>{verify.isPending ? 'Verifying…' : 'Verify and update'}</Button>
+              <Button type="button" variant="ghost" onClick={reset}>Cancel</Button>
+              <button type="button" className="ml-auto text-sm font-medium disabled:text-muted-foreground" disabled={cooldown > 0 || request.isPending} onClick={() => request.mutate()}>
+                {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
+              </button>
+            </div>
+          </form>
+        )}
       </CardContent>
     </Card>
   );
@@ -121,11 +220,15 @@ function NotificationPrefs() {
 export default function SettingsPage() {
   return (
     <>
-      <PageHeader title="Settings" />
-      <div className="max-w-4xl space-y-5">
-        <Profile />
-        <ChangePassword />
-        <NotificationPrefs />
+      <PageHeader title="Settings" description="Manage your profile, sign-in details and notifications." />
+      <div className="grid items-start gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <ProfileSummary />
+        <div className="min-w-0 space-y-5">
+          <Profile />
+          <MobileNumber />
+          <ChangePassword />
+          <NotificationPrefs />
+        </div>
       </div>
     </>
   );

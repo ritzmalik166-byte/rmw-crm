@@ -13,6 +13,7 @@ import { Field } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { AccountStatusBadge, WebsiteBadge, Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { AvatarUploader, UserAvatar } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/controls';
 import { EmptyState, ErrorState, PageHeader, Pagination, TableSkeleton } from '@/components/ui/feedback';
@@ -24,9 +25,9 @@ function UserDialog({ userId, onClose, superAdmin }) {
   const { me } = useAuth();
   const editing = Boolean(userId);
   const { data: existing } = useQuery({ queryKey: ['admin', 'user', userId], queryFn: () => api(`/admin/users/${userId}`), enabled: editing });
-  const [f, setF] = useState({ fullName: '', email: '', mobile: '', password: '', roleId: '', departmentId: '', teamIds: [], websiteIds: [] });
+  const [f, setF] = useState({ fullName: '', email: '', mobile: '', avatar: null, password: '', roleId: '', departmentId: '', teamIds: [], websiteIds: [] });
   useEffect(() => {
-    if (existing) setF({ fullName: existing.full_name, email: existing.email, mobile: existing.mobile, password: '', roleId: String(existing.roleIds[0] || ''), departmentId: existing.department_id ? String(existing.department_id) : '', teamIds: existing.teamIds, websiteIds: existing.websiteIds });
+    if (existing) setF({ fullName: existing.full_name, email: existing.email, mobile: existing.mobile, avatar: existing.avatar || null, password: '', roleId: String(existing.roleIds[0] || ''), departmentId: existing.department_id ? String(existing.department_id) : '', teamIds: existing.teamIds, websiteIds: existing.websiteIds });
   }, [existing]);
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
   // Only offer roles below the caller's own level; the API enforces the same rule.
@@ -35,7 +36,7 @@ function UserDialog({ userId, onClose, superAdmin }) {
 
   const m = useMutation({
     mutationFn: () => {
-      const body = { fullName: f.fullName, email: f.email, mobile: f.mobile, roleId: Number(f.roleId), departmentId: f.departmentId ? Number(f.departmentId) : null, teamIds: f.teamIds, websiteIds: f.websiteIds };
+      const body = { fullName: f.fullName, email: f.email, mobile: f.mobile, ...(editing && f.avatar !== (existing?.avatar || null) ? { avatar: f.avatar } : {}), roleId: Number(f.roleId), departmentId: f.departmentId ? Number(f.departmentId) : null, teamIds: f.teamIds, websiteIds: f.websiteIds };
       return editing ? api(`/admin/users/${userId}`, { method: 'PATCH', body }) : api('/admin/users', { method: 'POST', body: { ...body, password: f.password } });
     },
     onSuccess: () => { toast.success(editing ? 'User updated' : 'User created'); qc.invalidateQueries({ queryKey: ['admin', 'users'] }); qc.invalidateQueries({ queryKey: ['admin', 'user', userId] }); onClose(); },
@@ -47,9 +48,10 @@ function UserDialog({ userId, onClose, superAdmin }) {
       <DialogContent className="max-w-2xl">
         <DialogHeader><DialogTitle>{editing ? 'Edit user' : 'Create user'}</DialogTitle>{!editing && <DialogDescription>The account is active immediately. The first sign-in needs an OTP to the mobile number.</DialogDescription>}</DialogHeader>
         <form className="grid gap-3 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); m.mutate(); }}>
+          {editing && <div className="sm:col-span-2"><AvatarUploader size="h-16 w-16 text-lg" src={f.avatar} name={f.fullName} onChange={(avatar) => setF((s) => ({ ...s, avatar }))} /></div>}
           <Field label="Full name"><Input value={f.fullName} onChange={set('fullName')} required /></Field>
           <Field label="Email"><Input type="email" value={f.email} onChange={set('email')} required /></Field>
-          <Field label="Mobile"><Input value={f.mobile} onChange={set('mobile')} required /></Field>
+          <Field label="Mobile" hint={editing ? 'Changing it here skips OTP verification.' : undefined}><Input type="tel" value={f.mobile} onChange={set('mobile')} required /></Field>
           {!editing && <Field label="Initial password" hint="10+ chars, upper, lower, number"><Input type="password" autoComplete="new-password" value={f.password} onChange={set('password')} required /></Field>}
           <Field label="Role">
             <Select value={f.roleId} onChange={set('roleId')} required>
@@ -117,7 +119,7 @@ export function UsersManager({ superAdmin = false }) {
             <TableBody>
               {data.rows.map((u) => (
                 <TableRow key={u.id}>
-                  <TableCell><div className="font-medium">{u.full_name}{u.id === me?.user?.id && <span className="ml-1 text-xs text-muted-foreground">(you)</span>}</div><div className="text-xs text-muted-foreground">{u.email} · {u.mobile}</div></TableCell>
+                  <TableCell><div className="flex items-center gap-2.5"><UserAvatar src={u.avatar} name={u.full_name} /><div className="min-w-0"><div className="font-medium">{u.full_name}{u.id === me?.user?.id && <span className="ml-1 text-xs text-muted-foreground">(you)</span>}</div><div className="text-xs text-muted-foreground">{u.email} · {u.mobile}</div></div></div></TableCell>
                   <TableCell>{u.roles?.split(',').map((r) => <Badge key={r} variant={r === 'SUPER_ADMIN' ? 'default' : r === 'ADMIN' ? 'info' : 'secondary'} className="mr-1">{r.replace('_', ' ').toLowerCase()}</Badge>)}</TableCell>
                   <TableCell><div className="flex gap-1">{u.websites?.split(',').map((c) => <WebsiteBadge key={c} code={c} />)}</div></TableCell>
                   <TableCell className="text-sm"><div>{u.department_name || '—'}</div><div className="text-xs text-muted-foreground">{u.teams}</div></TableCell>

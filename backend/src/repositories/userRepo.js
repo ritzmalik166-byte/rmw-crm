@@ -1,6 +1,6 @@
 import { query, one } from '../config/db.js';
 
-const PUBLIC_COLS = 'u.id, u.full_name, u.email, u.mobile, u.status, u.department_id, u.last_login_at, u.created_at, u.updated_at';
+const PUBLIC_COLS = 'u.id, u.full_name, u.email, u.mobile, u.avatar, u.status, u.department_id, u.last_login_at, u.created_at, u.updated_at';
 
 export const userRepo = {
   findById: (id, conn) => one(`SELECT ${PUBLIC_COLS} FROM users u WHERE u.id = ?`, [id], conn),
@@ -18,7 +18,7 @@ export const userRepo = {
   },
 
   async update(id, fields, conn) {
-    const map = { fullName: 'full_name', email: 'email', mobile: 'mobile', status: 'status', departmentId: 'department_id' };
+    const map = { fullName: 'full_name', email: 'email', mobile: 'mobile', avatar: 'avatar', status: 'status', departmentId: 'department_id' };
     const sets = []; const params = [];
     for (const [k, col] of Object.entries(map)) {
       if (fields[k] !== undefined) { sets.push(`${col} = ?`); params.push(fields[k]); }

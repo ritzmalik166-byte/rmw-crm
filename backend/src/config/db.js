@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import tls from 'node:tls';
 import mysql from 'mysql2/promise';
 import { env } from './env.js';
 import { logger } from './logger.js';
@@ -19,8 +20,16 @@ export function sslOptions() {
   if (!env.DB_SSL) return undefined;
 
   if (env.DB_SSL_CA) {
+    // Trust the Aiven CA plus the OS certificate store, so networks that
+    // re-sign TLS (e.g. office firewall SSL inspection) still verify.
+    let systemCas = [];
+    try {
+      systemCas = tls.getCACertificates?.('system') ?? [];
+    } catch {
+      // older Node: fall back to the Aiven CA only
+    }
     return {
-      ca: loadCa(env.DB_SSL_CA),
+      ca: [loadCa(env.DB_SSL_CA), ...systemCas],
       rejectUnauthorized: true,
     };
   }

@@ -9,7 +9,7 @@ import { Input, Select, Textarea } from '@/components/ui/input';
 import { Field } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
-export function AssignDialog({ open, onOpenChange, leadIds, websiteId, onDone }) {
+export function AssignDialog({ open, onOpenChange, leadIds, websiteId, onDone, currentOwner, leadName }) {
   const { data: lk } = useLookups();
   const qc = useQueryClient();
   const [userId, setUserId] = useState('');
@@ -20,7 +20,7 @@ export function AssignDialog({ open, onOpenChange, leadIds, websiteId, onDone })
       : api('/crm/leads/bulk', { method: 'POST', body: { ids: leadIds, action: 'assign', userId: userId ? Number(userId) : null } })),
     onSuccess: (r) => {
       if (r?.failed?.length) toast.warning(`${r.updated} updated, ${r.failed.length} failed`, { description: r.failed[0].message });
-      else toast.success('Assignment updated');
+      else toast.success(currentOwner ? 'Lead transferred' : 'Assignment updated');
       qc.invalidateQueries({ queryKey: ['leads'] });
       qc.invalidateQueries({ queryKey: ['lead'] });
       onOpenChange(false); onDone?.();
@@ -31,19 +31,22 @@ export function AssignDialog({ open, onOpenChange, leadIds, websiteId, onDone })
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{leadIds.length > 1 ? `Assign ${leadIds.length} leads` : 'Assign lead'}</DialogTitle>
-          <DialogDescription>Only users with access to the lead&apos;s website can be assigned.</DialogDescription>
+          <DialogTitle>{leadIds.length > 1 ? `Assign ${leadIds.length} leads` : currentOwner ? 'Transfer lead' : 'Assign lead'}</DialogTitle>
+          <DialogDescription>
+            {currentOwner ? <>Move {leadName ? <b>{leadName}</b> : 'this lead'} from <b>{currentOwner.name}</b> to another team member. </> : null}
+            Only users with access to the lead&apos;s website can be assigned.
+          </DialogDescription>
         </DialogHeader>
-        <Field label="Assign to">
+        <Field label={currentOwner ? 'Transfer to' : 'Assign to'}>
           <Select value={userId} onChange={(e) => setUserId(e.target.value)}>
-            <option value="">Unassigned</option>
-            {lk?.users?.map((u) => <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>)}
+            <option value="">{currentOwner ? 'Select a team member…' : 'Unassigned'}</option>
+            {lk?.users?.filter((u) => u.id !== currentOwner?.id).map((u) => <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>)}
           </Select>
         </Field>
         {leadIds.length === 1 && <Field label="Reason (optional)"><Input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={255} /></Field>}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button loading={m.isPending} onClick={() => m.mutate()}>Save</Button>
+          <Button loading={m.isPending} disabled={Boolean(currentOwner) && !userId} onClick={() => m.mutate()}>{currentOwner ? 'Transfer' : 'Save'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

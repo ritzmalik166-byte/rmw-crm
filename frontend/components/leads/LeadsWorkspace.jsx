@@ -2,8 +2,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
-import { Download, Plus, Search, UserPlus, Tag, Copy, X, Phone, Mail, CalendarClock, SlidersHorizontal, RefreshCw } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { Download, Plus, Search, UserPlus, Tag, Copy, X, Phone, Mail, CalendarClock, SlidersHorizontal, RefreshCw, ArrowRightLeft, ChevronDown, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, apiMessage } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
@@ -12,11 +12,44 @@ import { PIPELINES, PIPELINE_ORDER, PipelineLogo } from '@/lib/pipelines';
 import { cn, formatDateTime, timeAgo, toQuery } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/controls';
+import { Checkbox, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/controls';
 import { StatusBadge, WebsiteBadge, Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState, ErrorState, Pagination, TableSkeleton } from '@/components/ui/feedback';
 import { AssignDialog, BulkStatusDialog, CreateLeadDialog } from '@/components/leads/LeadForms';
+
+/** Status badge that doubles as a one-click status picker for users who can edit leads. */
+function StatusCell({ lead, editable }) {
+  const qc = useQueryClient();
+  const { data: lk } = useLookups();
+  const m = useMutation({
+    mutationFn: (statusId) => api(`/crm/leads/${lead.id}`, { method: 'PATCH', body: { statusId } }),
+    onSuccess: (_r, statusId) => { toast.success(`Status set to ${lk?.statuses?.find((s) => s.id === statusId)?.name || 'updated'}`); qc.invalidateQueries({ queryKey: ['leads'] }); qc.invalidateQueries({ queryKey: ['lead'] }); },
+    onError: (e) => toast.error(apiMessage(e)),
+  });
+  const badge = <StatusBadge name={lead.status_name} color={lead.status_color} />;
+  if (!editable) return badge;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="group inline-flex items-center gap-0.5 rounded disabled:opacity-60" disabled={m.isPending} aria-label={`Change status of ${lead.name || 'lead'}`}>
+          {badge}<ChevronDown className="h-3 w-3 text-slate-400 group-hover:text-slate-700" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-48">
+        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Change status</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {lk?.statuses?.filter((s) => s.is_active).map((s) => (
+          <DropdownMenuItem key={s.id} onSelect={() => s.id !== lead.status_id && m.mutate(s.id)}>
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.color || '#94a3b8' }} />
+            <span className="flex-1">{s.name}</span>
+            {s.id === lead.status_id && <Check className="text-[hsl(var(--primary))]" />}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 const JUNK_LABELS = { career: 'Job application', job_seeker: 'Job seeker / vendor', spam: 'Spam', test: 'Test', internal: 'Internal', repeat: 'Repeat submit', bad_phone: 'Fake phone', bad_name: 'Bad name', empty: 'Empty' };
 const FILTER_KEYS = ['search', 'view', 'websiteId', 'statusId', 'source', 'campaign', 'interest', 'formType', 'assignedUserId', 'from', 'to', 'duplicates', 'junk', 'sort', 'dir', 'page'];
@@ -72,6 +105,7 @@ export function LeadsWorkspace({ pipelineKey = 'all' }) {
   const debounced = useDebounced(search);
   const [selected, setSelected] = useState([]);
   const [dialog, setDialog] = useState(null);
+  const [rowLead, setRowLead] = useState(null); // lead being transferred from its row
   const [moreFilters, setMoreFilters] = useState(false);
 
   const setFilter = (patch) => {
@@ -257,8 +291,17 @@ export function LeadsWorkspace({ pipelineKey = 'all' }) {
                           {l.campaign && <div className="truncate text-[11px] text-slate-500" title={l.campaign}>{l.campaign}</div>}
                         </TableCell>
                       )}
-                      <TableCell><StatusBadge name={l.status_name} color={l.status_color} /></TableCell>
-                      <TableCell className="whitespace-nowrap">{l.assigned_user_name ? (l.assigned_user_id === me?.user?.id ? <span className="font-medium">You</span> : l.assigned_user_name) : <span className="text-amber-700">Unassigned</span>}</TableCell>
+                      <TableCell><StatusCell lead={l} editable={can('lead.edit')} /></TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <span>{l.assigned_user_name ? (l.assigned_user_id === me?.user?.id ? <span className="font-medium">You</span> : l.assigned_user_name) : <span className="text-amber-700">Unassigned</span>}</span>
+                          {(l.assigned_user_id ? can('lead.reassign') : can('lead.assign')) && (
+                            <button className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-[hsl(var(--primary))]" onClick={() => setRowLead(l)} title={l.assigned_user_id ? 'Transfer lead' : 'Assign lead'} aria-label={`${l.assigned_user_id ? 'Transfer' : 'Assign'} ${l.name || 'lead'}`}>
+                              {l.assigned_user_id ? <ArrowRightLeft className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
+                            </button>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell><FollowupCell at={l.next_followup_at} /></TableCell>
                       <TableCell className="whitespace-nowrap" title={`Imported to CRM: ${formatDateTime(l.created_at)}`}>
                         <div>{formatDateTime(l.received_at || l.created_at)}</div>
@@ -276,6 +319,7 @@ export function LeadsWorkspace({ pipelineKey = 'all' }) {
 
       <CreateLeadDialog open={dialog === 'create'} onOpenChange={(o) => !o && setDialog(null)} />
       <AssignDialog open={dialog === 'assign'} onOpenChange={(o) => !o && setDialog(null)} leadIds={selected} onDone={() => setSelected([])} />
+      {rowLead && <AssignDialog open onOpenChange={(o) => !o && setRowLead(null)} leadIds={[rowLead.id]} currentOwner={rowLead.assigned_user_id ? { id: rowLead.assigned_user_id, name: rowLead.assigned_user_name } : null} leadName={rowLead.name} />}
       <BulkStatusDialog open={dialog === 'status'} onOpenChange={(o) => !o && setDialog(null)} leadIds={selected} onDone={() => setSelected([])} />
     </div>
   );

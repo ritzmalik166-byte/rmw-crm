@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { usePathname, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -32,11 +32,16 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener('crm:unauthorized', onUnauthorized);
   }, [qc, router]);
 
+  const [loggingOut, setLoggingOut] = useState(false);
   const logout = useCallback(async () => {
+    setLoggingOut(true);
     try { await api('/auth/logout', { method: 'POST' }); } catch { /* session may already be gone */ }
     qc.clear();
     router.replace('/login');
   }, [qc, router]);
+
+  // Reset once the login page is reached so the next session starts clean.
+  useEffect(() => { if (isPublic) setLoggingOut(false); }, [isPublic]);
 
   const value = useMemo(() => {
     const perms = new Set(me?.permissions || []);
@@ -47,8 +52,9 @@ export function AuthProvider({ children }) {
       canAny: (...p) => p.some((x) => perms.has(x)),
       refetch,
       logout,
+      loggingOut,
     };
-  }, [me, isLoading, isPublic, refetch, logout]);
+  }, [me, isLoading, isPublic, refetch, logout, loggingOut]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

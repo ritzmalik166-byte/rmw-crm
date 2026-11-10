@@ -37,3 +37,9 @@ export const validate = (schema, part = 'body') => (req, _res, next) => {
   else req[part] = result.data;
   return next();
 };
+
+/** Profile picture as a base64 data URL; the client resizes it first. null removes the picture. */
+export const avatarSchema = z.string()
+  .max(150_000, 'Image is too large. Use a picture under 100 KB after resizing.')
+  .regex(/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/, 'Upload a PNG, JPEG or WebP image')
+  .nullable();

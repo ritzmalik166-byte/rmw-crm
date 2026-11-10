@@ -117,7 +117,7 @@ export const userAdminService = {
       if (clash) throw conflict('Email or mobile already in use', 'ACCOUNT_EXISTS');
     }
     await transaction(async (conn) => {
-      await userRepo.update(id, { fullName: data.fullName, email: data.email, mobile: data.mobile, departmentId: data.departmentId }, conn);
+      await userRepo.update(id, { fullName: data.fullName, email: data.email, mobile: data.mobile, avatar: data.avatar, departmentId: data.departmentId }, conn);
       if (data.roleId) await userRepo.setRoles(id, [data.roleId], conn);
       if (data.websiteIds) await userRepo.setWebsites(id, data.websiteIds, conn);
       if (data.teamIds) await userRepo.setTeams(id, data.teamIds, conn);

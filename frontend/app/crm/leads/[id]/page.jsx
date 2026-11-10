@@ -16,6 +16,7 @@ import { StatusBadge, WebsiteBadge, Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/controls';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ErrorState, Skeleton, EmptyState } from '@/components/ui/feedback';
+import { LeadDetailSkeleton } from '@/components/ui/skeletons';
 import { AssignDialog } from '@/components/leads/LeadForms';
 
 function Row({ label, value, mono }) {
@@ -128,7 +129,7 @@ export default function LeadDetailPage({ params }) {
     onError: (e) => toast.error(apiMessage(e)),
   });
 
-  if (isLoading) return <div className="space-y-4"><Skeleton className="h-8 w-64" /><Skeleton className="h-40 w-full" /><Skeleton className="h-64 w-full" /></div>;
+  if (isLoading) return <LeadDetailSkeleton />;
   if (isError) return <Card><ErrorState error={error} onRetry={refetch} /></Card>;
 
   const a = lead.attribution || {};
@@ -168,7 +169,7 @@ export default function LeadDetailPage({ params }) {
                 {lk?.statuses?.filter((s) => s.is_active || s.id === lead.status_id).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </Select>
             )}
-            {((lead.assigned_user_id ? can('lead.reassign') : can('lead.assign'))) && <Button variant="outline" onClick={() => setDialog('assign')}><UserPlus />{lead.assigned_user_id ? 'Reassign' : 'Assign'}</Button>}
+            {((lead.assigned_user_id ? can('lead.reassign') : can('lead.assign'))) && <Button variant="outline" onClick={() => setDialog('assign')}><UserPlus />{lead.assigned_user_id ? 'Transfer lead' : 'Assign'}</Button>}
             {can('lead.edit') && <Button variant="outline" onClick={() => setDialog('edit')}><Pencil />Edit</Button>}
           </div>
         </div>
@@ -321,7 +322,7 @@ export default function LeadDetailPage({ params }) {
         </div>
       </div>
 
-      <AssignDialog open={dialog === 'assign'} onOpenChange={(o) => !o && setDialog(null)} leadIds={[lead.id]} />
+      <AssignDialog open={dialog === 'assign'} onOpenChange={(o) => !o && setDialog(null)} leadIds={[lead.id]} currentOwner={lead.assigned_user_id ? { id: lead.assigned_user_id, name: lead.assigned_user_name } : null} leadName={lead.name} />
       {dialog === 'edit' && <EditDialog lead={lead} open onOpenChange={(o) => !o && setDialog(null)} />}
     </div>
   );

@@ -266,5 +266,44 @@ export const authService = {
     await audit('PASSWORD_CHANGED', { actorId: user.id, entityType: 'user', entityId: user.id, req });
   },
 
+  /** Step 1 of a self-service mobile change: confirm the password, then send an OTP to the NEW number. */
+  async requestMobileChange(req, { mobile, currentPassword }) {
+    const user = await userRepo.findAuthById(req.auth.user.id);
+    if (!(await bcrypt.compare(currentPassword, user.password_hash))) throw badRequest('Current password is incorrect', 'INVALID_PASSWORD');
+    if (mobile === user.mobile) throw badRequest('This is already your mobile number', 'MOBILE_UNCHANGED');
+    const [clash] = await query('SELECT id FROM users WHERE mobile = ? AND id <> ?', [mobile, user.id]);
+    if (clash) throw conflict('This mobile number is already used by another account', 'MOBILE_IN_USE');
+
+    // Only one pending change at a time.
+    await query("UPDATE auth_challenges SET consumed_at = NOW(3) WHERE user_id = ? AND purpose = 'MOBILE_CHANGE' AND consumed_at IS NULL", [user.id]);
+    const challengeId = await challengeRepo.create({
+      userId: user.id, purpose: 'MOBILE_CHANGE', tokenHash: sha256(randomToken(32)), deviceHash: null,
+      ip: clientIp(req), expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+    });
+    const r = await otpService.issue({ challengeId, userId: user.id, mobile, purpose: 'MOBILE_CHANGE', ip: clientIp(req) });
+    return { ...r, maskedMobile: maskMobile(mobile) };
+  },
+
+  /** Step 2: verify the OTP sent to the new number and switch the account to it. */
+  async verifyMobileChange(req, { otp }) {
+    const userId = req.auth.user.id;
+    const [challenge] = await query(
+      "SELECT * FROM auth_challenges WHERE user_id = ? AND purpose = 'MOBILE_CHANGE' AND consumed_at IS NULL AND expires_at > NOW(3) ORDER BY id DESC LIMIT 1",
+      [userId],
+    );
+    if (!challenge) throw badRequest('This request has expired. Start the mobile change again.', 'CHALLENGE_EXPIRED');
+    const attempt = await otpService.verify({ challengeId: challenge.id, otp });
+    const [clash] = await query('SELECT id FROM users WHERE mobile = ? AND id <> ?', [attempt.mobile, userId]);
+    if (clash) throw conflict('This mobile number is already used by another account', 'MOBILE_IN_USE');
+    const before = req.auth.user.mobile;
+    await transaction(async (conn) => {
+      await otpRepo.markVerified(attempt.id, conn);
+      await challengeRepo.consume(challenge.id, conn);
+      await userRepo.update(userId, { mobile: attempt.mobile }, conn);
+    });
+    await audit('USER_UPDATED', { actorId: userId, entityType: 'user', entityId: userId, req, meta: { fields: ['mobile'], self: true, from: maskMobile(before), to: maskMobile(attempt.mobile) } });
+    return { mobile: attempt.mobile };
+  },
+
   hashPassword: (pw) => bcrypt.hash(pw, BCRYPT_ROUNDS),
 };

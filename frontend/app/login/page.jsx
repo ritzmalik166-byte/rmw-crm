@@ -3,7 +3,7 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Smartphone, Mail, ShieldCheck } from 'lucide-react';
+import { Smartphone, Mail, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { api, apiMessage } from '@/lib/api';
 import { AuthCard, FormError } from '@/components/auth/AuthCard';
 import { Button } from '@/components/ui/button';
@@ -35,11 +35,12 @@ function OtpStep({ info, onBack, onDone }) {
     setError(''); setBusy(true);
     try {
       await api('/auth/otp/verify', { method: 'POST', body: { otp, trustDevice: trust, trustDays: Number(days || cfg?.trustedDeviceDefault) } });
-      onDone();
+      await onDone(); // stay busy while redirecting
     } catch (err) {
       setError(apiMessage(err));
+      setBusy(false);
       if (err.errorCode === 'CHALLENGE_EXPIRED') setTimeout(onBack, 1500);
-    } finally { setBusy(false); }
+    }
   };
 
   const resend = async () => {
@@ -81,7 +82,7 @@ function OtpStep({ info, onBack, onDone }) {
         )}
         <p className="pl-6 text-xs text-muted-foreground">Only on a computer or phone you use personally.</p>
       </div>
-      <Button type="submit" className="w-full" loading={busy} disabled={otp.length < 4}>Verify and sign in</Button>
+      <Button type="submit" className="w-full" loading={busy} disabled={otp.length < 4}>{busy ? 'Signing in…' : 'Verify and sign in'}</Button>
       <div className="flex items-center justify-between text-sm">
         <button type="button" className="text-muted-foreground hover:text-foreground" onClick={onBack}>Back</button>
         <button type="button" className="font-medium disabled:text-muted-foreground" disabled={cooldown > 0} onClick={resend}>
@@ -99,6 +100,7 @@ function LoginInner() {
   const [mode, setMode] = useState('password');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPw, setShowPw] = useState(false);
   const [mobile, setMobile] = useState('');
   const [otpInfo, setOtpInfo] = useState(null);
   const [error, setError] = useState('');
@@ -114,8 +116,8 @@ function LoginInner() {
     setError(''); setBusy(true);
     try {
       const r = await api('/auth/login', { method: 'POST', body: { email, password } });
-      if (r.requiresOtp) setOtpInfo(r); else await done();
-    } catch (err) { setError(apiMessage(err)); } finally { setBusy(false); }
+      if (r.requiresOtp) { setOtpInfo(r); setBusy(false); } else await done(); // stay busy while redirecting
+    } catch (err) { setError(apiMessage(err)); setBusy(false); }
   };
 
   const sendOtp = async (e) => {
@@ -149,16 +151,16 @@ function LoginInner() {
       {mode === 'password' ? (
         <form onSubmit={loginPassword} className="mt-4 space-y-4">
           <Field label="Email" htmlFor="email"><Input id="email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus /></Field>
-          <Field label="Password" htmlFor="password"><Input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></Field>
+          <Field label="Password" htmlFor="password"><div className="relative"><Input id="password" type={showPw ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} className="pr-10" required /><button type="button" onClick={() => setShowPw((v) => !v)} aria-label={showPw ? 'Hide password' : 'Show password'} className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-800">{showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div></Field>
           <div className="flex justify-end"><Link href="/forgot-password" className="text-sm text-muted-foreground hover:text-foreground">Forgot password?</Link></div>
-          <Button type="submit" className="w-full" loading={busy}>Sign in</Button>
+          <Button type="submit" className="w-full" loading={busy}>{busy ? 'Signing in…' : 'Sign in'}</Button>
         </form>
       ) : (
         <form onSubmit={sendOtp} className="mt-4 space-y-4">
           <Field label="Mobile number" htmlFor="mobile" hint="We'll send a one-time code to your registered number.">
             <Input id="mobile" type="tel" inputMode="tel" autoComplete="tel" placeholder="98XXXXXXXX" value={mobile} onChange={(e) => setMobile(e.target.value)} required autoFocus />
           </Field>
-          <Button type="submit" className="w-full" loading={busy}>Send code</Button>
+          <Button type="submit" className="w-full" loading={busy}>{busy ? 'Sending code…' : 'Send code'}</Button>
         </form>
       )}
     </AuthCard>

@@ -7,7 +7,8 @@ import { useAuth } from '@/providers/AuthProvider';
 import { PIPELINES, PIPELINE_ORDER, PipelineLogo } from '@/lib/pipelines';
 import { cn, timeAgo, titleCase, formatDate } from '@/lib/utils';
 import { StatusBadge, WebsiteBadge } from '@/components/ui/badge';
-import { EmptyState, ErrorState, Skeleton } from '@/components/ui/feedback';
+import { EmptyState, ErrorState } from '@/components/ui/feedback';
+import { DashboardSkeleton } from '@/components/ui/skeletons';
 
 
 function Panel({ title, action, children, className }) {
@@ -40,7 +41,7 @@ export default function CrmDashboard() {
   const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: ['dashboard', 'crm'], queryFn: () => api('/crm/dashboard'), refetchInterval: 60_000 });
   const { data: pipe } = useQuery({ queryKey: ['leads', 'pipelines'], queryFn: () => api('/crm/pipelines'), refetchInterval: 60_000 });
 
-  if (isLoading) return <div className="space-y-3"><Skeleton className="h-10" /><Skeleton className="h-48" /><Skeleton className="h-20" /></div>;
+  if (isLoading) return <DashboardSkeleton />;
   if (isError) return <div className="panel"><ErrorState error={error} onRetry={refetch} /></div>;
 
   const { mine, team, activity } = data;
