@@ -25,6 +25,8 @@ r.post('/change-password', validate(s.changePassword), h(c.changePassword));
 r.put('/me/avatar', validate(s.avatar), h(c.updateAvatar));
 r.post('/me/mobile/request', limiters.otpSend, validate(s.mobileChangeRequest), h(c.requestMobileChange));
 r.post('/me/mobile/verify', limiters.otpVerify, validate(s.mobileChangeVerify), h(c.verifyMobileChange));
+r.post('/me/email/request', limiters.otpSend, validate(s.emailChangeRequest), h(c.requestEmailChange));
+r.post('/me/email/verify', limiters.otpVerify, validate(s.emailChangeVerify), h(c.verifyEmailChange));
 r.post('/device/trust', validate(s.trust), h(c.trustDevice));
 r.get('/sessions', h(c.sessions));
 r.delete('/sessions/:id', h(c.revokeSession));

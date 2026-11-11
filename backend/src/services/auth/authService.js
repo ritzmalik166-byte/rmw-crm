@@ -9,11 +9,11 @@ import { audit } from '../auditService.js';
 import { settingsService } from '../settingsService.js';
 import { notificationService } from '../../notifications/notificationService.js';
 import { emailService } from '../../notifications/emailService.js';
-import { randomToken, sha256 } from '../../utils/crypto.js';
+import { randomToken, sha256, hmacSha256, randomDigits, safeEqual } from '../../utils/crypto.js';
 import { describeDevice } from '../../utils/device.js';
 import { maskMobile } from '../../utils/normalize.js';
 import { clientIp } from '../../utils/http.js';
-import { AppError, unauthorized, conflict, badRequest, forbidden } from '../../utils/errors.js';
+import { AppError, unauthorized, conflict, badRequest, forbidden, tooMany } from '../../utils/errors.js';
 
 const BCRYPT_ROUNDS = 12;
 const CHALLENGE_TTL_MS = 10 * 60 * 1000;
@@ -300,6 +300,66 @@ export const authService = {
     });
     await audit('USER_UPDATED', { actorId: userId, entityType: 'user', entityId: userId, req, meta: { fields: ['mobile'], self: true, from: maskMobile(before), to: maskMobile(attempt.mobile) } });
     return { mobile: attempt.mobile };
+  },
+
+  /** Step 1 of a self-service email change: confirm the password, then email an OTP to the NEW address. */
+  async requestEmailChange(req, { email, currentPassword }) {
+    const user = await userRepo.findAuthById(req.auth.user.id);
+    if (!(await bcrypt.compare(currentPassword, user.password_hash))) throw badRequest('Current password is incorrect', 'INVALID_PASSWORD');
+    const target = String(email).trim().toLowerCase();
+    if (target === String(user.email).toLowerCase()) throw badRequest('This is already your email address', 'EMAIL_UNCHANGED');
+    const [clash] = await query('SELECT id FROM users WHERE email = ? AND id <> ?', [target, user.id]);
+    if (clash) throw conflict('This email is already used by another account', 'EMAIL_IN_USE');
+
+    const [last] = await query("SELECT created_at FROM auth_challenges WHERE user_id = ? AND purpose = 'EMAIL_CHANGE' ORDER BY id DESC LIMIT 1", [user.id]);
+    if (last) {
+      const wait = Math.ceil(env.OTP_RESEND_COOLDOWN_SECONDS - (Date.now() - new Date(last.created_at).getTime()) / 1000);
+      if (wait > 0) { const e = tooMany(`Please wait ${wait}s before requesting another code`, 'OTP_COOLDOWN'); e.details = { retryAfter: wait }; throw e; }
+    }
+    const [{ c }] = await query("SELECT COUNT(*) c FROM auth_challenges WHERE user_id = ? AND purpose = 'EMAIL_CHANGE' AND created_at > (NOW(3) - INTERVAL 60 MINUTE)", [user.id]);
+    if (c >= env.OTP_MAX_SENDS_PER_HOUR) throw tooMany('Too many codes requested. Try again later.', 'OTP_SEND_LIMIT');
+
+    await query("UPDATE auth_challenges SET consumed_at = NOW(3) WHERE user_id = ? AND purpose = 'EMAIL_CHANGE' AND consumed_at IS NULL", [user.id]);
+    const challengeId = await challengeRepo.create({
+      userId: user.id, purpose: 'EMAIL_CHANGE', tokenHash: sha256(randomToken(32)), deviceHash: null,
+      ip: clientIp(req), expiresAt: new Date(Date.now() + env.OTP_TTL_SECONDS * 1000),
+    });
+    const otp = randomDigits(env.OTP_LENGTH);
+    await query('UPDATE auth_challenges SET target = ?, otp_hash = ? WHERE id = ?', [target, hmacSha256(env.OTP_SECRET, `email:${challengeId}:${otp}`), challengeId]);
+    try {
+      await emailService.sendNow('emailChangeOtp', { to: target, name: user.full_name, otp, minutes: Math.round(env.OTP_TTL_SECONDS / 60) });
+    } catch (err) {
+      await challengeRepo.consume(challengeId);
+      if (err.message === 'SMTP_NOT_CONFIGURED') throw new AppError('Email service is not configured. Contact your administrator.', { status: 503, errorCode: 'EMAIL_NOT_CONFIGURED' });
+      throw new AppError('We could not send the verification email. Please try again shortly.', { status: 502, errorCode: 'EMAIL_SEND_FAILED' });
+    }
+    const [name, domain] = target.split('@');
+    return { maskedEmail: `${name.slice(0, 2)}${'*'.repeat(Math.max(name.length - 2, 1))}@${domain}`, expiresIn: env.OTP_TTL_SECONDS, resendIn: env.OTP_RESEND_COOLDOWN_SECONDS };
+  },
+
+  /** Step 2: verify the OTP emailed to the new address and switch the account to it. */
+  async verifyEmailChange(req, { otp }) {
+    const userId = req.auth.user.id;
+    const [challenge] = await query(
+      "SELECT * FROM auth_challenges WHERE user_id = ? AND purpose = 'EMAIL_CHANGE' AND consumed_at IS NULL AND expires_at > NOW(3) ORDER BY id DESC LIMIT 1",
+      [userId],
+    );
+    if (!challenge) throw badRequest('This code has expired. Start the email change again.', 'CHALLENGE_EXPIRED');
+    if (challenge.attempts >= env.OTP_MAX_ATTEMPTS) throw tooMany('Too many incorrect attempts. Request a new code.', 'OTP_ATTEMPTS_EXCEEDED');
+    const candidate = String(otp || '').replace(/\D/g, '');
+    if (!candidate || !safeEqual(hmacSha256(env.OTP_SECRET, `email:${challenge.id}:${candidate}`), challenge.otp_hash)) {
+      await query('UPDATE auth_challenges SET attempts = attempts + 1 WHERE id = ?', [challenge.id]);
+      throw new AppError('Invalid or expired code', { status: 400, errorCode: 'OTP_INVALID' });
+    }
+    const [clash] = await query('SELECT id FROM users WHERE email = ? AND id <> ?', [challenge.target, userId]);
+    if (clash) throw conflict('This email is already used by another account', 'EMAIL_IN_USE');
+    const before = req.auth.user.email;
+    await transaction(async (conn) => {
+      await challengeRepo.consume(challenge.id, conn);
+      await userRepo.update(userId, { email: challenge.target }, conn);
+    });
+    await audit('USER_UPDATED', { actorId: userId, entityType: 'user', entityId: userId, req, meta: { fields: ['email'], self: true, from: before, to: challenge.target, verified: 'email_otp' } });
+    return { email: challenge.target };
   },
 
   hashPassword: (pw) => bcrypt.hash(pw, BCRYPT_ROUNDS),

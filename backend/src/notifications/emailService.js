@@ -25,6 +25,10 @@ export const TEMPLATES = {
     subject: 'Your RMW CRM account request',
     html: layout('Account request not approved', `<p>Hi ${esc(d.name)},</p><p>Your CRM account request was not approved.${d.reason ? ` Reason: ${esc(d.reason)}` : ''}</p>`),
   }),
+  emailChangeOtp: (d) => ({
+    subject: `${d.otp} is your RMW CRM verification code`,
+    html: layout('Confirm your new email', `<p>Hi ${esc(d.name)},</p><p>Use this code to confirm this address as your CRM login email:</p><p style="font-size:28px;font-weight:bold;letter-spacing:6px;margin:16px 0">${esc(d.otp)}</p><p>The code expires in ${esc(d.minutes)} minutes. If you did not request this, ignore this email; your account is unchanged.</p>`),
+  }),
   notification: (d) => ({
     subject: d.title,
     html: layout(d.title, `<p>${esc(d.body || '')}</p>${d.link ? button(`${env.APP_URL}${d.link}`, 'Open in CRM') : ''}`),
@@ -46,6 +50,14 @@ function getTransport() {
 export const emailService = {
   /** Queue an email (non-blocking). */
   send: (template, data) => enqueue('email', 'template', { template, data }),
+
+  /** Send immediately and fail loudly (used for OTPs, which must not sit in the job queue). */
+  async sendNow(template, data) {
+    const t = getTransport();
+    if (!t) throw new Error('SMTP_NOT_CONFIGURED');
+    const { subject, html } = TEMPLATES[template](data);
+    await t.sendMail({ from: env.MAIL_FROM, to: data.to, subject, html });
+  },
 
   /** Deliver now. Called by the email worker. */
   async deliver(template, data) {

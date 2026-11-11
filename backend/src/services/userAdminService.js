@@ -112,17 +112,22 @@ export const userAdminService = {
     await assertCanManage(req, id);
     const before = await userAdminService.get(id);
     if (data.roleId) await assertCanGrant(req, [data.roleId]);
-    if (data.email || data.mobile) {
-      const clash = await one('SELECT id FROM users WHERE (email = ? OR mobile = ?) AND id <> ?', [data.email || '', data.mobile || '', id]);
-      if (clash) throw conflict('Email or mobile already in use', 'ACCOUNT_EXISTS');
-    }
+    if (data.newPassword && !req.auth.ctx.isSuperAdmin) throw forbidden('Only a Super Admin can set a user password', 'PASSWORD_FORBIDDEN');
+    const newHash = data.newPassword ? await authService.hashPassword(data.newPassword) : null;
     await transaction(async (conn) => {
-      await userRepo.update(id, { fullName: data.fullName, email: data.email, mobile: data.mobile, avatar: data.avatar, departmentId: data.departmentId }, conn);
+      await userRepo.update(id, { fullName: data.fullName, avatar: data.avatar, departmentId: data.departmentId }, conn);
       if (data.roleId) await userRepo.setRoles(id, [data.roleId], conn);
       if (data.websiteIds) await userRepo.setWebsites(id, data.websiteIds, conn);
       if (data.teamIds) await userRepo.setTeams(id, data.teamIds, conn);
+      if (newHash) await userRepo.setPassword(id, newHash, conn);
     });
-    await audit('USER_UPDATED', { actorId: req.auth.user.id, entityType: 'user', entityId: id, req, meta: { fields: Object.keys(data) } });
+    await audit('USER_UPDATED', { actorId: req.auth.user.id, entityType: 'user', entityId: id, req, meta: { fields: Object.keys(data).filter((k) => k !== 'newPassword') } });
+    if (newHash) {
+      const sessions = await sessionRepo.listActiveForUser(id);
+      await sessionRepo.revokeAllForUser(id, 'PASSWORD_RESET_BY_ADMIN', { by: req.auth.user.id });
+      sessions.forEach((s) => notificationService.forceLogout(s.id));
+      await audit('PASSWORD_RESET', { actorId: req.auth.user.id, entityType: 'user', entityId: id, req, meta: { byAdmin: true } });
+    }
     if (data.roleId && !before.roleIds.includes(data.roleId)) {
       await audit('ROLE_CHANGED', { actorId: req.auth.user.id, entityType: 'user', entityId: id, req, meta: { from: before.roleIds, to: [data.roleId] } });
     }

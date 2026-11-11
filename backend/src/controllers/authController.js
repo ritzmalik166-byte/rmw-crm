@@ -53,6 +53,8 @@ export const authController = {
   },
 
   async requestMobileChange(req, res) { ok(res, await authService.requestMobileChange(req, req.body), 'Verification code sent to the new number'); },
+  async requestEmailChange(req, res) { ok(res, await authService.requestEmailChange(req, req.body), 'Verification code sent to the new email'); },
+  async verifyEmailChange(req, res) { ok(res, await authService.verifyEmailChange(req, req.body), 'Email updated'); },
   async verifyMobileChange(req, res) { ok(res, await authService.verifyMobileChange(req, req.body), 'Mobile number updated'); },
 
   /** Public data needed by the registration and login screens. */

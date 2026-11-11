@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Ban, CheckCircle2, LogOut } from 'lucide-react';
+import { Plus, Search, Pencil, Ban, CheckCircle2, LogOut, Copy, Share2, Eye, EyeOff, Wand2, MessageCircle, Mail, Check } from 'lucide-react';
 import { api, apiMessage } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
 import { useDebounced } from '@/lib/hooks';
@@ -19,12 +19,90 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { EmptyState, ErrorState, PageHeader, Pagination, TableSkeleton } from '@/components/ui/feedback';
 import { useOrg, MultiCheck } from './common';
 
-function UserDialog({ userId, onClose, superAdmin }) {
+function generatePassword() {
+  const sets = ['ABCDEFGHJKLMNPQRSTUVWXYZ', 'abcdefghijkmnpqrstuvwxyz', '23456789', '@#$%&*!'];
+  const all = sets.join('');
+  const rnd = (n) => crypto.getRandomValues(new Uint32Array(1))[0] % n;
+  const chars = sets.map((set) => set[rnd(set.length)]);
+  while (chars.length < 12) chars.push(all[rnd(all.length)]);
+  for (let i = chars.length - 1; i > 0; i -= 1) { const j = rnd(i + 1); [chars[i], chars[j]] = [chars[j], chars[i]]; }
+  return chars.join('');
+}
+
+function summaryText(d) {
+  return [
+    `CRM account details${d.created ? ' (new account)' : ''}`,
+    `Name: ${d.name}`,
+    `Email: ${d.email}`,
+    `Mobile: ${d.mobile}`,
+    `Role: ${d.role || '—'}`,
+    `Department: ${d.department || '—'}`,
+    `Website access: ${d.websites || '—'}`,
+    `Teams: ${d.teams || '—'}`,
+    ...(d.password ? [`Password: ${d.password}`] : []),
+    `Login: ${d.loginUrl}`,
+  ].join('\n');
+}
+
+function UserSummaryDialog({ data, onClose }) {
+  const [copied, setCopied] = useState(false);
+  const [show, setShow] = useState(false);
+  const text = summaryText(data);
+  const copy = async (value = text) => {
+    try { await navigator.clipboard.writeText(value); setCopied(true); toast.success('Copied to clipboard'); setTimeout(() => setCopied(false), 2000); }
+    catch { toast.error('Could not copy. Select the text and copy it manually.'); }
+  };
+  const share = async () => {
+    if (navigator.share) { try { await navigator.share({ title: 'CRM account details', text }); } catch { /* share cancelled */ } }
+    else copy();
+  };
+  const rows = [['Name', data.name], ['Email', data.email], ['Mobile', data.mobile], ['Role', data.role], ['Department', data.department], ['Website access', data.websites], ['Teams', data.teams], ['Login', data.loginUrl]];
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <UserAvatar src={data.avatar} name={data.name} />
+            <div><DialogTitle>{data.created ? 'User created' : 'User updated'}</DialogTitle><DialogDescription>Share these details with {data.name}.</DialogDescription></div>
+          </div>
+        </DialogHeader>
+        <dl className="divide-y rounded-md border text-sm">
+          {rows.map(([k, v]) => (
+            <div key={k} className="grid grid-cols-[120px_1fr] gap-2 px-3 py-2"><dt className="text-muted-foreground">{k}</dt><dd className="break-all font-medium">{v || '—'}</dd></div>
+          ))}
+          {data.password && (
+            <div className="grid grid-cols-[120px_1fr] items-center gap-2 bg-amber-50 px-3 py-2">
+              <dt className="text-amber-800">{data.created ? 'Password' : 'New password'}</dt>
+              <dd className="flex items-center gap-1 font-mono font-medium">
+                <span className="break-all">{show ? data.password : '•'.repeat(data.password.length)}</span>
+                <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={() => setShow((v) => !v)} aria-label={show ? 'Hide password' : 'Show password'}>{show ? <EyeOff /> : <Eye />}</Button>
+                <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={() => copy(data.password)} aria-label="Copy password"><Copy /></Button>
+              </dd>
+            </div>
+          )}
+        </dl>
+        {data.password && <p className="text-xs text-muted-foreground">The password is shown only now.{data.created ? '' : ' The user has been signed out everywhere and must sign in with the new password.'}</p>}
+        <DialogFooter className="flex-wrap gap-2 sm:justify-between">
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={() => copy()}>{copied ? <Check /> : <Copy />}Copy details</Button>
+            <Button type="button" variant="outline" onClick={share}><Share2 />Share</Button>
+            <Button type="button" variant="outline" asChild><a href={`https://wa.me/?text=${encodeURIComponent(text)}`} target="_blank" rel="noopener noreferrer"><MessageCircle />WhatsApp</a></Button>
+            <Button type="button" variant="outline" asChild><a href={`mailto:${encodeURIComponent(data.email)}?subject=${encodeURIComponent('Your CRM account details')}&body=${encodeURIComponent(text)}`}><Mail />Email</a></Button>
+          </div>
+          <Button type="button" onClick={onClose}>Done</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function UserDialog({ userId, onClose, onSaved, superAdmin }) {
   const qc = useQueryClient();
   const org = useOrg();
   const { me } = useAuth();
   const editing = Boolean(userId);
   const { data: existing } = useQuery({ queryKey: ['admin', 'user', userId], queryFn: () => api(`/admin/users/${userId}`), enabled: editing });
+  const [showPw, setShowPw] = useState(false);
   const [f, setF] = useState({ fullName: '', email: '', mobile: '', avatar: null, password: '', roleId: '', departmentId: '', teamIds: [], websiteIds: [] });
   useEffect(() => {
     if (existing) setF({ fullName: existing.full_name, email: existing.email, mobile: existing.mobile, avatar: existing.avatar || null, password: '', roleId: String(existing.roleIds[0] || ''), departmentId: existing.department_id ? String(existing.department_id) : '', teamIds: existing.teamIds, websiteIds: existing.websiteIds });
@@ -35,10 +113,22 @@ function UserDialog({ userId, onClose, superAdmin }) {
 
   const m = useMutation({
     mutationFn: () => {
-      const body = { fullName: f.fullName, email: f.email, mobile: f.mobile, ...(editing && f.avatar !== (existing?.avatar || null) ? { avatar: f.avatar } : {}), roleId: Number(f.roleId), departmentId: f.departmentId ? Number(f.departmentId) : null, teamIds: f.teamIds, websiteIds: f.websiteIds };
+      const body = { fullName: f.fullName, ...(editing ? {} : { email: f.email, mobile: f.mobile }), ...(editing && f.avatar !== (existing?.avatar || null) ? { avatar: f.avatar } : {}), roleId: Number(f.roleId), departmentId: f.departmentId ? Number(f.departmentId) : null, teamIds: f.teamIds, websiteIds: f.websiteIds };
+      if (editing && superAdmin && f.password) body.newPassword = f.password;
       return editing ? api(`/admin/users/${userId}`, { method: 'PATCH', body }) : api('/admin/users', { method: 'POST', body: { ...body, password: f.password } });
     },
-    onSuccess: () => { toast.success(editing ? 'User updated' : 'User created'); qc.invalidateQueries({ queryKey: ['admin', 'users'] }); qc.invalidateQueries({ queryKey: ['admin', 'user', userId] }); onClose(); },
+    onSuccess: () => {
+      toast.success(editing ? 'User updated' : 'User created');
+      qc.invalidateQueries({ queryKey: ['admin', 'users'] }); qc.invalidateQueries({ queryKey: ['admin', 'user', userId] });
+      const names = (list, ids) => list.filter((x) => ids.includes(x.id)).map((x) => x.code || x.name).join(', ');
+      onSaved({
+        created: !editing, name: f.fullName, email: f.email, mobile: f.mobile, avatar: f.avatar,
+        role: org.roles.find((r) => String(r.id) === String(f.roleId))?.name,
+        department: org.departments.find((d) => String(d.id) === String(f.departmentId))?.name,
+        websites: names(org.websites, f.websiteIds), teams: names(org.teams, f.teamIds),
+        password: f.password || null, loginUrl: `${window.location.origin}/login`,
+      });
+    },
     onError: (e) => toast.error(apiMessage(e)),
   });
 
@@ -49,9 +139,17 @@ function UserDialog({ userId, onClose, superAdmin }) {
         <form className="grid gap-3 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); m.mutate(); }}>
           {editing && <div className="sm:col-span-2"><AvatarUploader size="h-16 w-16 text-lg" src={f.avatar} name={f.fullName} onChange={(avatar) => setF((s) => ({ ...s, avatar }))} /></div>}
           <Field label="Full name"><Input value={f.fullName} onChange={set('fullName')} required /></Field>
-          <Field label="Email"><Input type="email" value={f.email} onChange={set('email')} required /></Field>
-          <Field label="Mobile" hint={editing ? 'Changing it here skips OTP verification.' : undefined}><Input type="tel" value={f.mobile} onChange={set('mobile')} required /></Field>
-          {!editing && <Field label="Initial password" hint="10+ chars, upper, lower, number"><Input type="password" autoComplete="new-password" value={f.password} onChange={set('password')} required /></Field>}
+          <Field label="Email" hint={editing ? 'Only the user can change this, with an email code.' : undefined}><Input type="email" value={f.email} onChange={set('email')} required disabled={editing} /></Field>
+          <Field label="Mobile" hint={editing ? 'Only the user can change this, with an SMS code.' : undefined}><Input type="tel" value={f.mobile} onChange={set('mobile')} required disabled={editing} /></Field>
+          {(!editing || superAdmin) && (
+            <Field label={editing ? 'New password' : 'Initial password'} hint={editing ? 'Leave blank to keep the current password. No old password needed.' : '10+ chars, upper, lower, number'}>
+              <div className="flex gap-1">
+                <Input type={showPw ? 'text' : 'password'} autoComplete="new-password" value={f.password} onChange={set('password')} required={!editing} placeholder={editing ? 'Unchanged' : ''} />
+                <Button type="button" size="icon" variant="outline" onClick={() => setShowPw((v) => !v)} aria-label={showPw ? 'Hide password' : 'Show password'}>{showPw ? <EyeOff /> : <Eye />}</Button>
+                <Button type="button" size="icon" variant="outline" onClick={() => { setF((s) => ({ ...s, password: generatePassword() })); setShowPw(true); }} title="Generate a strong password" aria-label="Generate password"><Wand2 /></Button>
+              </div>
+            </Field>
+          )}
           <Field label="Role">
             <Select value={f.roleId} onChange={set('roleId')} required>
               <option value="">Select…</option>
@@ -82,6 +180,7 @@ export function UsersManager({ superAdmin = false }) {
   const [filters, setFilters] = useState({ status: '', roleCode: '', websiteId: '' });
   const [page, setPage] = useState(1);
   const [dialog, setDialog] = useState(null);
+  const [summary, setSummary] = useState(null);
   const q = { search: debounced, ...filters, page, limit: 25 };
   const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: ['admin', 'users', q], queryFn: () => api(`/admin/users${toQuery(q)}`), placeholderData: keepPreviousData });
 
@@ -145,7 +244,8 @@ export function UsersManager({ superAdmin = false }) {
         )}
         <Pagination meta={data?.meta} onPage={setPage} />
       </Card>
-      {dialog && <UserDialog userId={dialog.type === 'edit' ? dialog.id : null} superAdmin={superAdmin} onClose={() => setDialog(null)} />}
+      {dialog && <UserDialog userId={dialog.type === 'edit' ? dialog.id : null} superAdmin={superAdmin} onClose={() => setDialog(null)} onSaved={(d) => { setDialog(null); setSummary(d); }} />}
+      {summary && <UserSummaryDialog data={summary} onClose={() => setSummary(null)} />}
     </>
   );
 }

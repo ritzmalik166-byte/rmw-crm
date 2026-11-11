@@ -57,11 +57,10 @@ function Profile() {
   const m = useMutation({ mutationFn: () => api('/auth/me', { method: 'PATCH', body: { fullName: name } }), onSuccess: () => { toast.success('Profile updated'); refetch(); }, onError: (e) => toast.error(apiMessage(e)) });
   return (
     <Card>
-      <CardHeader><CardTitle>Profile</CardTitle><CardDescription>Your email address can only be changed by an administrator.</CardDescription></CardHeader>
+      <CardHeader><CardTitle>Profile</CardTitle><CardDescription>Change your email and mobile number below; each needs a verification code.</CardDescription></CardHeader>
       <CardContent>
         <form className="grid gap-4 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); m.mutate(); }}>
           <Field label="Full name"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
-          <Field label="Email"><Input value={me?.user?.email || ''} disabled /></Field>
           <div className="sm:col-span-2"><Button type="submit" loading={m.isPending} disabled={!name.trim() || name === me?.user?.full_name}>Save</Button></div>
         </form>
       </CardContent>
@@ -69,8 +68,23 @@ function Profile() {
   );
 }
 
-/** Two steps: new number + current password, then the OTP sent to the new number. */
-function MobileNumber() {
+const CONTACT = {
+  mobile: {
+    title: 'Mobile number', description: 'Used for sign-in codes. A new number must be verified with a code sent to it by SMS.',
+    icon: Phone, field: 'mobile', label: 'New mobile number', button: 'Change number', input: { type: 'tel', inputMode: 'tel', autoComplete: 'tel', placeholder: '98XXXXXXXX' },
+    path: '/auth/me/mobile', masked: 'maskedMobile', done: 'Mobile number updated',
+  },
+  email: {
+    title: 'Email address', description: 'Used for sign-in and notifications. A new address must be verified with a code emailed to it.',
+    icon: Mail, field: 'email', label: 'New email address', button: 'Change email', input: { type: 'email', autoComplete: 'email', placeholder: 'name@company.com' },
+    path: '/auth/me/email', masked: 'maskedEmail', done: 'Email address updated',
+  },
+};
+
+/** Two steps: new value + current password, then the OTP sent to the new number / address. */
+function VerifiedContact({ kind }) {
+  const cfg = CONTACT[kind];
+  const Icon = cfg.icon;
   const { me, refetch } = useAuth();
   const [step, setStep] = useState('view'); // view | form | otp
   const [mobile, setMobile] = useState('');
@@ -86,32 +100,32 @@ function MobileNumber() {
   const reset = () => { setStep('view'); setMobile(''); setPassword(''); setOtp(''); setSent(null); };
 
   const request = useMutation({
-    mutationFn: () => api('/auth/me/mobile/request', { method: 'POST', body: { mobile, currentPassword: password } }),
-    onSuccess: (r) => { setSent(r); setCooldown(r?.resendIn || 60); setStep('otp'); toast.success(`Code sent to ${r.maskedMobile}`); },
+    mutationFn: () => api(`${cfg.path}/request`, { method: 'POST', body: { [cfg.field]: mobile.trim(), currentPassword: password } }),
+    onSuccess: (r) => { setSent(r); setCooldown(r?.resendIn || 60); setStep('otp'); toast.success(`Code sent to ${r[cfg.masked]}`); },
     onError: (e) => { toast.error(apiMessage(e)); if (e.details?.retryAfter) setCooldown(e.details.retryAfter); },
   });
   const verify = useMutation({
-    mutationFn: () => api('/auth/me/mobile/verify', { method: 'POST', body: { otp } }),
-    onSuccess: async () => { toast.success('Mobile number updated'); await refetch(); reset(); },
+    mutationFn: () => api(`${cfg.path}/verify`, { method: 'POST', body: { otp } }),
+    onSuccess: async () => { toast.success(cfg.done); await refetch(); reset(); },
     onError: (e) => { toast.error(apiMessage(e)); if (e.errorCode === 'CHALLENGE_EXPIRED') setStep('form'); },
   });
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Mobile number</CardTitle>
-        <CardDescription>Used for sign-in codes. A new number must be verified with a code sent to it.</CardDescription>
+        <CardTitle>{cfg.title}</CardTitle>
+        <CardDescription>{cfg.description}</CardDescription>
       </CardHeader>
       <CardContent>
         {step === 'view' && (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-4 py-3">
-            <div className="flex items-center gap-3"><Phone className="h-4 w-4 text-muted-foreground" /><span className="font-medium tabular-nums">{me?.user?.mobile}</span></div>
-            <Button variant="outline" size="sm" onClick={() => setStep('form')}>Change number</Button>
+            <div className="flex items-center gap-3"><Icon className="h-4 w-4 text-muted-foreground" /><span className="break-all font-medium tabular-nums">{me?.user?.[cfg.field]}</span></div>
+            <Button variant="outline" size="sm" onClick={() => setStep('form')}>{cfg.button}</Button>
           </div>
         )}
         {step === 'form' && (
           <form className="grid gap-4 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); request.mutate(); }}>
-            <Field label="New mobile number"><Input type="tel" inputMode="tel" autoComplete="tel" placeholder="98XXXXXXXX" value={mobile} onChange={(e) => setMobile(e.target.value)} required autoFocus /></Field>
+            <Field label={cfg.label}><Input {...cfg.input} value={mobile} onChange={(e) => setMobile(e.target.value)} required autoFocus /></Field>
             <Field label="Current password" hint="Confirms it's really you"><Input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></Field>
             <div className="flex gap-2 sm:col-span-2">
               <Button type="submit" loading={request.isPending} disabled={cooldown > 0}>{request.isPending ? 'Sending code…' : cooldown > 0 ? `Send code (${cooldown}s)` : 'Send code'}</Button>
@@ -121,7 +135,7 @@ function MobileNumber() {
         )}
         {step === 'otp' && (
           <form className="max-w-sm space-y-4" onSubmit={(e) => { e.preventDefault(); verify.mutate(); }}>
-            <p className="text-sm text-muted-foreground">Enter the code sent to <span className="font-medium text-foreground">{sent?.maskedMobile}</span>.</p>
+            <p className="text-sm text-muted-foreground">Enter the code sent to <span className="font-medium text-foreground">{sent?.[cfg.masked]}</span>.</p>
             <Field label="Verification code"><Input inputMode="numeric" autoComplete="one-time-code" maxLength={8} autoFocus value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} className="text-center text-lg tracking-[0.4em]" required /></Field>
             <div className="flex flex-wrap items-center gap-2">
               <Button type="submit" loading={verify.isPending} disabled={otp.length < 4}>{verify.isPending ? 'Verifying…' : 'Verify and update'}</Button>
@@ -225,7 +239,8 @@ export default function SettingsPage() {
         <ProfileSummary />
         <div className="min-w-0 space-y-5">
           <Profile />
-          <MobileNumber />
+          <VerifiedContact kind="email" />
+          <VerifiedContact kind="mobile" />
           <ChangePassword />
           <NotificationPrefs />
         </div>

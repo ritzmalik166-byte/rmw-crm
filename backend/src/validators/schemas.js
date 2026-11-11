@@ -35,6 +35,8 @@ export const auth = {
   profile: z.object({ fullName: str(150).min(2) }),
   avatar: z.object({ avatar: avatarSchema }),
   mobileChangeRequest: z.object({ mobile: mobileSchema, currentPassword: z.string().min(1).max(128) }),
+  emailChangeRequest: z.object({ email: emailSchema, currentPassword: z.string().min(1).max(128) }),
+  emailChangeVerify: z.object({ otp: z.string().trim().regex(/^\d{4,8}$/, 'Enter the code you received') }),
   mobileChangeVerify: z.object({ otp: z.string().trim().regex(/^\d{4,8}$/, 'Enter the code you received') }),
 };
 
@@ -87,8 +89,8 @@ export const admin = {
     departmentId: optId, teamIds: z.array(id).default([]), websiteIds: z.array(id).default([]),
   }),
   userUpdate: z.object({
-    fullName: str(150).min(2).optional(), email: emailSchema.optional(), mobile: mobileSchema.optional(), avatar: avatarSchema.optional(), roleId: id.optional(),
-    departmentId: optId, teamIds: z.array(id).optional(), websiteIds: z.array(id).optional(),
+    fullName: str(150).min(2).optional(), avatar: avatarSchema.optional(), roleId: id.optional(),
+    departmentId: optId, teamIds: z.array(id).optional(), websiteIds: z.array(id).optional(), newPassword: passwordSchema.optional(),
   }),
   userStatus: z.object({ status: z.enum(['ACTIVE', 'DISABLED', 'SUSPENDED']), reason: optStr(500) }),
   department: z.object({ name: str(100).min(2), description: optStr(), isActive: z.boolean().optional() }),
