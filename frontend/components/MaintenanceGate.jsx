@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 const PING = '/api/auth/public-config';
 const RETRY_SECONDS = 20;
 
-/** Full-screen maintenance notice, shown when the API answers 502/503/504. Re-checks and hides itself once the API is back. */
 export function MaintenanceGate({ appName = 'RMW CRM', logo = '/rmw-logo.png' }) {
   const [down, setDown] = useState(false);
   const [message, setMessage] = useState('');
