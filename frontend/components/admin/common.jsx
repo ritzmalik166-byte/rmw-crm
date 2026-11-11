@@ -64,5 +64,4 @@ export function MultiCheck({ options, value, onChange, render, max = 10, title =
   );
 }
 
-// Categorical slots 1-3 of the validated reference palette; one fixed colour per website, never by rank.
 export const WEBSITE_COLORS = { MPF: '#2a78d6', RMW: '#eb6834', CT: '#1baf7a' };

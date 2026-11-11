@@ -5,8 +5,6 @@ let cache = null;
 let cachedAt = 0;
 const TTL_MS = 30_000;
 
-// mysql2 already decodes JSON columns, so a JSON string such as "NONE" arrives as plain NONE.
-// Only decode again if it is still JSON text (e.g. from a driver that returns raw strings).
 function parseValue(v) {
   if (typeof v !== 'string') return v;
   try { return JSON.parse(v); } catch { return v; }

@@ -101,7 +101,6 @@ export async function upsertCanonicalLead(website, c, { silent = false } = {}) {
         [c.name, c.phone, phoneN, c.email, emailN, c.location, c.interest, c.message, c.externalCreatedAt,
           JSON.stringify(c.extra || {}), JSON.stringify(c.raw || {}), existing.id],
       );
-      // Re-evaluate junk on every sync so rule changes also apply to already-imported leads.
       const junk = contentJunk || ((await isRepeatSubmission(website.id, existing.id, existing.phone_normalized || phoneN, existing.email_normalized || emailN, existing.external_created_at || c.externalCreatedAt, conn)) ? 'repeat' : null);
       await conn.query('UPDATE leads SET junk_reason = ? WHERE id = ?', [junk, existing.id]);
       const sets = ATTR_COLS.map((col) => `${col} = COALESCE(${col}, ?)`).join(', ');
@@ -141,16 +140,18 @@ export async function upsertCanonicalLead(website, c, { silent = false } = {}) {
     return { leadId, created: true, externalLeadId, assignee, duplicates, junk };
   });
 
-  // Pull sync passes silent: true; it still alerts for genuinely new enquiries (submitted in the last day),
-  // so a backfill of old leads does not flood everyone with notifications.
   const fresh = !c.externalCreatedAt || Date.now() - new Date(c.externalCreatedAt).getTime() < 24 * 3600_000;
   const isCareer = result.junk === 'career';
   if (result.created && (!silent || fresh) && (!result.junk || isCareer)) {
     await audit('LEAD_CREATED', { entityType: 'lead', entityId: result.leadId, meta: { website: website.code, externalLeadId, via: 'integration' } });
     const kind = isCareer ? 'career application' : 'lead';
     const summary = { id: result.leadId, externalLeadId, website: website.code, name: c.name, interest: c.interest, kind };
-    emitToWebsite(website.id, EVENTS.NEW_LEAD, summary);
+    if (!isCareer) emitToWebsite(website.id, EVENTS.NEW_LEAD, summary);
     const watchers = await userRepo.usersWithPermission('lead.assign', website.id);
+    if (isCareer) {
+      const allowed = new Set((await userRepo.usersWithPermission('career.view', website.id)).map((w) => w.id));
+      watchers.splice(0, watchers.length, ...watchers.filter((w) => allowed.has(w.id)));
+    }
     await notificationService.notifyMany(watchers.map((w) => w.id), {
       type: 'NEW_LEAD', title: `New ${website.code} ${kind}`, body: `${c.name || 'Unnamed'}${c.interest ? ` · ${c.interest}` : ''}`,
       link: `/crm/leads/${result.leadId}`, data: { leadId: result.leadId },

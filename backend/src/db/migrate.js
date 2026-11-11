@@ -41,7 +41,6 @@ async function run() {
       if (applied.has(file)) continue;
       logger.info(`Applying migration ${file}`);
       const sql = fs.readFileSync(path.join(dir, file), 'utf8');
-      // MySQL DDL auto-commits, so each file should be written to be re-runnable (IF NOT EXISTS).
       await conn.query(sql);
       await conn.query('INSERT INTO schema_migrations (name) VALUES (?)', [file]);
       count += 1;

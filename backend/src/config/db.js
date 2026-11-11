@@ -20,13 +20,10 @@ export function sslOptions() {
   if (!env.DB_SSL) return undefined;
 
   if (env.DB_SSL_CA) {
-    // Trust the Aiven CA plus the OS certificate store, so networks that
-    // re-sign TLS (e.g. office firewall SSL inspection) still verify.
     let systemCas = [];
     try {
       systemCas = tls.getCACertificates?.('system') ?? [];
     } catch {
-      // older Node: fall back to the Aiven CA only
     }
     return {
       ca: [loadCa(env.DB_SSL_CA), ...systemCas],
@@ -80,8 +77,6 @@ pool.on('connection', (conn) =>
 const RETRYABLE = new Set(['ECONNRESET', 'PROTOCOL_CONNECTION_LOST', 'EPIPE', 'ETIMEDOUT']);
 
 export async function query(sql, params = [], conn = null) {
-  // Pooled connections can be dropped by the network (firewall SSL inspection / idle timeout).
-  // Retry on a fresh connection with a short backoff. Never retry inside a transaction.
   const attempts = conn ? 1 : 4;
   for (let i = 1; ; i += 1) {
     try {
@@ -116,7 +111,6 @@ export async function transaction(fn) {
     try {
       await conn.rollback();
     } catch {
-      // ignore rollback error
     }
 
     throw err;

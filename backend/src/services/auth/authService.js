@@ -17,7 +17,6 @@ import { AppError, unauthorized, conflict, badRequest, forbidden } from '../../u
 
 const BCRYPT_ROUNDS = 12;
 const CHALLENGE_TTL_MS = 10 * 60 * 1000;
-// Pre-computed hash so unknown-email logins take the same time as known ones (no user enumeration by timing).
 const DUMMY_HASH = bcrypt.hashSync('timing-equaliser-not-a-password', BCRYPT_ROUNDS);
 
 const STATUS_MESSAGES = {
@@ -251,7 +250,6 @@ export const authService = {
       if (!r.affectedRows) throw badRequest('This reset link was already used', 'RESET_TOKEN_INVALID');
       await userRepo.setPassword(row.user_id, hash, conn);
       await resetTokenRepo.invalidateAllForUser(row.user_id, conn);
-      // A password reset signs out every session and removes device trust.
       await conn.query("UPDATE sessions SET revoked_at = NOW(3), revoked_reason = 'PASSWORD_RESET' WHERE user_id = ? AND revoked_at IS NULL", [row.user_id]);
       await conn.query('UPDATE user_devices SET is_trusted = 0, trusted_until = NULL WHERE user_id = ?', [row.user_id]);
     });
@@ -274,7 +272,6 @@ export const authService = {
     const [clash] = await query('SELECT id FROM users WHERE mobile = ? AND id <> ?', [mobile, user.id]);
     if (clash) throw conflict('This mobile number is already used by another account', 'MOBILE_IN_USE');
 
-    // Only one pending change at a time.
     await query("UPDATE auth_challenges SET consumed_at = NOW(3) WHERE user_id = ? AND purpose = 'MOBILE_CHANGE' AND consumed_at IS NULL", [user.id]);
     const challengeId = await challengeRepo.create({
       userId: user.id, purpose: 'MOBILE_CHANGE', tokenHash: sha256(randomToken(32)), deviceHash: null,

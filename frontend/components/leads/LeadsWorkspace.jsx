@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { Download, Plus, Search, UserPlus, Tag, Copy, X, Phone, Mail, CalendarClock, SlidersHorizontal, RefreshCw, ArrowRightLeft, ChevronDown, Check } from 'lucide-react';
+import { Download, Plus, Search, UserPlus, Tag, Copy, X, Phone, Mail, CalendarClock, SlidersHorizontal, RefreshCw, ArrowRightLeft, ChevronDown, Check, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, apiMessage } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
@@ -119,7 +119,6 @@ export function LeadsWorkspace({ pipelineKey = 'all' }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debounced]);
 
-  // Quick views map onto existing API filters.
   const viewFilters = {
     mine: { assignedUserId: 'me' }, unassigned: { assignedUserId: 'unassigned' }, duplicates: { duplicates: 'true' },
     new: { statusId: lk?.statuses?.find((s) => s.code === 'NEW')?.id || '' },
@@ -256,6 +255,7 @@ export function LeadsWorkspace({ pipelineKey = 'all' }) {
                     <TableHead>Contact</TableHead>
                     {p.showWebsite && <TableHead>Site</TableHead>}
                     <TableHead>{p.interestLabel}</TableHead>
+                    {p.showResume && <TableHead>Resume</TableHead>}
                     {p.showSource && <TableHead>Source / campaign</TableHead>}
                     <TableHead>Status</TableHead>
                     <TableHead>Owner</TableHead>
@@ -285,6 +285,13 @@ export function LeadsWorkspace({ pipelineKey = 'all' }) {
                         <div className="truncate" title={l.interest || ''}>{l.interest || <span className="text-slate-400">—</span>}</div>
                         {l.location && <div className="truncate text-[11px] text-slate-500">{l.location}</div>}
                       </TableCell>
+                      {p.showResume && (
+                        <TableCell className="whitespace-nowrap">
+                          {l.resume_url
+                            ? <a href={l.resume_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[12px] font-medium text-[hsl(var(--primary))] hover:underline"><FileText className="h-3.5 w-3.5" />View</a>
+                            : <span className="text-slate-400">—</span>}
+                        </TableCell>
+                      )}
                       {p.showSource && (
                         <TableCell className="max-w-[180px]">
                           <div className="truncate">{l.source || '—'}{l.medium && l.medium !== 'none' ? <span className="text-slate-500"> / {l.medium}</span> : ''}</div>

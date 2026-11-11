@@ -30,7 +30,6 @@ function UserDialog({ userId, onClose, superAdmin }) {
     if (existing) setF({ fullName: existing.full_name, email: existing.email, mobile: existing.mobile, avatar: existing.avatar || null, password: '', roleId: String(existing.roleIds[0] || ''), departmentId: existing.department_id ? String(existing.department_id) : '', teamIds: existing.teamIds, websiteIds: existing.websiteIds });
   }, [existing]);
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
-  // Only offer roles below the caller's own level; the API enforces the same rule.
   const myLevel = Math.max(...org.roles.filter((r) => me?.roles?.includes(r.code)).map((r) => r.level), 0);
   const grantable = org.roles.filter((r) => superAdmin || r.level < myLevel);
 

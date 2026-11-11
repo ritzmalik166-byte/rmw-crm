@@ -121,11 +121,10 @@ function LiveDot() {
 }
 
 function Shell({ area, nav, children }) {
-  const { me } = useAuth();
+  const { me, can } = useAuth();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
-  // Destination of an in-flight tab change; the content area shows a skeleton until it arrives.
   const [pendingHref, setPendingHref] = useState(null);
   useEffect(() => { setPendingHref(null); }, [pathname]);
   const navigate = (href) => (e) => {
@@ -133,7 +132,6 @@ function Shell({ area, nav, children }) {
     if (isPlainClick(e) && href !== pathname) setPendingHref(href);
   };
   const areaLabel = AREAS.find((a) => a.key === area)?.label;
-  // Pipeline counts power the sidebar badges (one cheap query, refreshed by socket invalidations of ['leads']).
   const needsCounts = nav.some((g) => g.items.some((i) => i.countKey));
   const { data: pipe } = useQuery({ queryKey: ['leads', 'pipelines'], queryFn: () => api('/crm/pipelines'), enabled: needsCounts, staleTime: 60_000 });
   const home = `/${area === 'superAdmin' ? 'super-admin' : area}/dashboard`;
@@ -141,11 +139,11 @@ function Shell({ area, nav, children }) {
   const sidebar = (
     <nav className="flex h-full flex-col bg-white">
       <div className="flex-1 overflow-y-auto py-2">
-        {nav.map((group) => (
+        {nav.filter((g) => g.items.some((i) => !i.hidden && (!i.perm || can(i.perm)))).map((group) => (
           <div key={group.title || 'main'} className="mb-1">
             {group.title && <p className="px-4 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">{group.title}</p>}
             <ul>
-              {group.items.filter((i) => !i.hidden).map((item) => {
+              {group.items.filter((i) => !i.hidden && (!i.perm || can(i.perm))).map((item) => {
                 const active = item.exact ? pathname === item.href : (pathname === item.href || (item.href !== home && pathname.startsWith(`${item.href}/`)));
                 const c = item.countKey ? pipe?.counts?.[item.countKey] : null;
                 return (

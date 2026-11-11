@@ -75,7 +75,6 @@ export const challengeRepo = {
 
 export const otpRepo = {
   async create({ challengeId, userId, mobile, purpose, expiresAt, maxAttempts, ip }) {
-    // Placeholder hash; replaced once the row id is known (the HMAC binds the OTP to its row).
     const res = await query(
       'INSERT INTO otp_verification_attempts (challenge_id, user_id, mobile, purpose, otp_hash, expires_at, max_attempts, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [challengeId, userId, mobile, purpose, '0'.repeat(64), expiresAt, maxAttempts, ip],

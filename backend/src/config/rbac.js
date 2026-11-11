@@ -13,6 +13,7 @@ export const PERMISSIONS = [
   ['lead.reassign', 'lead', 'Reassign leads between users'],
   ['lead.export', 'lead', 'Export leads'],
   ['lead.merge', 'lead', 'Resolve duplicates and merge leads'],
+  ['career.view', 'lead', 'View career applications and resumes'],
 
   ['user.view', 'user', 'View users'],
   ['user.create', 'user', 'Create users'],

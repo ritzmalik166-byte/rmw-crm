@@ -40,7 +40,6 @@ export function AuthProvider({ children }) {
     router.replace('/login');
   }, [qc, router]);
 
-  // Reset once the login page is reached so the next session starts clean.
   useEffect(() => { if (isPublic) setLoggingOut(false); }, [isPublic]);
 
   const value = useMemo(() => {

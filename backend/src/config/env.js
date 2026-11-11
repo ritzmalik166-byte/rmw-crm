@@ -54,6 +54,7 @@ const schema = z.object({
   MPF_ADMIN_EMAIL: z.string().optional(),
   MPF_ADMIN_PASSWORD: z.string().optional(),
   RMW_ENQUIRY_LIST_URL: z.string().optional(),
+  RMW_RESUME_BASE_URL: z.string().default('https://ritzmediaworld.com'),
   CT_API_URL: z.string().optional(),
   CT_ADMIN_EMAIL: z.string().optional(),
   CT_ADMIN_PASSWORD: z.string().optional(),
@@ -66,7 +67,6 @@ const schema = z.object({
 
 const parsed = schema.safeParse(process.env);
 if (!parsed.success) {
-  // eslint-disable-next-line no-console
   console.error('Invalid environment configuration:\n' + parsed.error.issues.map((i) => ` - ${i.path.join('.')}: ${i.message}`).join('\n'));
   process.exit(1);
 }

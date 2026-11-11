@@ -34,10 +34,8 @@ export function createApp() {
     try { await pingDb(); res.json({ ok: true }); } catch { res.status(503).json({ ok: false }); }
   });
 
-  // Machine-to-machine webhooks: no CORS, no cookies; raw body kept for HMAC verification.
   app.use('/api/integrations', express.json({ limit: '2mb', verify: (req, _res, buf) => { req.rawBody = buf.toString('utf8'); } }), integrationRoutes);
 
-  // Browser API: credentialed CORS for allowed origins only, JSON bodies only, Origin check on writes.
   app.use('/api', cors({ origin: corsOrigins, credentials: true }), cookieParser(), express.json({ limit: '200kb' }), originCheck, limiters.api);
   app.use('/api/auth', authRoutes);
   app.use('/api/crm', crmRoutes);

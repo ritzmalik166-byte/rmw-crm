@@ -20,7 +20,6 @@ export function errorHandler(err, req, res, _next) {
       success: false, message: err.message, errorCode: err.errorCode, ...(err.details ? { details: err.details } : {}),
     });
   }
-  // Unexpected: log full detail server-side, return a generic message (no stack traces or SQL to clients).
   const status = err.status && err.status >= 500 ? err.status : 500;
   logger.error({ err: { message: err.message, code: err.code, stack: err.stack }, path: req.path, method: req.method }, 'Unhandled error');
   return res.status(status).json({

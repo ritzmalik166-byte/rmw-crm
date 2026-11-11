@@ -21,7 +21,6 @@ const handler = (_req, res, _next, options) => res.status(options.statusCode).js
 
 const make = (windowMs, limit) => rateLimit({ windowMs, limit, standardHeaders: 'draft-7', legacyHeaders: false, handler });
 
-// Note: in-memory stores are per process. When running several API instances, plug in rate-limit-redis.
 export const limiters = {
   api: make(60_000, 300),
   login: make(15 * 60_000, 20),

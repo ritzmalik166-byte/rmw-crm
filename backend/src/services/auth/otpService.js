@@ -44,9 +44,7 @@ async function sendSms(mobile, otp) {
     logger.error({ err: err.name === 'TimeoutError' ? 'timeout' : err.message }, 'SMS provider request failed');
     return { ok: false, response: err.name === 'TimeoutError' ? 'timeout' : 'network_error' };
   }
-  // Strip the OTP in case the provider echoes the message back, so it never reaches logs or the DB.
   const text = (await res.text().catch(() => '')).split(otp).join('******').slice(0, 300);
-  // Gateways often answer HTTP 200 with a rejection in the body (IP not whitelisted, DLT mismatch...), so always log it.
   if (!res.ok) logger.error({ status: res.status, body: text, number: `******${providerNumber(mobile).slice(-4)}` }, 'SMS provider returned an error');
   else logger.info({ status: res.status, body: text, number: `******${providerNumber(mobile).slice(-4)}` }, 'SMS provider response');
   return { ok: res.ok, response: `${res.status} ${text}`.trim() };

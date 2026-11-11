@@ -1,5 +1,3 @@
-// Fetch-only: downloads MPF enquiries from the MPF admin API to a JSON file. Writes nothing to the CRM.
-// Usage: node src/scripts/fetchMpf.js [outFile]
 import fs from 'node:fs';
 import { env } from '../config/env.js';
 

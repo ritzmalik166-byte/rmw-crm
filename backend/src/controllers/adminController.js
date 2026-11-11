@@ -19,7 +19,6 @@ const paged = (q) => ({ limit: q.limit, offset: (q.page - 1) * q.limit });
 const pid = (req) => Number(req.params.id);
 
 export const adminController = {
-  // Registration requests
   async listRequests(req, res) {
     const q = req.validQuery;
     const { total, rows } = await userAdminService.listRequests({ status: req.query.status || null, ...paged(q) });
@@ -28,7 +27,6 @@ export const adminController = {
   async approve(req, res) { await userAdminService.approve(req, pid(req), req.body); ok(res, null, 'Account approved'); },
   async reject(req, res) { await userAdminService.reject(req, pid(req), req.body); ok(res, null, 'Request rejected'); },
 
-  // Users
   async listUsers(req, res) {
     const q = req.validQuery;
     const { total, rows } = await userAdminService.list({ ...q, ...paged(q) });
@@ -39,13 +37,11 @@ export const adminController = {
   async updateUser(req, res) { await userAdminService.update(req, pid(req), req.body); ok(res, null, 'User updated'); },
   async setUserStatus(req, res) { await userAdminService.setStatus(req, pid(req), req.body); ok(res, null, 'Status updated'); },
 
-  // Roles & permissions
   async roles(_req, res) { ok(res, await userAdminService.roles()); },
   async permissions(_req, res) { ok(res, await userAdminService.permissions()); },
   async createRole(req, res) { ok(res, await userAdminService.createRole(req, req.body), 'Role created', 201); },
   async setRolePermissions(req, res) { await userAdminService.setRolePermissions(req, pid(req), req.body.permissionCodes); ok(res, null, 'Permissions updated'); },
 
-  // Org
   async departments(_req, res) { ok(res, await orgService.departments()); },
   async createDepartment(req, res) { ok(res, await orgService.createDepartment(req, req.body), 'Department created', 201); },
   async updateDepartment(req, res) { await orgService.updateDepartment(req, pid(req), req.body); ok(res, null, 'Department updated'); },
@@ -61,7 +57,6 @@ export const adminController = {
   async createStatus(req, res) { ok(res, await orgService.createStatus(req, req.body), 'Status created', 201); },
   async updateStatus(req, res) { await orgService.updateStatus(req, pid(req), req.body); ok(res, null, 'Status updated'); },
 
-  // Integrations
   async integrations(_req, res) { ok(res, await integrationService.health()); },
   async integrationEvents(req, res) {
     const q = req.validQuery;
@@ -84,7 +79,6 @@ export const adminController = {
   },
   async updateIntegration(req, res) { await integrationService.update(pid(req), req.body, req); ok(res, null, 'Integration updated'); },
 
-  // Analytics & audit
   async analytics(req, res) { ok(res, await analyticsService.overview(req, req.validQuery)); },
   async audit(req, res) {
     const q = req.validQuery;
@@ -92,7 +86,6 @@ export const adminController = {
     ok(res, { rows, meta: pageMeta(q.page, q.limit, total) });
   },
 
-  // Settings
   async getSettings(_req, res) { ok(res, await settingsService.all()); },
   async setSettings(req, res) {
     const entries = Object.entries(req.body.settings);
@@ -103,7 +96,6 @@ export const adminController = {
     ok(res, null, 'Settings saved');
   },
 
-  // Sessions (Super Admin)
   async sessions(req, res) {
     const q = req.validQuery;
     const { total, rows } = await sessionRepo.listAllActive({ search: req.query.search || null, ...paged(q) });

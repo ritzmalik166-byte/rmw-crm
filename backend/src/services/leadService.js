@@ -6,13 +6,22 @@ import { emitToUser, emitToWebsite, EVENTS } from '../realtime/socket.js';
 import { notFound, forbidden, badRequest } from '../utils/errors.js';
 import { normalizePhone, normalizeEmail } from '../utils/normalize.js';
 import { randomToken } from '../utils/crypto.js';
+import { env } from '../config/env.js';
 
-// "Received" = when the enquiry was submitted on the website (falls back to CRM import time).
+/** Absolute URL for a stored resume path ("/uploads/x.pdf" or a full URL). */
+export function resumeUrl(p) {
+  if (!p || p === 'null' || !String(p).trim()) return null;
+  const v = String(p).trim();
+  if (/^https?:\/\//i.test(v)) return v;
+  return env.RMW_RESUME_BASE_URL.replace(/\/$/, '') + (v.startsWith('/') ? v : `/${v}`);
+}
+const withResume = (r) => (r ? { ...r, resume_url: resumeUrl(r.resume) } : r);
+
 const RECEIVED = 'COALESCE(l.external_created_at, l.created_at)';
 const SORTS = { created_at: RECEIVED, received_at: RECEIVED, updated_at: 'l.updated_at', name: 'l.name', status: 's.sort_order', website: 'w.code' };
 
 const LIST_SELECT = `l.id, l.external_lead_id, l.name, l.phone, l.email, l.location, l.interest, l.form_type, l.created_at, l.updated_at,
-  l.external_created_at, COALESCE(l.external_created_at, l.created_at) AS received_at, l.is_duplicate_suspect, l.junk_reason, l.assigned_user_id, w.id AS website_id, w.code AS website_code,
+  l.external_created_at, COALESCE(JSON_UNQUOTE(JSON_EXTRACT(a.extra, '$.resume')), JSON_UNQUOTE(JSON_EXTRACT(l.raw_payload, '$.resume')), JSON_UNQUOTE(JSON_EXTRACT(l.raw_payload, '$.resumePath'))) AS resume, COALESCE(l.external_created_at, l.created_at) AS received_at, l.is_duplicate_suspect, l.junk_reason, l.assigned_user_id, w.id AS website_id, w.code AS website_code,
   s.id AS status_id, s.code AS status_code, s.name AS status_name, s.color AS status_color,
   u.full_name AS assigned_user_name, a.source, a.medium, a.campaign, a.utm_source, a.utm_campaign,
   (SELECT MIN(f.due_at) FROM lead_followups f WHERE f.lead_id = l.id AND f.status IN ('UPCOMING','OVERDUE')) AS next_followup_at`;
@@ -20,10 +29,8 @@ const LIST_SELECT = `l.id, l.external_lead_id, l.name, l.phone, l.email, l.locat
 const LIST_FROM = `FROM leads l JOIN websites w ON w.id = l.website_id JOIN lead_statuses s ON s.id = l.status_id
   LEFT JOIN users u ON u.id = l.assigned_user_id LEFT JOIN lead_attributions a ON a.lead_id = l.id`;
 
-// COALESCE on both columns: a NULL here would make NOT(...) NULL and silently drop every general lead.
 const IS_CAREER = "(LOWER(COALESCE(l.form_type, '')) = 'career' OR COALESCE(l.junk_reason, '') = 'career')";
 const siteIs = (code) => `l.website_id = (SELECT id FROM websites WHERE code = '${code}')`;
-// Separate pipelines. Career applications arrive via RMW (etype=career) but are tracked on their own.
 export const PIPELINES = {
   mpf: { sql: siteIs('MPF'), params: [] },
   ct: { sql: siteIs('CT'), params: [] },
@@ -47,7 +54,6 @@ function buildFilters(req, f) {
   if (pipe) { where.push(pipe.sql); params.push(...pipe.params); }
   if (f.formType) { where.push('l.form_type = ?'); params.push(f.formType); }
   if (f.interest) { where.push('l.interest LIKE ?'); params.push(`%${f.interest}%`); }
-  // In the Career pipeline, "career" is the lead type, not junk.
   const junkCol = f.pipeline === 'career' ? "NULLIF(l.junk_reason, 'career')" : 'l.junk_reason';
   if (f.junk === 'only') where.push(`${junkCol} IS NOT NULL`);
   else if (f.junk !== 'all') where.push(`${junkCol} IS NULL`);
@@ -92,7 +98,7 @@ export const leadService = {
     const dir = f.dir === 'asc' ? 'ASC' : 'DESC';
     const [{ total }] = await query(`SELECT COUNT(*) total ${LIST_FROM} WHERE ${where}`, params);
     const rows = await query(`SELECT ${LIST_SELECT} ${LIST_FROM} WHERE ${where} ORDER BY ${sort} ${dir}, l.id DESC LIMIT ? OFFSET ?`, [...params, limit, offset]);
-    return { total, rows };
+    return { total, rows: rows.map(withResume) };
   },
 
   async detail(req, id) {
@@ -111,7 +117,7 @@ export const leadService = {
              FROM lead_duplicates d JOIN leads c ON c.id = d.candidate_lead_id JOIN websites w ON w.id = c.website_id
              WHERE d.lead_id = ? AND c.website_id IN (?) ORDER BY d.id DESC`, [id, req.auth.ctx.websiteIds]),
     ]);
-    return { ...base, merged_into_lead_id: lead.merged_into_lead_id, attribution, notes, followups, activities, assignments, duplicates };
+    return { ...withResume(base), merged_into_lead_id: lead.merged_into_lead_id, attribution, notes, followups, activities, assignments, duplicates };
   },
 
   async create(req, data) {

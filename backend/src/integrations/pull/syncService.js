@@ -16,7 +16,6 @@ import { AppError } from '../../utils/errors.js';
 
 const TIMEOUT_MS = 60_000;
 
-// Source status -> CRM status code (applied only when a lead is first created; CRM edits are never overwritten).
 const STATUS_MAP = {
   MPF: { new: 'NEW', pending: 'NEW', shared: 'CONTACTED', rejected: 'NOT_INTERESTED', irrelevant: 'NOT_INTERESTED', test: 'NOT_INTERESTED', duplicate: 'NOT_INTERESTED' },
   CT: { pending: 'NEW', contacted: 'CONTACTED', qualified: 'QUALIFIED', converted: 'CONVERTED', lost: 'LOST' },
@@ -35,7 +34,6 @@ const FETCHERS = {
     if (!env.MPF_API_URL) throw new AppError('Set MPF_API_URL to sync MPF', { status: 400, errorCode: 'SYNC_NOT_CONFIGURED' });
     const base = env.MPF_API_URL.replace(/\/$/, '');
     const asRows = (b) => (Array.isArray(b) ? b : b?.data || []);
-    // Preferred: one call to MPF's dedicated export API (all enquiries, key-protected).
     if (env.MPF_CRM_EXPORT_KEY) {
       try {
         return asRows(await getJson(`${base}/enquiry/crm-export`, { headers: { 'x-mpf-crm-key': env.MPF_CRM_EXPORT_KEY } }));
@@ -44,7 +42,6 @@ const FETCHERS = {
         logger.warn({ err: err.message }, 'MPF crm-export failed; falling back to admin login');
       }
     }
-    // Fallback: same list the MPF admin panel uses (SUPERADMIN login -> JWT -> GET /enquiry/get-all).
     if (!env.MPF_ADMIN_EMAIL || !env.MPF_ADMIN_PASSWORD) throw new AppError('Set MPF_CRM_EXPORT_KEY (or MPF_ADMIN_EMAIL/MPF_ADMIN_PASSWORD) to sync MPF', { status: 400, errorCode: 'SYNC_NOT_CONFIGURED' });
     const login = await fetch(`${base}/admin-portal/auth/login`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -96,7 +93,6 @@ export async function syncWebsite(code, { full = false } = {}) {
     const rows = await FETCHERS[code]();
     result.fetched = rows.length;
     const adapter = getAdapter(code);
-    // Oldest first, so repeat submissions are detected against the original enquiry.
     const items = rows.map((row) => { try { return { row, c: adapter.normalize(row) }; } catch (err) { return { row, err }; } });
     if (!full) {
       const have = new Set((await query('SELECT external_lead_id FROM leads WHERE website_id = ?', [website.id])).map((r) => r.external_lead_id));

@@ -3,7 +3,7 @@ import { use, useState } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { ArrowLeft, Mail, Phone, MapPin, Target, UserPlus, Pencil, CalendarPlus, CheckCircle2, Copy, GitMerge, Clock } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, MapPin, Target, UserPlus, Pencil, CalendarPlus, CheckCircle2, Copy, GitMerge, Clock, FileText } from 'lucide-react';
 import { api, apiMessage } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
 import { useLookups } from '@/lib/hooks';
@@ -208,6 +208,7 @@ export default function LeadDetailPage({ params }) {
               {lead.email && <a href={`mailto:${lead.email}`} className="flex items-center gap-2 break-all hover:underline"><Mail className="h-4 w-4 text-muted-foreground" />{lead.email}</a>}
               {lead.location && <p className="flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground" />{lead.location}</p>}
               {lead.interest && <p className="flex items-center gap-2"><Target className="h-4 w-4 text-muted-foreground" />{lead.interest}</p>}
+              {lead.resume_url && <a href={lead.resume_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 font-medium text-[hsl(var(--primary))] hover:underline"><FileText className="h-4 w-4" />View resume</a>}
               {lead.message && <div className="mt-3 whitespace-pre-wrap rounded-md bg-muted/60 p-3 text-sm">{lead.message}</div>}
             </CardContent>
           </Card>

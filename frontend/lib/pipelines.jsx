@@ -1,5 +1,3 @@
-// Lead pipelines. Each has its own filters/columns but shares one design system.
-// `filters` lists which filter controls appear; `interestLabel` renames the interest column for that pipeline.
 export const PIPELINES = {
   all: {
     key: 'all', apiPipeline: 'general', title: 'All Leads', short: 'All', description: 'All business enquiries across MPF, RMW and CT. Career applications are under Recruitment.',
@@ -23,7 +21,6 @@ export const PIPELINES = {
   },
 };
 
-// Business pipelines (dashboard + tabs). Career is kept separately under Recruitment.
 export const PIPELINE_ORDER = ['mpf', 'rmw', 'ct'];
 
 export function PipelineLogo({ src, className = 'h-4 w-4' }) {

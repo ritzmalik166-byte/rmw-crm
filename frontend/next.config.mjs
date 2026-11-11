@@ -4,7 +4,6 @@ const API_ORIGIN = process.env.API_ORIGIN || 'http://localhost:4000';
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  // The browser talks to /api on the CRM's own origin; Next proxies to the Express API so cookies stay first-party.
   async rewrites() {
     return [{ source: '/api/:path*', destination: `${API_ORIGIN}/api/:path*` }];
   },

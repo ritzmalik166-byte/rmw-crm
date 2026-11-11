@@ -140,7 +140,6 @@ export const userAdminService = {
     await audit(status === 'ACTIVE' ? 'ACCOUNT_ENABLED' : 'ACCOUNT_DISABLED', { actorId: req.auth.user.id, entityType: 'user', entityId: id, req, meta: { status, reason } });
   },
 
-  // Roles and permissions (Super Admin)
   roles: () => query(
     `SELECT r.*, (SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = r.id) AS user_count,
        (SELECT JSON_ARRAYAGG(p.code) FROM role_permissions rp JOIN permissions p ON p.id = rp.permission_id WHERE rp.role_id = r.id) AS permissions

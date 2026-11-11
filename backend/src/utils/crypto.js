@@ -17,7 +17,6 @@ export function randomDigits(length) {
   return out;
 }
 
-// AES-256-GCM for secrets that must be recoverable (e.g. integration HMAC secrets).
 const encKey = crypto.createHash('sha256').update(env.APP_ENCRYPTION_KEY).digest();
 
 export function encrypt(plain) {

@@ -16,8 +16,6 @@ async function seed() {
         [role.code, role.name, role.description, role.level],
       );
       const [[r]] = await conn.query('SELECT id FROM roles WHERE code = ?', [role.code]);
-      // Only add default grants; never remove grants a Super Admin added later.
-      // SUPER_ADMIN always receives every permission.
       await conn.query(
         `INSERT IGNORE INTO role_permissions (role_id, permission_id)
          SELECT ?, id FROM permissions WHERE code IN (?)`,

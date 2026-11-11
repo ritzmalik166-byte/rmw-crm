@@ -13,7 +13,7 @@ const NAV = [
     { href: '/crm/pipeline/ct', label: 'CT Leads', logo: '/ct-mark.png', countKey: 'ct' },
   ] },
   { title: 'Recruitment', items: [
-    { href: '/crm/pipeline/career', label: 'Career applications', icon: Briefcase, countKey: 'career' },
+    { href: '/crm/pipeline/career', label: 'Career applications', icon: Briefcase, countKey: 'career', perm: 'career.view' },
   ] },
   { title: 'Work', items: [
     { href: '/crm/followups', label: 'Follow-ups', icon: CalendarClock },

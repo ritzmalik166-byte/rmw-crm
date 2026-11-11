@@ -1,7 +1,6 @@
 import pino from 'pino';
 import { env, isProd } from './env.js';
 
-// Never log secrets: these paths are redacted wherever they appear.
 export const redactPaths = [
   'password', 'newPassword', 'confirmPassword', 'currentPassword', 'otp', 'token', 'apiKey', 'secret',
   '*.password', '*.newPassword', '*.confirmPassword', '*.currentPassword', '*.otp', '*.token', '*.apiKey', '*.secret',

@@ -13,7 +13,6 @@ const Textarea = React.forwardRef(({ className, ...props }, ref) => (
 ));
 Textarea.displayName = 'Textarea';
 
-// Native select styled like the inputs: accessible and keyboard friendly without another dependency.
 const Select = React.forwardRef(({ className, children, ...props }, ref) => (
   <select ref={ref} className={cn('flex h-8 px-2 py-1', base, className)} {...props}>{children}</select>
 ));

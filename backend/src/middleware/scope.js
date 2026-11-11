@@ -14,6 +14,8 @@ export function websiteScope(req, requestedWebsiteId) {
   return allowed;
 }
 
+const isCareer = (a) => `(LOWER(COALESCE(${a}.form_type, '')) = 'career' OR COALESCE(${a}.junk_reason, '') = 'career')`;
+
 export function leadVisibilitySql(req, alias = 'l') {
   const { ctx, user } = req.auth;
   const ids = ctx.websiteIds;
@@ -24,5 +26,6 @@ export function leadVisibilitySql(req, alias = 'l') {
     parts.push(`${alias}.assigned_user_id = ?`);
     params.push(user.id);
   }
+  if (!ctx.permissions.has('career.view')) parts.push(`NOT ${isCareer(alias)}`);
   return { sql: parts.join(' AND '), params };
 }

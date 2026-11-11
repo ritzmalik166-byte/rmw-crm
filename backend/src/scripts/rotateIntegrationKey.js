@@ -1,8 +1,6 @@
 import { pool, one } from '../config/db.js';
 import { integrationService } from '../services/integrationService.js';
 
-// Usage: npm run integration:key -- MPF [--signed]
-// Prints a new API key (and HMAC secret) for a website once. Only hashes are stored.
 async function main() {
   const code = (process.argv[2] || '').toUpperCase();
   const w = await one('SELECT id FROM websites WHERE code = ?', [code]);

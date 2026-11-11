@@ -3,7 +3,6 @@
  * Junk leads are still stored (so a re-sync never re-creates them) but are hidden from the leads list by default.
  */
 
-// Team / own-company addresses and placeholder emails used by forms that don't collect an email.
 const INTERNAL_EMAIL_DOMAINS = ['ctm.co.in', 'ritzmediaworld.com', 'ritzmediaworld.in', 'contenaissance.com', 'mypropertyfact.in', 'mypropertyfact.com'];
 const INTERNAL_EMAILS = ['aryantomar239@gmail.com'];
 
@@ -17,7 +16,6 @@ const SPAM_TEXT = new RegExp([
   'saw this article', 'reading (this|your) article', 'scale your o', 'guestpost', 'scooparticle',
 ].join('|'), 'i');
 const SPAM_DOMAINS = /(referral-station|growth|leads?\.|marketing|seo|outreach)[^@]*$/i;
-// Forms that only collect a phone send a placeholder like homepage@ritzmediaworld.com - the phone is the real lead.
 const PLACEHOLDER_EMAIL = /^(homepage|services|home|noreply|no-reply)@/;
 const JOB_SEEKER = /(job opening|join your (organi[sz]ation|team|company)|my (resume|cv|portfolio)|portfolio website|application for the (post|role)|subject:? application|eligible for (the|this) (role|post))/i;
 
@@ -32,7 +30,6 @@ export function junkReason({ name, email, phone, message, formType, websiteCode 
   const local10 = digits.slice(-10);
   const ft = String(formType || '').toLowerCase();
 
-  // RMW career form = job applications, not leads.
   if (websiteCode === 'RMW' && ft === 'career') return 'career';
 
   if (!n && !e && !digits) return 'empty';
