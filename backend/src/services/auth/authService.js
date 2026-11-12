@@ -10,7 +10,7 @@ import { settingsService } from '../settingsService.js';
 import { notificationService } from '../../notifications/notificationService.js';
 import { emailService } from '../../notifications/emailService.js';
 import { randomToken, sha256, hmacSha256, randomDigits, safeEqual } from '../../utils/crypto.js';
-import { describeDevice } from '../../utils/device.js';
+import { describeRequestDevice } from '../../utils/device.js';
 import { maskMobile } from '../../utils/normalize.js';
 import { clientIp } from '../../utils/http.js';
 import { AppError, unauthorized, conflict, badRequest, forbidden, tooMany } from '../../utils/errors.js';
@@ -24,6 +24,7 @@ const STATUS_MESSAGES = {
   REJECTED: 'Your account request was not approved.',
   DISABLED: 'Your account has been disabled. Contact your administrator.',
   SUSPENDED: 'Your account is suspended. Contact your administrator.',
+  BLOCKED: 'Your account has been blocked. Contact the system owner.',
 };
 
 function assertActive(user) {
@@ -48,7 +49,7 @@ async function isTrustedDevice(userId, deviceHash) {
 }
 
 async function createSession(req, res, { user, deviceHash, authMethod, otpVerified, trustDays = 0 }) {
-  const info = describeDevice(req.get('user-agent'));
+  const info = describeRequestDevice(req);
   const device = await deviceRepo.upsert({ userId: user.id, deviceHash, deviceName: info.deviceName, browser: info.browser, os: info.os, ip: clientIp(req) });
   if (trustDays > 0) {
     await deviceRepo.trust(device.id, new Date(Date.now() + trustDays * 86400_000));
@@ -120,7 +121,7 @@ export const authService = {
       await createSession(req, res, { user, deviceHash, authMethod: 'PASSWORD', otpVerified: false });
       return { requiresOtp: false };
     }
-    await audit('NEW_DEVICE_DETECTED', { actorId: user.id, entityType: 'user', entityId: user.id, req, meta: describeDevice(req.get('user-agent')) });
+    await audit('NEW_DEVICE_DETECTED', { actorId: user.id, entityType: 'user', entityId: user.id, req, meta: describeRequestDevice(req) });
     const sent = await startChallenge(req, res, { user, purpose: 'NEW_DEVICE', deviceHash });
     return { requiresOtp: true, reason: 'NEW_DEVICE', maskedMobile: maskMobile(user.mobile), expiresIn: sent.expiresIn, resendIn: sent.resendIn };
   },

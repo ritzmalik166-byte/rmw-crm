@@ -12,6 +12,7 @@
     "migrate": "node src/db/migrate.js",
     "seed": "node src/db/seed.js",
     "create-super-admin": "node src/scripts/createSuperAdmin.js",
+    "create-owner": "node src/scripts/createOwner.js",
     "sync": "node src/scripts/syncLeads.js",
     "integration:key": "node src/scripts/rotateIntegrationKey.js",
     "vapid:generate": "node -e \"const w=require('web-push');console.log(w.generateVAPIDKeys())\"",

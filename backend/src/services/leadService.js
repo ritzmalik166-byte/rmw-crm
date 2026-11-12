@@ -84,7 +84,7 @@ async function assertAssignable(userId, websiteId) {
   const u = await one(
     `SELECT u.id, u.full_name FROM users u WHERE u.id = ? AND u.status = 'ACTIVE'
        AND (EXISTS (SELECT 1 FROM user_website_access x WHERE x.user_id = u.id AND x.website_id = ?)
-            OR EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id AND r.code = 'SUPER_ADMIN'))`,
+            OR EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id AND r.code IN ('OWNER', 'SUPER_ADMIN')))`,
     [userId, websiteId],
   );
   if (!u) throw badRequest('That user cannot be assigned leads for this website', 'INVALID_ASSIGNEE');

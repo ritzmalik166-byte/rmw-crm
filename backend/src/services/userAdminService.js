@@ -6,6 +6,7 @@ import { authService } from './auth/authService.js';
 import { emailService } from '../notifications/emailService.js';
 import { notificationService } from '../notifications/notificationService.js';
 import { forbidden, notFound, badRequest, conflict } from '../utils/errors.js';
+import { OWNER_ONLY_PERMISSIONS } from '../config/rbac.js';
 
 async function rolesByIds(ids) {
   if (!ids?.length) return [];
@@ -16,16 +17,25 @@ async function rolesByIds(ids) {
 async function assertCanGrant(req, roleIds) {
   const roles = await rolesByIds(roleIds);
   if (roles.length !== roleIds.length) throw badRequest('Unknown role');
+  if (req.auth.ctx.isOwner) return roles;
+  if (roles.some((r) => r.code === 'OWNER')) throw forbidden('Only the Owner can grant the Owner role', 'ROLE_FORBIDDEN');
   if (req.auth.ctx.isSuperAdmin) return roles;
   if (roles.some((r) => r.level >= req.auth.ctx.roleLevel)) throw forbidden('You cannot grant this role', 'ROLE_FORBIDDEN');
   return roles;
 }
 
-/** A caller may only manage users whose highest role is below their own (Super Admin manages everyone but themself-demotion is blocked). */
+/**
+ * A caller may only manage users whose highest role is below their own. Super Admin manages everyone except the Owner;
+ * the Owner manages everyone. Nobody manages their own account here. Only the Owner touches a BLOCKED account.
+ */
 async function assertCanManage(req, targetId) {
   if (targetId === req.auth.user.id) throw forbidden('Use your own settings page to change your account', 'SELF_MANAGE');
+  if (req.auth.ctx.isOwner) return;
+  const [target, row] = await Promise.all([userRepo.loadAuthContext(targetId), userRepo.findById(targetId)]);
+  if (!row) throw notFound('User not found');
+  if (target.isOwner) throw forbidden('The Owner account can only be managed by the Owner', 'USER_FORBIDDEN');
+  if (row.status === 'BLOCKED') throw forbidden('This account is blocked. Only the Owner can change it.', 'USER_BLOCKED');
   if (req.auth.ctx.isSuperAdmin) return;
-  const target = await userRepo.loadAuthContext(targetId);
   if (target.roleLevel >= req.auth.ctx.roleLevel) throw forbidden('You cannot manage this user', 'USER_FORBIDDEN');
 }
 
@@ -135,14 +145,32 @@ export const userAdminService = {
 
   async setStatus(req, id, { status, reason }) {
     await assertCanManage(req, id);
-    if (!['ACTIVE', 'DISABLED', 'SUSPENDED'].includes(status)) throw badRequest('Invalid status');
+    if (!['ACTIVE', 'DISABLED', 'SUSPENDED', 'BLOCKED'].includes(status)) throw badRequest('Invalid status');
+    const before = await userRepo.findById(id);
+    if (!before) throw notFound('User not found');
+    const blocking = status === 'BLOCKED';
+    const unblocking = before.status === 'BLOCKED' && status !== 'BLOCKED';
+    if ((blocking || unblocking) && !req.auth.ctx.permissions.has('user.block')) {
+      throw forbidden('Only the Owner can block or unblock accounts', 'BLOCK_FORBIDDEN');
+    }
+    if (blocking && !reason?.trim()) throw badRequest('A reason is required to block an account');
     await userRepo.update(id, { status });
     if (status !== 'ACTIVE') {
       const sessions = await sessionRepo.listActiveForUser(id);
       await sessionRepo.revokeAllForUser(id, `USER_${status}`, { by: req.auth.user.id });
+      // A blocked account also loses every trusted device, so an unblock always starts with a fresh OTP login.
+      if (blocking) await query('UPDATE user_devices SET is_trusted = 0, trusted_until = NULL WHERE user_id = ?', [id]);
       sessions.forEach((s) => notificationService.forceLogout(s.id));
     }
-    await audit(status === 'ACTIVE' ? 'ACCOUNT_ENABLED' : 'ACCOUNT_DISABLED', { actorId: req.auth.user.id, entityType: 'user', entityId: id, req, meta: { status, reason } });
+    const action = blocking ? 'ACCOUNT_BLOCKED' : unblocking ? 'ACCOUNT_UNBLOCKED' : status === 'ACTIVE' ? 'ACCOUNT_ENABLED' : 'ACCOUNT_DISABLED';
+    await audit(action, { actorId: req.auth.user.id, entityType: 'user', entityId: id, req, meta: { status, from: before.status, reason } });
+  },
+
+  /** Guard for admin actions on another user's sessions: nobody but the Owner can sign the Owner out. */
+  async assertCanTouchSessions(req, targetUserId) {
+    if (req.auth.ctx.isOwner || targetUserId === req.auth.user.id) return;
+    const target = await userRepo.loadAuthContext(targetUserId);
+    if (target.isOwner) throw forbidden('Only the Owner can end the Owner sessions', 'USER_FORBIDDEN');
   },
 
   roles: () => query(
@@ -163,17 +191,18 @@ export const userAdminService = {
   async setRolePermissions(req, roleId, permissionCodes) {
     const role = await one('SELECT * FROM roles WHERE id = ?', [roleId]);
     if (!role) throw notFound('Role not found');
+    if (role.code === 'OWNER') throw badRequest('The Owner always holds every permission');
     if (role.code === 'SUPER_ADMIN') throw badRequest('Super Admin always holds every permission');
     const before = await query('SELECT p.code FROM role_permissions rp JOIN permissions p ON p.id = rp.permission_id WHERE rp.role_id = ?', [roleId]);
     await transaction(async (conn) => {
       await conn.query('DELETE FROM role_permissions WHERE role_id = ?', [roleId]);
       if (permissionCodes.length) {
-        await conn.query('INSERT INTO role_permissions (role_id, permission_id) SELECT ?, id FROM permissions WHERE code IN (?) AND code <> ?', [roleId, permissionCodes, 'area.super_admin']);
+        await conn.query('INSERT INTO role_permissions (role_id, permission_id) SELECT ?, id FROM permissions WHERE code IN (?) AND code NOT IN (?)', [roleId, permissionCodes, ['area.super_admin', ...OWNER_ONLY_PERMISSIONS]]);
       }
     });
     await audit('PERMISSION_CHANGED', {
       actorId: req.auth.user.id, entityType: 'role', entityId: roleId, req,
-      meta: { role: role.code, before: before.map((b) => b.code), after: permissionCodes.filter((c) => c !== 'area.super_admin') },
+      meta: { role: role.code, before: before.map((b) => b.code), after: permissionCodes.filter((c) => c !== 'area.super_admin' && !OWNER_ONLY_PERMISSIONS.includes(c)) },
     });
   },
 };

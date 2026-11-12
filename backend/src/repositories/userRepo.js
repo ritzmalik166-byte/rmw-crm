@@ -41,7 +41,8 @@ export const userRepo = {
        JOIN role_permissions rp ON rp.role_id = ur.role_id
        JOIN permissions p ON p.id = rp.permission_id WHERE ur.user_id = ?`, [userId],
     );
-    const isSuperAdmin = roles.some((r) => r.code === 'SUPER_ADMIN');
+    const isOwner = roles.some((r) => r.code === 'OWNER');
+    const isSuperAdmin = isOwner || roles.some((r) => r.code === 'SUPER_ADMIN');
     const websites = isSuperAdmin
       ? await query('SELECT id, code, name FROM websites WHERE is_active = 1 ORDER BY id')
       : await query(
@@ -56,6 +57,7 @@ export const userRepo = {
       roleLevel: roles.reduce((m, r) => Math.max(m, r.level), 0),
       permissions: new Set(perms.map((p) => p.code)),
       isSuperAdmin,
+      isOwner,
       websites,
       websiteIds: websites.map((w) => w.id),
       teams,
@@ -105,7 +107,7 @@ export const userRepo = {
        JOIN role_permissions rp ON rp.role_id = ur.role_id
        JOIN permissions p ON p.id = rp.permission_id
        WHERE u.status = 'ACTIVE' AND p.code = ?
-         AND (? IS NULL OR r.code = 'SUPER_ADMIN' OR EXISTS (SELECT 1 FROM user_website_access x WHERE x.user_id = u.id AND x.website_id = ?))`,
+         AND (? IS NULL OR r.code IN ('OWNER', 'SUPER_ADMIN') OR EXISTS (SELECT 1 FROM user_website_access x WHERE x.user_id = u.id AND x.website_id = ?))`,
       [permission, websiteId, websiteId],
     );
   },

@@ -83,7 +83,7 @@ export const leads = {
 export const admin = {
   approve: z.object({ roleId: id, departmentId: optId, teamIds: z.array(id).default([]), websiteIds: z.array(id).min(1, 'Grant access to at least one website') }),
   reject: z.object({ reason: optStr(500) }),
-  userQuery: pagination.extend({ search: optStr(100), status: z.enum(['PENDING_APPROVAL', 'ACTIVE', 'DISABLED', 'SUSPENDED', 'REJECTED']).optional(), roleCode: optStr(50), websiteId: optId }),
+  userQuery: pagination.extend({ search: optStr(100), status: z.enum(['PENDING_APPROVAL', 'ACTIVE', 'DISABLED', 'SUSPENDED', 'REJECTED', 'BLOCKED']).optional(), roleCode: optStr(50), websiteId: optId }),
   userCreate: z.object({
     fullName: str(150).min(2), email: emailSchema, mobile: mobileSchema, password: passwordSchema, roleId: id,
     departmentId: optId, teamIds: z.array(id).default([]), websiteIds: z.array(id).default([]),
@@ -92,7 +92,7 @@ export const admin = {
     fullName: str(150).min(2).optional(), avatar: avatarSchema.optional(), roleId: id.optional(),
     departmentId: optId, teamIds: z.array(id).optional(), websiteIds: z.array(id).optional(), newPassword: passwordSchema.optional(),
   }),
-  userStatus: z.object({ status: z.enum(['ACTIVE', 'DISABLED', 'SUSPENDED']), reason: optStr(500) }),
+  userStatus: z.object({ status: z.enum(['ACTIVE', 'DISABLED', 'SUSPENDED', 'BLOCKED']), reason: optStr(500) }),
   department: z.object({ name: str(100).min(2), description: optStr(), isActive: z.boolean().optional() }),
   departmentUpdate: z.object({ name: str(100).min(2).optional(), description: optStr(), isActive: z.boolean().optional() }),
   team: z.object({ name: str(100).min(2), departmentId: id, websiteId: optId, description: optStr() }),

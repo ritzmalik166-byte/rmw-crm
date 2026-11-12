@@ -104,6 +104,7 @@ export const adminController = {
   async terminateSession(req, res) {
     const s = await sessionRepo.findById(pid(req));
     if (!s) throw notFound('Session not found');
+    await userAdminService.assertCanTouchSessions(req, s.user_id);
     await sessionRepo.revoke(s.id, 'ADMIN_TERMINATED', req.auth.user.id);
     notificationService.forceLogout(s.id);
     await audit('SESSION_REVOKED', { actorId: req.auth.user.id, entityType: 'session', entityId: s.id, req, meta: { userId: s.user_id, byAdmin: true } });
@@ -111,6 +112,7 @@ export const adminController = {
   },
   async terminateUserSessions(req, res) {
     const userId = pid(req);
+    await userAdminService.assertCanTouchSessions(req, userId);
     const sessions = await sessionRepo.listActiveForUser(userId);
     await sessionRepo.revokeAllForUser(userId, 'ADMIN_TERMINATED_ALL', { by: req.auth.user.id });
     await query('UPDATE user_devices SET is_trusted = 0, trusted_until = NULL WHERE user_id = ?', [userId]);

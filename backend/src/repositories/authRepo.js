@@ -58,7 +58,7 @@ export const deviceRepo = {
   trust: (id, until) => query('UPDATE user_devices SET is_trusted = 1, trusted_until = ? WHERE id = ?', [until, id]),
   untrust: (id) => query('UPDATE user_devices SET is_trusted = 0, trusted_until = NULL, revoked_at = NOW(3) WHERE id = ?', [id]),
   untrustAllForUser: (userId) => query('UPDATE user_devices SET is_trusted = 0, trusted_until = NULL WHERE user_id = ?', [userId]),
-  touch: (id) => query('UPDATE user_devices SET last_seen_at = NOW(3) WHERE id = ?', [id]),
+  touch: (id, os = null) => query('UPDATE user_devices SET last_seen_at = NOW(3), operating_system = COALESCE(?, operating_system) WHERE id = ?', [os, id]),
 };
 
 export const challengeRepo = {

@@ -20,6 +20,7 @@ export const PERMISSIONS = [
   ['user.edit', 'user', 'Edit users'],
   ['user.disable', 'user', 'Disable or suspend users'],
   ['user.approve', 'user', 'Approve or reject registration requests'],
+  ['user.block', 'user', 'Block or unblock any account (Owner only)'],
 
   ['role.view', 'role', 'View roles and permissions'],
   ['role.manage', 'role', 'Manage roles and their permissions'],
@@ -46,10 +47,17 @@ export const PERMISSIONS = [
 
 const ALL = PERMISSIONS.map(([code]) => code);
 
+/** Permissions that only the Owner holds. They can never be granted to another role. */
+export const OWNER_ONLY_PERMISSIONS = ['user.block'];
+
 export const ROLES = [
   {
-    code: 'SUPER_ADMIN', name: 'Super Admin', level: 100, description: 'Full system control',
+    code: 'OWNER', name: 'Owner', level: 1000, description: 'System owner: full control, including blocking any account',
     permissions: ALL,
+  },
+  {
+    code: 'SUPER_ADMIN', name: 'Super Admin', level: 100, description: 'Full system control',
+    permissions: ALL.filter((c) => !OWNER_ONLY_PERMISSIONS.includes(c)),
   },
   {
     code: 'ADMIN', name: 'Admin', level: 50, description: 'Operational management',

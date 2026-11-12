@@ -6,6 +6,7 @@ import { cookies } from '../services/auth/cookies.js';
 import { sha256 } from '../utils/crypto.js';
 import { unauthorized, forbidden } from '../utils/errors.js';
 import { audit } from '../services/auditService.js';
+import { describeRequestDevice, platformVersionFrom } from '../utils/device.js';
 
 const TOUCH_INTERVAL_MS = 60_000;
 
@@ -26,7 +27,7 @@ export async function authenticate(req, res, next) {
     if (session.user_status !== 'ACTIVE') {
       await sessionRepo.revoke(session.id, `USER_${session.user_status}`);
       cookies.clearSession(res);
-      throw unauthorized('Your account is not active', `ACCOUNT_${session.user_status}`);
+      throw unauthorized(session.user_status === 'BLOCKED' ? 'Your account has been blocked. Contact the system owner.' : 'Your account is not active', `ACCOUNT_${session.user_status}`);
     }
 
     const [user, ctx] = await Promise.all([userRepo.findById(session.user_id), userRepo.loadAuthContext(session.user_id)]);
@@ -34,7 +35,9 @@ export async function authenticate(req, res, next) {
 
     if (Date.now() - new Date(session.last_activity_at).getTime() > TOUCH_INTERVAL_MS) {
       sessionRepo.touch(session.id).catch(() => {});
-      if (session.device_id) deviceRepo.touch(session.device_id).catch(() => {});
+      // Refresh the OS label when the browser reports its real platform version (e.g. Windows 11 behind a frozen "Windows NT 10.0" UA).
+      const os = platformVersionFrom(req) ? describeRequestDevice(req).os : null;
+      if (session.device_id) deviceRepo.touch(session.device_id, os).catch(() => {});
     }
     return next();
   } catch (err) {
