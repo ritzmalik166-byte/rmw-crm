@@ -1,13 +1,3 @@
-/**
- * OTP service: OTP lifecycle (issue, verify) plus the SMS provider adapter.
- *
- * Provider contract (taken from the Contenaissance production integration, lib/otp.ts):
- *   GET SMS_API_URL?apikey=<SMS_API_KEY>&senderid=<SMS_SENDER_ID>&number=<10-digit IN number>&message=<template>
- *   The response is plain text; success is judged by HTTP status. The message text must match the
- *   DLT-approved template exactly ({otp} is substituted). There is no test mode and no hardcoded OTP.
- *
- * To switch providers, replace sendSms() only; nothing else in the auth system depends on the provider.
- */
 import { env } from '../../config/env.js';
 import { logger } from '../../config/logger.js';
 import { otpRepo } from '../../repositories/authRepo.js';
@@ -20,7 +10,7 @@ export function isOtpProviderConfigured() {
   return Boolean(env.SMS_API_URL && env.SMS_API_KEY && env.SMS_SENDER_ID && env.SMS_OTP_TEMPLATE);
 }
 
-/** Provider-specific number format: Indian numbers as 10 digits without 91, others as full digits without +. */
+
 function providerNumber(mobile) {
   const d = String(mobile).replace(/\D/g, '');
   return d.length === 12 && d.startsWith('91') ? d.slice(2) : d;
@@ -34,7 +24,7 @@ async function sendSms(mobile, otp) {
   url.searchParams.set('apikey', env.SMS_API_KEY);
   url.searchParams.set('senderid', env.SMS_SENDER_ID);
   url.searchParams.set('number', providerNumber(mobile));
-  url.searchParams.set('message', env.SMS_OTP_TEMPLATE.replace('{otp}', otp));
+  url.searchParams.set('message', env.SMS_OTP_TEMPLATE.replace(/{#(?:num|var)#}|{otp}/, otp));
   if (env.SMS_TEMPLATE_ID) url.searchParams.set('templateid', env.SMS_TEMPLATE_ID);
 
   let res;
