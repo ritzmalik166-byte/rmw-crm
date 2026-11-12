@@ -90,7 +90,8 @@ export function PermissionsMatrix() {
     (perms || []).forEach((p) => { (g[p.group_name] ||= []).push(p); });
     return Object.entries(g);
   }, [perms]);
-  const editable = (roles || []).filter((r) => r.code !== 'SUPER_ADMIN');
+  const FIXED_ROLES = ['OWNER', 'SUPER_ADMIN'];
+  const editable = (roles || []).filter((r) => !FIXED_ROLES.includes(r.code));
   const dirty = editable.filter((r) => {
     const a = [...(draft[r.id] || [])].sort().join(); const b = parsePerms(r.permissions).sort().join();
     return a !== b;
@@ -108,7 +109,7 @@ export function PermissionsMatrix() {
 
   return (
     <>
-      <PageHeader title="Permissions" description="What each role can do. Super Admin always has every permission. Every change is audit-logged." actions={<Button disabled={!dirty.length} loading={save.isPending} onClick={() => save.mutate()}>Save {dirty.length ? `(${dirty.length} role${dirty.length > 1 ? 's' : ''})` : ''}</Button>} />
+      <PageHeader title="Permissions" description="What each role can do. Owner and Super Admin always have every permission; blocking accounts is reserved for the Owner. Every change is audit-logged." actions={<Button disabled={!dirty.length} loading={save.isPending} onClick={() => save.mutate()}>Save {dirty.length ? `(${dirty.length} role${dirty.length > 1 ? 's' : ''})` : ''}</Button>} />
       <Card className="overflow-hidden">
         {isLoading ? <TableSkeleton cols={4} /> : (
           <Table>
@@ -122,8 +123,8 @@ export function PermissionsMatrix() {
                     {roles?.map((r) => (
                       <TableCell key={r.id} className="text-center">
                         <Checkbox
-                          checked={r.code === 'SUPER_ADMIN' || draft[r.id]?.has(p.code) || false}
-                          disabled={r.code === 'SUPER_ADMIN' || p.code === 'area.super_admin'}
+                          checked={FIXED_ROLES.includes(r.code) ? (r.code === 'OWNER' || p.code !== 'user.block') : draft[r.id]?.has(p.code) || false}
+                          disabled={FIXED_ROLES.includes(r.code) || p.code === 'area.super_admin' || p.code === 'user.block'}
                           onCheckedChange={() => toggle(r.id, p.code)}
                           aria-label={`${p.code} for ${r.name}`}
                         />

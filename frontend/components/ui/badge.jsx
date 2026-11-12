@@ -1,4 +1,5 @@
 import { cva } from 'class-variance-authority';
+import { Crown, ShieldCheck, Shield, User } from 'lucide-react';
 import { cn, STATUS_COLORS } from '@/lib/utils';
 
 const badgeVariants = cva('inline-flex items-center rounded-sm px-1.5 py-px text-[11px] font-medium ring-1 ring-inset', {
@@ -38,10 +39,26 @@ function WebsiteBadge({ code, logo = true }) {
   );
 }
 
-const ACCOUNT_VARIANT = { ACTIVE: 'success', PENDING_APPROVAL: 'warning', APPROVED: 'success', REJECTED: 'danger', DISABLED: 'secondary', SUSPENDED: 'danger' };
+const ROLE_STYLES = {
+  OWNER: { cls: 'bg-gradient-to-r from-amber-400 to-orange-500 text-white ring-amber-500 shadow-sm', icon: Crown, label: 'Owner' },
+  SUPER_ADMIN: { cls: 'bg-indigo-600 text-white ring-indigo-600', icon: ShieldCheck, label: 'Super admin' },
+  ADMIN: { cls: 'bg-sky-50 text-sky-700 ring-sky-300', icon: Shield, label: 'Admin' },
+  NORMAL_USER: { cls: 'bg-slate-100 text-slate-700 ring-slate-200', icon: User, label: 'User' },
+};
+function RoleBadge({ code, className }) {
+  const r = ROLE_STYLES[code] || { cls: ROLE_STYLES.NORMAL_USER.cls, icon: User, label: String(code || '').replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase()) };
+  const Icon = r.icon;
+  return (
+    <span className={cn('inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset', r.cls, className)}>
+      <Icon className="h-3 w-3 shrink-0" aria-hidden />{r.label}
+    </span>
+  );
+}
+
+const ACCOUNT_VARIANT = { ACTIVE: 'success', PENDING_APPROVAL: 'warning', APPROVED: 'success', REJECTED: 'danger', DISABLED: 'secondary', SUSPENDED: 'danger', BLOCKED: 'danger' };
 function AccountStatusBadge({ status }) {
   const label = String(status || '').replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
   return <Badge variant={ACCOUNT_VARIANT[status] || 'secondary'}>{label}</Badge>;
 }
 
-export { Badge, badgeVariants, StatusBadge, WebsiteBadge, WebsiteLogo, WEBSITE_LOGOS, AccountStatusBadge };
+export { Badge, badgeVariants, RoleBadge, StatusBadge, WebsiteBadge, WebsiteLogo, WEBSITE_LOGOS, AccountStatusBadge };

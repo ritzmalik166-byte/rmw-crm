@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Plus, Search, Pencil, Ban, CheckCircle2, LogOut, Copy, Share2, Eye, EyeOff, Wand2, MessageCircle, Mail, Check } from 'lucide-react';
+import { Plus, Search, Pencil, Ban, CheckCircle2, LogOut, ShieldOff, ShieldCheck, Copy, Share2, Eye, EyeOff, Wand2, MessageCircle, Mail, Check } from 'lucide-react';
 import { api, apiMessage } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
 import { useDebounced } from '@/lib/hooks';
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/input';
 import { Field } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { AccountStatusBadge, WebsiteBadge, Badge } from '@/components/ui/badge';
+import { AccountStatusBadge, WebsiteBadge, Badge, RoleBadge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AvatarUploader, UserAvatar } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -109,7 +109,8 @@ function UserDialog({ userId, onClose, onSaved, superAdmin }) {
   }, [existing]);
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
   const myLevel = Math.max(...org.roles.filter((r) => me?.roles?.includes(r.code)).map((r) => r.level), 0);
-  const grantable = org.roles.filter((r) => superAdmin || r.level < myLevel);
+  const iAmOwner = me?.roles?.includes('OWNER');
+  const grantable = org.roles.filter((r) => (r.code === 'OWNER' ? iAmOwner : superAdmin || r.level < myLevel));
 
   const m = useMutation({
     mutationFn: () => {
@@ -171,6 +172,33 @@ function UserDialog({ userId, onClose, onSaved, superAdmin }) {
   );
 }
 
+/** Owner-only: block an account. Blocked users are signed out everywhere, lose trusted devices, and only the Owner can unblock them. */
+function BlockUserDialog({ user, onClose, onConfirm, loading }) {
+  const [reason, setReason] = useState('');
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Block {user.full_name}?</DialogTitle>
+          <DialogDescription>
+            {user.email} will be signed out of every device immediately and will not be able to sign in again.
+            Their trusted devices are removed. Only the Owner can unblock this account.
+          </DialogDescription>
+        </DialogHeader>
+        <form id="block-user" onSubmit={(e) => { e.preventDefault(); if (reason.trim()) onConfirm(reason.trim()); }}>
+          <Field label="Reason (saved in the audit log)">
+            <Input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} required autoFocus placeholder="e.g. Left the company, suspected misuse" />
+          </Field>
+        </form>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button type="submit" form="block-user" variant="destructive" loading={loading} disabled={!reason.trim()}><ShieldOff />Block account</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function UsersManager({ superAdmin = false }) {
   const qc = useQueryClient();
   const { can, me } = useAuth();
@@ -181,12 +209,18 @@ export function UsersManager({ superAdmin = false }) {
   const [page, setPage] = useState(1);
   const [dialog, setDialog] = useState(null);
   const [summary, setSummary] = useState(null);
+  const [blocking, setBlocking] = useState(null);
+  const iAmOwner = me?.roles?.includes('OWNER');
   const q = { search: debounced, ...filters, page, limit: 25 };
   const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: ['admin', 'users', q], queryFn: () => api(`/admin/users${toQuery(q)}`), placeholderData: keepPreviousData });
 
   const setStatus = useMutation({
-    mutationFn: ({ id, status }) => api(`/admin/users/${id}/status`, { method: 'POST', body: { status } }),
-    onSuccess: () => { toast.success('Status updated'); qc.invalidateQueries({ queryKey: ['admin', 'users'] }); },
+    mutationFn: ({ id, status, reason }) => api(`/admin/users/${id}/status`, { method: 'POST', body: { status, reason } }),
+    onSuccess: (_r, v) => {
+      toast.success(v.status === 'BLOCKED' ? 'Account blocked and signed out everywhere' : 'Status updated');
+      setBlocking(null);
+      qc.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
     onError: (e) => toast.error(apiMessage(e)),
   });
   const killSessions = useMutation({
@@ -201,7 +235,7 @@ export function UsersManager({ superAdmin = false }) {
       <Card className="mb-4 grid gap-2 p-3 sm:grid-cols-4">
         <div className="relative"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-8" placeholder="Search name, email, mobile" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} /></div>
         <Select value={filters.status} onChange={(e) => { setFilters({ ...filters, status: e.target.value }); setPage(1); }} aria-label="Status">
-          <option value="">All statuses</option>{['ACTIVE', 'PENDING_APPROVAL', 'DISABLED', 'SUSPENDED', 'REJECTED'].map((s) => <option key={s} value={s}>{s.replace('_', ' ').toLowerCase()}</option>)}
+          <option value="">All statuses</option>{['ACTIVE', 'PENDING_APPROVAL', 'DISABLED', 'SUSPENDED', 'BLOCKED', 'REJECTED'].map((s) => <option key={s} value={s}>{s.replace('_', ' ').toLowerCase()}</option>)}
         </Select>
         <Select value={filters.roleCode} onChange={(e) => { setFilters({ ...filters, roleCode: e.target.value }); setPage(1); }} aria-label="Role">
           <option value="">All roles</option>{org.roles.map((r) => <option key={r.id} value={r.code}>{r.name}</option>)}
@@ -218,13 +252,13 @@ export function UsersManager({ superAdmin = false }) {
               {data.rows.map((u) => (
                 <TableRow key={u.id}>
                   <TableCell><div className="flex items-center gap-2.5"><UserAvatar src={u.avatar} name={u.full_name} /><div className="min-w-0"><div className="font-medium">{u.full_name}{u.id === me?.user?.id && <span className="ml-1 text-xs text-muted-foreground">(you)</span>}</div><div className="text-xs text-muted-foreground">{u.email} · {u.mobile}</div></div></div></TableCell>
-                  <TableCell>{u.roles?.split(',').map((r) => <Badge key={r} variant={r === 'SUPER_ADMIN' ? 'default' : r === 'ADMIN' ? 'info' : 'secondary'} className="mr-1">{r.replace('_', ' ').toLowerCase()}</Badge>)}</TableCell>
+                  <TableCell><div className="flex flex-wrap gap-1">{u.roles?.split(',').map((r) => <RoleBadge key={r} code={r} />)}</div></TableCell>
                   <TableCell><div className="flex gap-1">{u.websites?.split(',').map((c) => <WebsiteBadge key={c} code={c} />)}</div></TableCell>
                   <TableCell className="text-sm"><div>{u.department_name || '—'}</div><div className="text-xs text-muted-foreground">{u.teams}</div></TableCell>
                   <TableCell><AccountStatusBadge status={u.status} /></TableCell>
                   <TableCell className="whitespace-nowrap text-sm">{u.last_login_at ? timeAgo(u.last_login_at) : 'Never'}</TableCell>
                   <TableCell className="text-right">
-                    {u.id !== me?.user?.id && (
+                    {u.id !== me?.user?.id && (iAmOwner || (!u.roles?.split(',').includes('OWNER') && u.status !== 'BLOCKED')) && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild><Button variant="ghost" size="sm">Actions</Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -232,6 +266,8 @@ export function UsersManager({ superAdmin = false }) {
                           {can('user.disable') && u.status === 'ACTIVE' && <DropdownMenuItem onClick={() => confirm(`Disable ${u.full_name}? They will be signed out everywhere.`) && setStatus.mutate({ id: u.id, status: 'DISABLED' })}><Ban />Disable</DropdownMenuItem>}
                           {can('user.disable') && u.status === 'ACTIVE' && <DropdownMenuItem onClick={() => confirm(`Suspend ${u.full_name}?`) && setStatus.mutate({ id: u.id, status: 'SUSPENDED' })}><Ban />Suspend</DropdownMenuItem>}
                           {can('user.disable') && ['DISABLED', 'SUSPENDED'].includes(u.status) && <DropdownMenuItem onClick={() => setStatus.mutate({ id: u.id, status: 'ACTIVE' })}><CheckCircle2 />Re-enable</DropdownMenuItem>}
+                          {can('user.block') && u.status !== 'BLOCKED' && <DropdownMenuItem className="text-destructive" onClick={() => setBlocking(u)}><ShieldOff />Block account</DropdownMenuItem>}
+                          {can('user.block') && u.status === 'BLOCKED' && <DropdownMenuItem onClick={() => confirm(`Unblock ${u.full_name}? They can sign in again (with a new-device OTP).`) && setStatus.mutate({ id: u.id, status: 'ACTIVE' })}><ShieldCheck />Unblock account</DropdownMenuItem>}
                           {superAdmin && can('session.revoke_any') && <DropdownMenuItem onClick={() => confirm(`Terminate all sessions for ${u.full_name}?`) && killSessions.mutate(u.id)}><LogOut />Terminate all sessions</DropdownMenuItem>}
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -246,6 +282,7 @@ export function UsersManager({ superAdmin = false }) {
       </Card>
       {dialog && <UserDialog userId={dialog.type === 'edit' ? dialog.id : null} superAdmin={superAdmin} onClose={() => setDialog(null)} onSaved={(d) => { setDialog(null); setSummary(d); }} />}
       {summary && <UserSummaryDialog data={summary} onClose={() => setSummary(null)} />}
+      {blocking && <BlockUserDialog user={blocking} loading={setStatus.isPending} onClose={() => setBlocking(null)} onConfirm={(reason) => setStatus.mutate({ id: blocking.id, status: 'BLOCKED', reason })} />}
     </>
   );
 }
