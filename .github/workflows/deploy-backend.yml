@@ -14,6 +14,23 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      # Fails fast with a readable message when a secret is missing or malformed. Never prints secret values.
+      - name: Check deploy secrets
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          KEY: ${{ secrets.DROPLET_SSH_KEY }}
+        run: |
+          ok=1
+          [ -n "$HOST" ] && echo "DROPLET_HOST: set" || { echo "::error::DROPLET_HOST is empty - add it under Settings > Secrets and variables > Actions > Repository secrets"; ok=0; }
+          if [ -z "$KEY" ]; then
+            echo "::error::DROPLET_SSH_KEY is empty - it is not an Actions repository secret in this repo (check the name and the tab it was saved under)"; ok=0
+          else
+            echo "DROPLET_SSH_KEY: set, $(printf '%s\n' "$KEY" | wc -l) lines"
+            printf '%s\n' "$KEY" | head -1 | grep -q -- '-----BEGIN .*PRIVATE KEY-----' || { echo "::error::DROPLET_SSH_KEY does not start with '-----BEGIN ... PRIVATE KEY-----' (did you paste the .pub file?)"; ok=0; }
+            printf '%s\n' "$KEY" | grep -q -- '-----END .*PRIVATE KEY-----' || { echo "::error::DROPLET_SSH_KEY is missing its '-----END ... PRIVATE KEY-----' line"; ok=0; }
+          fi
+          [ "$ok" = 1 ]
+
       - name: Pull and restart on the droplet
         uses: appleboy/ssh-action@v1.2.0
         with:
