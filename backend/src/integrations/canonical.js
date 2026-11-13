@@ -53,6 +53,24 @@ export function deriveSourceMedium(a, ownDomain) {
   return { ...out, source: 'direct', medium: 'none' };
 }
 
+/**
+ * RMW and CT forms append attribution to the message as a "--- Tracking ---" block of "key: value" lines
+ * (it survives source backends that drop unknown fields). Returns the parsed fields and the message without it.
+ */
+const TRACKING_KEYS = new Set([...UTM_KEYS, ...CLICK_KEYS, 'landing_page', 'referrer']);
+export function splitTrackingBlock(message) {
+  if (!message) return { tracking: {}, message };
+  const s = String(message);
+  const idx = s.lastIndexOf('--- Tracking ---');
+  if (idx === -1) return { tracking: {}, message: s };
+  const tracking = {};
+  for (const line of s.slice(idx + 16).split(/\r?\n/)) {
+    const m = line.match(/^\s*([a-z_]+)\s*:\s*(.+?)\s*$/);
+    if (m && TRACKING_KEYS.has(m[1])) tracking[m[1]] = m[2];
+  }
+  return { tracking, message: s.slice(0, idx).trimEnd() || null };
+}
+
 /** Parse "Label: value" lines that RMW and CT pack into the message body. */
 export function parseLabeledMessage(message) {
   const fields = {};
