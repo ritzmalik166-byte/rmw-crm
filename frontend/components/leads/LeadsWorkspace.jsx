@@ -92,6 +92,74 @@ function FollowupCell({ at }) {
   );
 }
 
+/** wa.me needs digits with a country code; bare 10-digit numbers are Indian mobiles. */
+export function whatsappHref(phone) {
+  const d = String(phone || '').replace(/\D/g, '');
+  if (!d) return null;
+  return `https://wa.me/${d.length === 10 ? `91${d}` : d.replace(/^0+/, '')}`;
+}
+
+export function WhatsAppIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden {...props}>
+      <path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.08c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.69.63.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35zM12.05 21.5h-.01a9.4 9.4 0 0 1-4.8-1.32l-.34-.2-3.57.94.95-3.48-.22-.36a9.4 9.4 0 0 1-1.44-5.02c0-5.2 4.23-9.43 9.44-9.43 2.52 0 4.89.98 6.67 2.77a9.37 9.37 0 0 1 2.76 6.67c0 5.2-4.24 9.43-9.44 9.43zm8.03-17.46A11.27 11.27 0 0 0 12.05.72C5.8.72.7 5.8.7 12.07c0 2 .52 3.95 1.52 5.67L.6 23.5l5.9-1.55a11.32 11.32 0 0 0 5.54 1.41h.01c6.26 0 11.35-5.09 11.35-11.35 0-3.03-1.18-5.88-3.32-8.02z" />
+    </svg>
+  );
+}
+
+/** Phone layout: one tappable card per lead with one-tap call / WhatsApp. */
+function LeadCard({ lead: l, pipelineKey, editable, canTransfer, me, onTransfer, showWebsite }) {
+  const wa = whatsappHref(l.phone);
+  return (
+    <li className="px-3 py-3 active:bg-slate-50">
+      <Link href={`/crm/leads/${l.id}`} className="block">
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[hsl(213_70%_94%)] text-[14px] font-semibold text-[hsl(var(--primary))]">
+            {(l.name || '?').trim().charAt(0).toUpperCase()}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <p className="truncate text-[15px] font-semibold text-slate-900">{l.name || 'Unnamed lead'}</p>
+              {showWebsite && <WebsiteBadge code={l.website_code} />}
+              <span className="ml-auto shrink-0 text-[11px] text-slate-400">{timeAgo(l.received_at || l.created_at)}</span>
+            </div>
+            <p className="truncate text-[12.5px] text-slate-600">{l.interest || l.form_type || l.external_lead_id}</p>
+            {(l.location || l.source) && (
+              <p className="truncate text-[11.5px] text-slate-400">{[l.location, l.source && `${l.source}${l.medium && l.medium !== 'none' ? ` / ${l.medium}` : ''}`].filter(Boolean).join(' · ')}</p>
+            )}
+            {(l.junk_reason || !!l.is_duplicate_suspect) && <div className="mt-1 flex flex-wrap items-center gap-1">
+              {l.junk_reason && !(pipelineKey === 'career' && l.junk_reason === 'career') && <Badge variant="danger" className="px-1.5 py-0 text-[10px]">{JUNK_LABELS[l.junk_reason] || l.junk_reason}</Badge>}
+              {!!l.is_duplicate_suspect && <Badge variant="warning" className="px-1.5 py-0 text-[10px]">Duplicate?</Badge>}
+            </div>}
+          </div>
+        </div>
+      </Link>
+      <div className="mt-1.5 flex items-center gap-2 pl-[52px] [&_button]:min-h-0">
+        <StatusCell lead={l} editable={editable} />
+        <span className="min-w-0 flex-1 truncate text-[12px] text-slate-500">
+          {l.assigned_user_name ? (l.assigned_user_id === me?.user?.id ? 'You' : l.assigned_user_name) : <span className="text-amber-700">Unassigned</span>}
+        </span>
+        {l.next_followup_at && <span className="text-[11px]"><FollowupCell at={l.next_followup_at} /></span>}
+      </div>
+      <div className="mt-2 grid grid-cols-3 gap-2 pl-[52px] [&>*]:h-10 [&>*]:min-h-0">
+        {l.phone
+          ? <a href={`tel:${l.phone}`} className="flex h-9 items-center justify-center gap-1.5 rounded-lg bg-[hsl(213_70%_95%)] text-[12.5px] font-semibold text-[hsl(var(--primary))] active:scale-[0.97]"><Phone className="h-4 w-4" />Call</a>
+          : <span className="flex h-9 items-center justify-center rounded-lg bg-slate-50 text-[12px] text-slate-400">No phone</span>}
+        {wa
+          ? <a href={wa} target="_blank" rel="noopener noreferrer" className="flex h-9 items-center justify-center gap-1.5 rounded-lg bg-emerald-50 text-[12.5px] font-semibold text-emerald-700 active:scale-[0.97]"><WhatsAppIcon className="h-4 w-4" />WhatsApp</a>
+          : l.email
+            ? <a href={`mailto:${l.email}`} className="flex h-9 items-center justify-center gap-1.5 rounded-lg bg-slate-100 text-[12.5px] font-semibold text-slate-700 active:scale-[0.97]"><Mail className="h-4 w-4" />Email</a>
+            : <span />}
+        {canTransfer
+          ? <button onClick={() => onTransfer(l)} className="flex h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 text-[12.5px] font-semibold text-slate-700 active:scale-[0.97]">{l.assigned_user_id ? <><ArrowRightLeft className="h-4 w-4" />Transfer</> : <><UserPlus className="h-4 w-4" />Assign</>}</button>
+          : l.resume_url
+            ? <a href={l.resume_url} target="_blank" rel="noopener noreferrer" className="flex h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 text-[12.5px] font-semibold text-slate-700"><FileText className="h-4 w-4" />Resume</a>
+            : <span />}
+      </div>
+    </li>
+  );
+}
+
 export function LeadsWorkspace({ pipelineKey = 'all' }) {
   const p = PIPELINES[pipelineKey];
   const router = useRouter();
@@ -155,23 +223,23 @@ export function LeadsWorkspace({ pipelineKey = 'all' }) {
 
       <div className={cn('px-4 sm:px-6', p.standalone ? 'pt-4' : 'pt-3')}>
         {/* Title row */}
-        <div className="mb-2 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+        <div className="mb-2 flex items-center justify-between gap-2">
           <div>
             <h1 className="flex items-center gap-2 text-[17px] font-semibold text-slate-900"><PipelineLogo src={p.logo} className="h-6 w-6" />{p.title}</h1>
-            <p className="text-[12px] text-muted-foreground">{p.description}</p>
+            <p className="hidden text-[12px] text-muted-foreground sm:block">{p.description}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => refetch()} aria-label="Refresh"><RefreshCw className={isFetching ? 'animate-spin' : ''} /></Button>
             {can('lead.export') && <Button variant="outline" size="sm" onClick={exportCsv}><Download />Export</Button>}
-            {can('lead.create') && pipelineKey !== 'career' && <Button size="sm" onClick={() => setDialog('create')}><Plus />Add lead</Button>}
+            {can('lead.create') && pipelineKey !== 'career' && <Button size="sm" className="hidden lg:inline-flex" onClick={() => setDialog('create')}><Plus />Add lead</Button>}
           </div>
         </div>
 
         {/* Pipeline summary strip */}
         {stats && (
-          <div className="mb-3 grid grid-cols-3 divide-x rounded border bg-white sm:grid-cols-6">
+          <div className="mb-3 grid grid-cols-3 gap-px overflow-hidden rounded-xl border bg-slate-200/70 sm:grid-cols-6">
             {[['Total', stats.total], ['New', stats.new_leads], ['Today', stats.today], ['Unassigned', stats.unassigned, stats.unassigned > 0 && 'text-amber-700'], ['Overdue follow-ups', stats.overdue, stats.overdue > 0 && 'text-red-700'], ['Converted', stats.converted, 'text-emerald-700']].map(([label, val, tone]) => (
-              <div key={label} className="px-3 py-2">
+              <div key={label} className="bg-white px-3 py-2">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
                 <p className={cn('text-[17px] font-semibold tabular-nums text-slate-900', tone)}>{val ?? 0}</p>
               </div>
@@ -180,40 +248,40 @@ export function LeadsWorkspace({ pipelineKey = 'all' }) {
         )}
 
         {/* Toolbar */}
-        <div className="rounded-t border bg-white">
+        <div className="rounded-t-xl border bg-white">
           <div className="flex flex-wrap items-center gap-2 border-b px-2.5 py-2">
-            <div className="flex overflow-x-auto rounded border bg-slate-50 p-0.5">
+            <div className="order-2 flex max-w-full overflow-x-auto rounded-lg border bg-slate-50 p-0.5 sm:order-none [scrollbar-width:none]">
               {VIEWS.filter((v) => !v.perm || can(v.perm)).map((v) => (
                 <button key={v.key} onClick={() => setFilter({ view: v.key })} className={cn('whitespace-nowrap rounded-sm px-2.5 py-1 text-[12px] font-medium', filters.view === v.key ? 'bg-white text-[hsl(var(--primary))] shadow-sm ring-1 ring-slate-200' : 'text-slate-600 hover:text-slate-900')}>{v.label}</button>
               ))}
             </div>
-            <div className="relative min-w-[220px] flex-1">
-              <Search className="absolute left-2 top-2 h-4 w-4 text-slate-400" />
-              <Input className="pl-7" placeholder="Search name, phone, email, lead ID…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search leads" />
+            <div className="relative order-1 basis-full sm:order-none sm:min-w-[220px] sm:flex-1 sm:basis-auto">
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input className="pl-8" placeholder="Search name, phone, email, lead ID…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search leads" />
             </div>
             {has('status') && (
-              <Select className="w-36" value={filters.statusId} onChange={(e) => setFilter({ statusId: e.target.value })} aria-label="Status">
+              <Select className="order-3 min-w-0 basis-[calc(50%-4px)] sm:order-none sm:w-36 sm:basis-auto" value={filters.statusId} onChange={(e) => setFilter({ statusId: e.target.value })} aria-label="Status">
                 <option value="">Any status</option>{lk?.statuses?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </Select>
             )}
             {has('owner') && (
-              <Select className="w-40" value={filters.assignedUserId} onChange={(e) => setFilter({ assignedUserId: e.target.value })} aria-label="Owner">
+              <Select className="order-3 min-w-0 basis-[calc(50%-4px)] sm:order-none sm:w-40 sm:basis-auto" value={filters.assignedUserId} onChange={(e) => setFilter({ assignedUserId: e.target.value })} aria-label="Owner">
                 <option value="">Any owner</option><option value="me">Me</option>
                 {can('lead.view_all') && <option value="unassigned">Unassigned</option>}
                 {can('lead.view_all') && lk?.users?.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
               </Select>
             )}
-            <Button variant={moreFilters || activeFilters ? 'secondary' : 'outline'} size="sm" onClick={() => setMoreFilters((v) => !v)}>
+            <Button className="order-4 basis-[calc(50%-4px)] sm:order-none sm:basis-auto" variant={moreFilters || activeFilters ? 'secondary' : 'outline'} size="sm" onClick={() => setMoreFilters((v) => !v)}>
               <SlidersHorizontal />Filters{activeFilters ? ` (${activeFilters})` : ''}
             </Button>
-            <Select className="w-36" value={`${filters.sort || 'created_at'}:${filters.dir || 'desc'}`} onChange={(e) => { const [sort, dir] = e.target.value.split(':'); setFilter({ sort, dir }); }} aria-label="Sort">
+            <Select className="order-4 min-w-0 basis-[calc(50%-4px)] sm:order-none sm:w-36 sm:basis-auto" value={`${filters.sort || 'created_at'}:${filters.dir || 'desc'}`} onChange={(e) => { const [sort, dir] = e.target.value.split(':'); setFilter({ sort, dir }); }} aria-label="Sort">
               <option value="created_at:desc">Newest first</option><option value="created_at:asc">Oldest first</option>
               <option value="updated_at:desc">Recently updated</option><option value="name:asc">Name A–Z</option><option value="status:asc">By status</option>
             </Select>
           </div>
 
           {moreFilters && (
-            <div className="grid gap-2 border-b bg-slate-50/70 px-2.5 py-2 sm:grid-cols-3 lg:grid-cols-6">
+            <div className="grid grid-cols-2 gap-2 border-b bg-slate-50/70 px-2.5 py-2 sm:grid-cols-3 lg:grid-cols-6">
               {has('website') && <Select value={filters.websiteId} onChange={(e) => setFilter({ websiteId: e.target.value })} aria-label="Website"><option value="">All websites</option>{lk?.websites?.map((w) => <option key={w.id} value={w.id}>{w.code}</option>)}</Select>}
               {has('source') && <Select value={filters.source} onChange={(e) => setFilter({ source: e.target.value })} aria-label="Source"><option value="">Any source</option>{lk?.sources?.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}</Select>}
               {has('campaign') && <Input value={filters.campaign} onChange={(e) => setFilter({ campaign: e.target.value })} placeholder="Campaign" aria-label="Campaign" />}
@@ -242,11 +310,18 @@ export function LeadsWorkspace({ pipelineKey = 'all' }) {
         </div>
 
         {/* Table */}
-        <div className="rounded-b border border-t-0 bg-white">
+        <div className="overflow-hidden rounded-b-xl border border-t-0 bg-white">
           {isLoading ? <TableSkeleton cols={colCount} /> : isError ? <ErrorState error={error} onRetry={refetch} /> : rows.length === 0 ? (
             <EmptyState title="No leads match" description={activeFilters || filters.search || filters.view ? 'Try another view or remove some filters.' : 'Leads from this source will appear here automatically.'} />
           ) : (
             <div className={isFetching ? 'opacity-70 transition-opacity' : ''}>
+              <ul className="divide-y divide-slate-100 md:grid md:grid-cols-2 md:divide-y-0 md:[&>li:nth-child(odd)]:border-r md:[&>li]:border-b md:[&>li]:border-slate-100 xl:hidden">
+                {rows.map((l) => (
+                  <LeadCard key={l.id} lead={l} pipelineKey={pipelineKey} editable={can('lead.edit')} me={me} showWebsite={p.showWebsite}
+                    canTransfer={l.assigned_user_id ? can('lead.reassign') : can('lead.assign')} onTransfer={setRowLead} />
+                ))}
+              </ul>
+              <div className="hidden xl:block">
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
@@ -318,12 +393,19 @@ export function LeadsWorkspace({ pipelineKey = 'all' }) {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </div>
           )}
           <Pagination meta={data?.meta} onPage={(page) => setFilter({ page: String(page) })} />
         </div>
       </div>
 
+      {can('lead.create') && pipelineKey !== 'career' && (
+        <button onClick={() => setDialog('create')} aria-label="Add lead"
+          className="fixed bottom-[calc(max(env(safe-area-inset-bottom),14px)+80px)] right-4 md:bottom-[calc(max(env(safe-area-inset-bottom),18px)+92px)] md:right-6 z-30 flex h-14 w-14 items-center justify-center rounded-2xl bg-[hsl(var(--primary))] text-white shadow-lg shadow-[hsl(var(--primary))]/30 active:scale-95 lg:hidden">
+          <Plus className="h-6 w-6" />
+        </button>
+      )}
       <CreateLeadDialog open={dialog === 'create'} onOpenChange={(o) => !o && setDialog(null)} />
       <AssignDialog open={dialog === 'assign'} onOpenChange={(o) => !o && setDialog(null)} leadIds={selected} onDone={() => setSelected([])} />
       {rowLead && <AssignDialog open onOpenChange={(o) => !o && setRowLead(null)} leadIds={[rowLead.id]} currentOwner={rowLead.assigned_user_id ? { id: rowLead.assigned_user_id, name: rowLead.assigned_user_name } : null} leadName={rowLead.name} />}

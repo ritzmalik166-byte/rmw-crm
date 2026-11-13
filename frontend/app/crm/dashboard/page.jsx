@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Users, Sparkles, CalendarCheck, AlertTriangle, Clock, TrendingUp, UserX } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
 import { PIPELINES, PIPELINE_ORDER, PipelineLogo } from '@/lib/pipelines';
@@ -20,20 +20,42 @@ function Panel({ title, action, children, className }) {
   );
 }
 
+/** One palette for every metric: same meaning → same colour everywhere on the page. */
+const TONES = {
+  neutral: { bar: 'bg-[hsl(var(--primary))]', chip: 'bg-[hsl(213_60%_94%)] text-[hsl(var(--primary))]', num: 'text-slate-900' },
+  info: { bar: 'bg-blue-500', chip: 'bg-blue-50 text-blue-600', num: 'text-blue-700' },
+  warn: { bar: 'bg-amber-500', chip: 'bg-amber-50 text-amber-600', num: 'text-amber-700' },
+  danger: { bar: 'bg-red-500', chip: 'bg-red-50 text-red-600', num: 'text-red-700' },
+  success: { bar: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-600', num: 'text-emerald-700' },
+};
+
 function Strip({ items }) {
   return (
-    <div className="grid grid-cols-2 divide-x divide-y rounded border bg-white sm:grid-cols-3 sm:divide-y-0 lg:grid-cols-6">
-      {items.map(([label, value, tone, href]) => {
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+      {items.map(([label, value, toneKey, href, Icon]) => {
+        const t = TONES[(value ? toneKey : null) || 'neutral'];
         const inner = (
           <>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-            <p className={cn('text-[19px] font-semibold tabular-nums text-slate-900', tone)}>{value ?? 0}</p>
+            <span className={cn('absolute inset-x-0 top-0 h-[3px]', t.bar)} />
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+              {Icon && <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-lg', t.chip)}><Icon className="h-3.5 w-3.5" /></span>}
+            </div>
+            <p className={cn('mt-0.5 text-[22px] font-semibold leading-tight tabular-nums', t.num)}>{value ?? 0}</p>
           </>
         );
-        return href ? <Link key={label} href={href} className="px-3 py-2 hover:bg-slate-50">{inner}</Link> : <div key={label} className="px-3 py-2">{inner}</div>;
+        const cls = 'relative overflow-hidden rounded-xl border border-slate-200/80 bg-white px-3.5 pb-3 pt-3.5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.06)]';
+        return href
+          ? <Link key={label} href={href} className={cn(cls, 'transition hover:-translate-y-px hover:shadow-md')}>{inner}</Link>
+          : <div key={label} className={cls}>{inner}</div>;
       })}
     </div>
   );
+}
+
+function greeting() {
+  const h = new Date().getHours();
+  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 }
 
 export default function CrmDashboard() {
@@ -53,16 +75,43 @@ export default function CrmDashboard() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-1 border-b pb-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-[17px] font-semibold text-slate-900">Dashboard</h1>
-          <p className="text-[12px] text-muted-foreground">Welcome, {me?.user?.full_name}. Figures cover the websites you have access to.</p>
+      <div className="flex items-start justify-between gap-3 border-b pb-3 sm:items-end">
+        <div className="min-w-0">
+          <h1 className="text-[19px] font-semibold text-slate-900">{greeting()}, {me?.user?.full_name?.split(' ')[0]} 👋</h1>
+          <p className="hidden text-[12px] text-muted-foreground sm:block">Here&apos;s your lead overview. Figures cover the websites you have access to.</p>
         </div>
-        <p className="text-[12px] text-slate-500">{formatDate(new Date())}</p>
+        <p className="shrink-0 rounded-full border bg-white px-3 py-1 text-[12px] font-medium text-slate-600">{formatDate(new Date())}</p>
       </div>
 
       <Panel title="Pipeline register" action={<Link href="/crm/leads" className="text-[12px] font-medium text-[hsl(var(--primary))] hover:underline">Open all leads</Link>}>
-        <div className="overflow-x-auto">
+        {/* Phones: one card per pipeline */}
+        <ul className="divide-y divide-slate-100 md:hidden">
+          {PIPELINE_ORDER.map((k) => {
+            const c = counts[k] || {};
+            return (
+              <li key={k}>
+                <Link href={`/crm/pipeline/${k}`} className="flex items-center gap-3 px-3 py-3 active:bg-slate-50">
+                  <PipelineLogo src={PIPELINES[k].logo} className="h-9 w-9 rounded-lg" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[14px] font-semibold text-slate-900">{PIPELINES[k].title}</p>
+                    <div className="mt-1 flex flex-wrap gap-1.5 text-[11px]">
+                      {c.new_leads > 0 && <span className="rounded-full bg-blue-50 px-2 py-0.5 font-semibold text-blue-700 ring-1 ring-blue-200">{c.new_leads} new</span>}
+                      {c.unassigned > 0 && <span className="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-700 ring-1 ring-amber-200">{c.unassigned} unassigned</span>}
+                      {c.overdue > 0 && <span className="rounded-full bg-red-50 px-2 py-0.5 font-semibold text-red-700 ring-1 ring-red-200">{c.overdue} overdue</span>}
+                      {c.today > 0 && <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">{c.today} today</span>}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[20px] font-semibold leading-none tabular-nums text-slate-900">{c.total ?? 0}</p>
+                    <p className="mt-1 text-[10px] uppercase tracking-wide text-slate-400">{c.total ? `${((c.converted / c.total) * 100).toFixed(1)}% conv.` : 'leads'}</p>
+                  </div>
+                  <ArrowRight className="h-4 w-4 shrink-0 text-slate-300" />
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-[13px]">
             <thead className="bg-[hsl(214_25%_96%)] text-[11px] uppercase tracking-wide text-slate-600">
               <tr>
@@ -78,9 +127,9 @@ export default function CrmDashboard() {
                   <tr key={k} className="hover:bg-[hsl(213_60%_97%)]">
                     <td className="px-3 py-2"><Link href={`/crm/pipeline/${k}`} className="flex items-center gap-2 font-semibold text-[hsl(var(--primary))] hover:underline"><PipelineLogo src={PIPELINES[k].logo} className="h-5 w-5" />{PIPELINES[k].title}</Link></td>
                     <td className="px-3 py-2 text-right tabular-nums font-medium">{c.total ?? '—'}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{c.new_leads ? <Link className="font-semibold text-blue-700 hover:underline" href={`/crm/pipeline/${k}?view=new`}>{c.new_leads}</Link> : 0}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{c.new_leads ? <Link className="rounded-full bg-blue-50 px-2 py-0.5 font-semibold text-blue-700 ring-1 ring-blue-200 hover:bg-blue-100" href={`/crm/pipeline/${k}?view=new`}>{c.new_leads}</Link> : 0}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{c.today ?? 0}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{c.unassigned ? <Link className="font-semibold text-amber-700 hover:underline" href={`/crm/pipeline/${k}?view=unassigned`}>{c.unassigned}</Link> : 0}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{c.unassigned ? <Link className="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100" href={`/crm/pipeline/${k}?view=unassigned`}>{c.unassigned}</Link> : 0}</td>
                     <td className={cn('px-3 py-2 text-right tabular-nums', c.overdue && 'font-semibold text-red-700')}>{c.overdue ?? 0}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-emerald-700">{c.converted ?? 0}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-slate-500">{c.total ? `${((c.converted / c.total) * 100).toFixed(1)}%` : '—'}</td>
@@ -107,12 +156,12 @@ export default function CrmDashboard() {
       <div>
         <h2 className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">My work</h2>
         <Strip items={[
-          ['My leads', mine.leads.total, null, '/crm/leads?view=mine'],
-          ['New', mine.leads.new_leads, 'text-blue-700'],
-          ["Today's follow-ups", mine.followups.today, null, '/crm/followups'],
-          ['Overdue', mine.followups.overdue, mine.followups.overdue ? 'text-red-700' : null, '/crm/followups'],
-          ['Upcoming', mine.followups.upcoming],
-          ['Converted (30 days)', mine.leads.converted_30d, 'text-emerald-700'],
+          ['My leads', mine.leads.total, null, '/crm/leads?view=mine', Users],
+          ['New', mine.leads.new_leads, 'info', null, Sparkles],
+          ["Today's follow-ups", mine.followups.today, null, '/crm/followups', CalendarCheck],
+          ['Overdue', mine.followups.overdue, 'danger', '/crm/followups', AlertTriangle],
+          ['Upcoming', mine.followups.upcoming, null, null, Clock],
+          ['Converted (30 days)', mine.leads.converted_30d, 'success', null, TrendingUp],
         ]} />
       </div>
 
@@ -120,17 +169,17 @@ export default function CrmDashboard() {
         <div>
           <h2 className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">Team</h2>
           <Strip items={[
-            ['Team leads', team.leads.total],
-            ['Unassigned', team.leads.unassigned, team.leads.unassigned ? 'text-amber-700' : null, '/crm/leads?view=unassigned'],
-            ['New', team.leads.new_leads, 'text-blue-700'],
-            ['Follow-ups due today', team.followups.due_today],
-            ['Overdue follow-ups', team.followups.overdue, team.followups.overdue ? 'text-red-700' : null],
-            ['Converted (30 days)', team.leads.converted_30d, 'text-emerald-700'],
+            ['Team leads', team.leads.total, null, null, Users],
+            ['Unassigned', team.leads.unassigned, 'warn', '/crm/leads?view=unassigned', UserX],
+            ['New', team.leads.new_leads, 'info', null, Sparkles],
+            ['Follow-ups due today', team.followups.due_today, null, null, CalendarCheck],
+            ['Overdue follow-ups', team.followups.overdue, 'danger', null, AlertTriangle],
+            ['Converted (30 days)', team.leads.converted_30d, 'success', null, TrendingUp],
           ]} />
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2">
         <Panel title="My recent leads" action={<Link href="/crm/leads?view=mine" className="text-[12px] font-medium text-[hsl(var(--primary))] hover:underline">View all</Link>}>
           {mine.recent.length === 0 ? <EmptyState title="No leads assigned yet" description="Leads assigned to you will show up here." /> : (
             <ul className="divide-y">

@@ -2,7 +2,7 @@ import { cva } from 'class-variance-authority';
 import { Crown, ShieldCheck, Shield, User } from 'lucide-react';
 import { cn, STATUS_COLORS } from '@/lib/utils';
 
-const badgeVariants = cva('inline-flex items-center rounded-sm px-1.5 py-px text-[11px] font-medium ring-1 ring-inset', {
+const badgeVariants = cva('inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset', {
   variants: {
     variant: {
       default: 'bg-slate-900 text-white ring-slate-900',
@@ -22,7 +22,7 @@ function Badge({ className, variant, ...props }) {
 }
 
 function StatusBadge({ name, color }) {
-  return <span className={cn('inline-flex items-center rounded-sm px-1.5 py-px text-[11px] font-medium ring-1 ring-inset', STATUS_COLORS[color] || STATUS_COLORS.slate)}>{name}</span>;
+  return <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset', STATUS_COLORS[color] || STATUS_COLORS.slate)}>{name}</span>;
 }
 
 const WEBSITE_STYLES = { MPF: 'bg-teal-50 text-teal-700 ring-teal-200', RMW: 'bg-rose-50 text-rose-700 ring-rose-200', CT: 'bg-purple-50 text-purple-700 ring-purple-200' };
@@ -33,7 +33,7 @@ function WebsiteLogo({ code, className }) {
 }
 function WebsiteBadge({ code, logo = true }) {
   return (
-    <span className={cn('inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold tracking-wide ring-1 ring-inset', WEBSITE_STYLES[code] || STATUS_COLORS.slate)}>
+    <span className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tracking-wide ring-1 ring-inset', WEBSITE_STYLES[code] || STATUS_COLORS.slate)}>
       {logo && <WebsiteLogo code={code} className="h-3.5 w-3.5" />}{code}
     </span>
   );

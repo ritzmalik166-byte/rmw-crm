@@ -77,12 +77,12 @@ export function Pagination({ meta, onPage }) {
 
 export function PageHeader({ title, description, actions }) {
   return (
-    <div className="mb-3 flex flex-col gap-2 border-b pb-3 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mb-4 flex flex-col gap-3 border-b pb-4 sm:mb-3 sm:flex-row sm:items-end sm:justify-between sm:gap-2 sm:pb-3">
       <div>
         <h1 className="text-[17px] font-semibold text-slate-900">{title}</h1>
         {description && <p className="mt-0.5 text-[12px] text-muted-foreground">{description}</p>}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && <div className="flex flex-wrap items-center gap-2 [&>*]:h-10 [&>*]:flex-1 sm:[&>*]:h-8 sm:[&>*]:flex-none">{actions}</div>}
     </div>
   );
 }

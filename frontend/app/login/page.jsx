@@ -107,6 +107,7 @@ function LoginInner() {
   const [busy, setBusy] = useState(false);
 
   const done = async () => {
+    try { sessionStorage.setItem('crm:justLoggedIn', '1'); } catch { /* storage blocked */ }
     await qc.invalidateQueries({ queryKey: ['me'] });
     router.replace(safeNext(params.get('next')));
   };

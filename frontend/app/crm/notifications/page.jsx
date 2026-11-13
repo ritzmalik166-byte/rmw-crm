@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCheck } from 'lucide-react';
+import { Bell, CalendarClock, CheckCheck, UserPlus } from 'lucide-react';
 import { api } from '@/lib/api';
 import { formatDateTime, timeAgo, cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -36,16 +36,19 @@ export default function NotificationsPage() {
         {isLoading ? <TableSkeleton cols={2} /> : isError ? <ErrorState error={error} onRetry={refetch} /> : !data.rows.length ? <EmptyState title="No notifications" /> : (
           <ul className="divide-y">
             {data.rows.map((n) => (
-              <li key={n.id} className={cn('flex items-start justify-between gap-4 px-5 py-3', !n.read_at && 'bg-blue-50/40')}>
-                <div className="flex min-w-0 gap-3">
-                  <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', n.read_at ? 'bg-transparent' : 'bg-blue-600')} />
-                  <div className="min-w-0">
-                    {n.link ? <Link href={n.link} onClick={() => !n.read_at && markOne.mutate(n.id)} className="text-sm font-medium hover:underline">{n.title}</Link> : <p className="text-sm font-medium">{n.title}</p>}
-                    {n.body && <p className="text-sm text-muted-foreground">{n.body}</p>}
-                    <p className="mt-0.5 text-xs text-muted-foreground" title={formatDateTime(n.created_at)}>{timeAgo(n.created_at)}</p>
+              <li key={n.id} className={cn('flex items-start gap-3 px-4 py-4 sm:px-5 sm:py-3', !n.read_at && 'bg-blue-50/50')}>
+                <span className={cn('relative mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full', /lead/i.test(n.title) ? 'bg-blue-50 text-blue-600' : /follow/i.test(n.title) ? 'bg-amber-50 text-amber-600' : /account|user|access/i.test(n.title) ? 'bg-violet-50 text-violet-600' : 'bg-slate-100 text-slate-500')}>
+                  {/follow/i.test(n.title) ? <CalendarClock className="h-[18px] w-[18px]" /> : /account|user|access/i.test(n.title) ? <UserPlus className="h-[18px] w-[18px]" /> : <Bell className="h-[18px] w-[18px]" />}
+                  {!n.read_at && <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-blue-600 ring-2 ring-white" />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    {n.link ? <Link href={n.link} onClick={() => !n.read_at && markOne.mutate(n.id)} className={cn('text-sm hover:underline', n.read_at ? 'font-medium text-slate-700' : 'font-semibold text-slate-900')}>{n.title}</Link> : <p className={cn('text-sm', n.read_at ? 'font-medium text-slate-700' : 'font-semibold text-slate-900')}>{n.title}</p>}
+                    <span className="shrink-0 text-xs text-muted-foreground" title={formatDateTime(n.created_at)}>{timeAgo(n.created_at)}</span>
                   </div>
+                  {n.body && <p className="mt-0.5 text-sm leading-snug text-muted-foreground">{n.body}</p>}
+                  {!n.read_at && <button className="mt-1.5 text-xs font-semibold text-[hsl(var(--primary))]" onClick={() => markOne.mutate(n.id)}>Mark as read</button>}
                 </div>
-                {!n.read_at && <Button variant="ghost" size="sm" onClick={() => markOne.mutate(n.id)}>Mark read</Button>}
               </li>
             ))}
           </ul>

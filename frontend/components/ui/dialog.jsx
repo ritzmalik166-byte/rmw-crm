@@ -13,11 +13,19 @@ const DialogContent = React.forwardRef(({ className, children, ...props }, ref) 
     <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
     <DialogPrimitive.Content
       ref={ref}
-      className={cn('fixed left-1/2 top-1/2 z-50 grid max-h-[90vh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-lg border bg-background p-6 shadow-lg', className)}
+      className={cn(
+        // Phones: bottom sheet that slides up. sm+: centred dialog.
+        'fixed inset-x-0 bottom-0 z-50 grid max-h-[92dvh] w-full gap-4 overflow-y-auto rounded-t-2xl border bg-background p-5 pb-[calc(env(safe-area-inset-bottom)+20px)] pt-7 shadow-2xl',
+        'data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom data-[state=open]:duration-300',
+        'sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[90vh] sm:w-[calc(100%-2rem)] sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:p-6 sm:data-[state=open]:slide-in-from-bottom-0 sm:data-[state=open]:zoom-in-95',
+        // A caller's width cap (e.g. max-w-sm) applies from sm up, so the phone sheet stays full width.
+        className?.replace(/(^|\s)max-w-/g, '$1sm:max-w-'),
+      )}
       {...props}
     >
+      <span aria-hidden className="absolute left-1/2 top-2.5 h-1 w-10 -translate-x-1/2 rounded-full bg-slate-300 sm:hidden" />
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring">
+      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-full p-1 opacity-70 hover:bg-slate-100 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>

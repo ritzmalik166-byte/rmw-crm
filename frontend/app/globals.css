@@ -22,22 +22,58 @@
     --accent-foreground: 213 62% 22%;
     --destructive: 0 68% 46%;
     --destructive-foreground: 0 0% 100%;
-    --border: 214 20% 86%;
-    --input: 214 18% 80%;
+    --border: 216 24% 89%;
+    --input: 216 20% 82%;
     --ring: 213 62% 36%;
-    --radius: 0.25rem;
-    --page: 216 22% 95%;               /* app background */
+    --radius: 0.625rem;
+    --page: 218 33% 97%;               /* app background (cool off-white) */
     --saffron: 28 92% 52%;             /* thin accent line only */
   }
   * { @apply border-border; }
   html { font-size: 14px; }
-  body { @apply text-foreground antialiased; background: hsl(var(--page)); font-size: 13px; }
+  body { @apply text-foreground antialiased; background: radial-gradient(1200px 400px at 100% -10%, hsl(213 70% 94% / .7), transparent 60%), hsl(var(--page)); background-attachment: fixed; font-size: 13px; }
   h1, h2, h3 { letter-spacing: -0.005em; }
+
+  /* ── App feel on phones & tablets ─────────────────────────────── */
+  html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+  body { overscroll-behavior-y: none; }
+  @media (max-width: 1023px) {
+    body { background-attachment: scroll; }
+    /* 16px stops iOS Safari zooming into a field on focus. */
+    input, select, textarea { font-size: 16px !important; }
+    /* Comfortable touch targets for controls built at desktop density. */
+    /* :where() keeps specificity at zero so any component's own height utility still wins. */
+    :where(button:not([role="checkbox"]):not([role="switch"]):not([role="tab"]), select, input:not([type="checkbox"]):not([type="radio"])) { min-height: 40px; }
+    :where([role="menuitem"]) { min-height: 44px; }
+    button, a { touch-action: manipulation; }
+  }
+  /* Standalone (installed) app: no text selection on chrome, like a native app. */
+  @media (display-mode: standalone) {
+    header, nav { -webkit-user-select: none; user-select: none; }
+  }
 }
 
 @layer components {
-  .panel { @apply rounded border bg-white; }
-  .panel-head { @apply flex items-center justify-between gap-2 border-b bg-[hsl(214_25%_97%)] px-3 py-2; }
-  .panel-title { @apply text-[12px] font-semibold uppercase tracking-wide text-slate-600; }
+  .panel { @apply rounded-xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.06)]; }
+  .panel-head { @apply flex items-center justify-between gap-2 border-b border-slate-100 bg-white px-4 py-2.5; }
+  .panel-title { @apply flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-slate-700 before:h-3.5 before:w-[3px] before:rounded-full before:bg-[hsl(var(--saffron))] before:content-['']; }
+  /* Table polish shared by every list */
+  thead { @apply bg-slate-50/80; }
+  tbody tr { @apply transition-colors; }
+  ::selection { background: hsl(213 80% 88%); }
+  /* Thin, quiet scrollbars */
+  * { scrollbar-width: thin; scrollbar-color: hsl(215 16% 80%) transparent; }
   .kv-label { @apply text-[11px] font-medium uppercase tracking-wide text-muted-foreground; }
+}
+
+/* Outside @layer on purpose: must come after Tailwind utilities to override them. */
+/* Phones & tablets: the UI is built at desktop density (10-13px). Step small text up one notch so it reads comfortably. */
+@media (max-width: 1023px) {
+  body { font-size: 14px; }
+  .text-\[10px\] { font-size: 11px; }
+  .text-\[11px\] { font-size: 12px; }
+  .text-\[12px\] { font-size: 13px; }
+  .text-\[13px\] { font-size: 14px; }
+  .text-xs { font-size: 12.5px; }
+  .text-sm { font-size: 14.5px; }
 }

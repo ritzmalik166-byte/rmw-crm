@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { ErrorState, Skeleton, EmptyState } from '@/components/ui/feedback';
 import { LeadDetailSkeleton } from '@/components/ui/skeletons';
 import { AssignDialog } from '@/components/leads/LeadForms';
+import { whatsappHref, WhatsAppIcon } from '@/components/leads/LeadsWorkspace';
 
 function Row({ label, value, mono }) {
   return (
@@ -26,6 +27,25 @@ function Row({ label, value, mono }) {
       <dd className={cn('col-span-2 break-words', mono && 'font-mono text-xs')}>{value || <span className="text-muted-foreground">—</span>}</dd>
     </div>
   );
+}
+
+const UTM_FIELDS = [['utm_source', 'UTM source'], ['utm_medium', 'UTM medium'], ['utm_campaign', 'UTM campaign'], ['utm_term', 'UTM term'], ['utm_content', 'UTM content']];
+
+/** Explains how the visitor arrived, and why UTM fields may be empty for that kind of traffic. */
+function channelOf(a) {
+  const m = String(a.medium || '').toLowerCase();
+  const blue = { tone: 'border-blue-200 bg-blue-50 text-blue-900', dot: 'bg-blue-500' };
+  const green = { tone: 'border-emerald-200 bg-emerald-50 text-emerald-900', dot: 'bg-emerald-500' };
+  const amber = { tone: 'border-amber-200 bg-amber-50 text-amber-900', dot: 'bg-amber-500' };
+  const slate = { tone: 'border-slate-200 bg-slate-50 text-slate-800', dot: 'bg-slate-400' };
+  if (a.utm_source) return { ...blue, label: `Campaign · ${a.utm_source}${a.utm_medium ? ` / ${a.utm_medium}` : ''}` };
+  if (a.gclid || a.msclkid) return { ...amber, label: `Paid search · ${a.gclid ? 'Google Ads' : 'Microsoft Ads'}`, why: 'Ad click detected by its click ID. Campaign name is missing because the ad has no UTM tracking template.' };
+  if (a.fbclid) return { ...amber, label: 'Paid social · Meta', why: 'Ad click detected by fbclid. Add UTM tags to the ad URL to see the campaign.' };
+  if (m === 'organic') return { ...green, label: `Organic search · ${titleCase(a.source)}`, why: 'Free search result. Organic visits never carry UTM tags, so campaign fields stay empty.' };
+  if (m === 'social') return { ...blue, label: `Social · ${titleCase(a.source)}`, why: 'Came from a social link without UTM tags.' };
+  if (m === 'referral') return { ...blue, label: `Referral · ${a.source}`, why: 'Came from a link on another website.' };
+  if (!a.landing_page && !a.referrer) return { ...slate, label: 'Not tracked', why: 'The source website did not send any visit data for this lead.' };
+  return { ...slate, label: 'Direct', why: 'Typed URL, bookmark, or app link. There is no referrer or UTM tag.' };
 }
 
 const ACTIVITY_LABELS = {
@@ -143,18 +163,18 @@ export default function LeadDetailPage({ params }) {
   return (
     <div className="space-y-4">
       <div className="panel">
-        <div className="flex items-center gap-1 border-b px-3 py-1.5 text-[12px] text-slate-500">
+        <div className="flex items-center gap-1 border-b px-4 py-2.5 text-[12px] text-slate-500 lg:px-3 lg:py-1.5">
           <Link href={backHref} className="inline-flex items-center gap-1 hover:text-[hsl(var(--primary))]"><ArrowLeft className="h-3.5 w-3.5" />{backLabel}</Link>
           <span>/</span><span className="font-mono">{lead.external_lead_id}</span>
         </div>
-        <div className="flex flex-col gap-3 px-3 py-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-4 px-4 py-4 lg:flex-row lg:items-start lg:justify-between lg:gap-3 lg:px-3 lg:py-3">
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-[18px] font-semibold text-slate-900">{lead.name || 'Unnamed lead'}</h1>
               <WebsiteBadge code={lead.website_code} />
               <StatusBadge name={lead.status_name} color={lead.status_color} />
             </div>
-            <div className="mt-1.5 flex flex-wrap gap-x-5 gap-y-1 text-[12px] text-slate-600">
+            <div className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 text-[12px] text-slate-600 sm:mt-1.5 sm:flex sm:flex-wrap sm:gap-x-5 sm:gap-y-1 [&>span]:flex [&>span]:flex-col sm:[&>span]:block">
               <span><span className="kv-label mr-1">Owner</span>{lead.assigned_user_name || <span className="text-amber-700">Unassigned</span>}</span>
               <span><span className="kv-label mr-1">Received</span>{formatDateTime(lead.external_created_at || lead.created_at)}</span>
               <span><span className="kv-label mr-1">Source</span>{[lead.source, lead.medium !== 'none' && lead.medium].filter(Boolean).join(' / ') || '—'}</span>
@@ -163,9 +183,16 @@ export default function LeadDetailPage({ params }) {
             </div>
             {lead.merged_into_lead_id && <p className="mt-2 text-sm text-amber-700">This lead was merged into <Link className="underline" href={`/crm/leads/${lead.merged_into_lead_id}`}>lead #{lead.merged_into_lead_id}</Link>.</p>}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          {(lead.phone || lead.email) && (
+            <div className="grid grid-cols-3 gap-2 lg:hidden">
+              {lead.phone && <a href={`tel:${lead.phone}`} className="flex h-11 items-center justify-center gap-1.5 rounded-xl bg-[hsl(var(--primary))] text-[13px] font-semibold text-white shadow-sm active:scale-[0.97]"><Phone className="h-4 w-4" />Call</a>}
+              {whatsappHref(lead.phone) && <a href={whatsappHref(lead.phone)} target="_blank" rel="noopener noreferrer" className="flex h-11 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 text-[13px] font-semibold text-white shadow-sm active:scale-[0.97]"><WhatsAppIcon className="h-4 w-4" />WhatsApp</a>}
+              {lead.email && <a href={`mailto:${lead.email}`} className="flex h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white text-[13px] font-semibold text-slate-700 active:scale-[0.97]"><Mail className="h-4 w-4" />Email</a>}
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center [&>*]:w-full sm:[&>*]:w-auto">
             {can('lead.edit') && (
-              <Select className="w-44" value={lead.status_id} onChange={(e) => status.mutate(e.target.value)} disabled={status.isPending} aria-label="Change status">
+              <Select className="col-span-2 sm:w-44" value={lead.status_id} onChange={(e) => status.mutate(e.target.value)} disabled={status.isPending} aria-label="Change status">
                 {lk?.statuses?.filter((s) => s.is_active || s.id === lead.status_id).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </Select>
             )}
@@ -204,7 +231,13 @@ export default function LeadDetailPage({ params }) {
           <Card>
             <CardHeader><CardTitle>Lead information</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-              {lead.phone && <a href={`tel:${lead.phone}`} className="flex items-center gap-2 hover:underline"><Phone className="h-4 w-4 text-muted-foreground" />{lead.phone}</a>}
+              {lead.phone && (
+                <div className="flex items-center gap-2">
+                  <a href={`tel:${lead.phone}`} className="flex min-w-0 flex-1 items-center gap-2 hover:underline"><Phone className="h-4 w-4 shrink-0 text-muted-foreground" />{lead.phone}</a>
+                  <a href={`tel:${lead.phone}`} aria-label="Call" className="flex h-9 w-9 items-center justify-center rounded-full bg-[hsl(213_70%_94%)] text-[hsl(var(--primary))] active:scale-95"><Phone className="h-4 w-4" /></a>
+                  {whatsappHref(lead.phone) && <a href={whatsappHref(lead.phone)} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 active:scale-95"><WhatsAppIcon className="h-[18px] w-[18px]" /></a>}
+                </div>
+              )}
               {lead.email && <a href={`mailto:${lead.email}`} className="flex items-center gap-2 break-all hover:underline"><Mail className="h-4 w-4 text-muted-foreground" />{lead.email}</a>}
               {lead.location && <p className="flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground" />{lead.location}</p>}
               {lead.interest && <p className="flex items-center gap-2"><Target className="h-4 w-4 text-muted-foreground" />{lead.interest}</p>}
@@ -216,23 +249,34 @@ export default function LeadDetailPage({ params }) {
           <Card>
             <CardHeader><CardTitle>Source attribution</CardTitle></CardHeader>
             <CardContent>
-              <dl className="divide-y">
-                <Row label="Source" value={a.source} />
-                <Row label="Medium" value={a.medium} />
-                <Row label="Campaign" value={a.campaign} />
-                <Row label="Term" value={a.term} />
-                <Row label="Content" value={a.content} />
-                <Row label="Landing page" value={a.landing_page} />
-                <Row label="Referrer" value={a.referrer} />
-                <Row label="Page / form" value={a.page_name || lead.form_type} />
-                <Row label="UTM source" value={a.utm_source} mono />
-                <Row label="UTM medium" value={a.utm_medium} mono />
-                <Row label="UTM campaign" value={a.utm_campaign} mono />
-                <Row label="UTM term" value={a.utm_term} mono />
-                <Row label="UTM content" value={a.utm_content} mono />
-                {(a.gclid || a.fbclid || a.msclkid) && <Row label="Click ID" value={[a.gclid && `gclid ${a.gclid}`, a.fbclid && `fbclid ${a.fbclid}`, a.msclkid && `msclkid ${a.msclkid}`].filter(Boolean).join(' · ')} mono />}
-                {attrExtra.self_reported_source && <Row label="Heard about us" value={attrExtra.self_reported_source} />}
-              </dl>
+              {(() => {
+                const ch = channelOf(a);
+                const hasUtm = UTM_FIELDS.some(([k]) => a[k]);
+                return (
+                  <>
+                    <div className={cn('mb-3 flex items-start gap-2.5 rounded-md border px-3 py-2', ch.tone)}>
+                      <span className={cn('mt-1 h-2 w-2 shrink-0 rounded-full', ch.dot)} />
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-semibold">{ch.label}</p>
+                        <p className="text-[11px] opacity-80">{hasUtm ? 'Tagged with UTM parameters.' : ch.why}</p>
+                      </div>
+                    </div>
+                    <dl className="divide-y">
+                      <Row label="Source" value={a.source} />
+                      <Row label="Medium" value={a.medium} />
+                      {(a.campaign || hasUtm) && <Row label="Campaign" value={a.campaign} />}
+                      {a.term && <Row label="Term" value={a.term} />}
+                      {a.content && <Row label="Content" value={a.content} />}
+                      <Row label="Landing page" value={a.landing_page} />
+                      <Row label="Referrer" value={a.referrer} />
+                      <Row label="Page / form" value={a.page_name || lead.form_type} />
+                      {hasUtm && UTM_FIELDS.map(([k, label]) => <Row key={k} label={label} value={a[k]} mono />)}
+                      {(a.gclid || a.fbclid || a.msclkid) && <Row label="Click ID" value={[a.gclid && `gclid ${a.gclid}`, a.fbclid && `fbclid ${a.fbclid}`, a.msclkid && `msclkid ${a.msclkid}`].filter(Boolean).join(' · ')} mono />}
+                      {attrExtra.self_reported_source && <Row label="Heard about us" value={attrExtra.self_reported_source} />}
+                    </dl>
+                  </>
+                );
+              })()}
             </CardContent>
           </Card>
 
