@@ -29,4 +29,6 @@ export const limiters = {
   register: make(60 * 60_000, 10),
   forgot: make(60 * 60_000, 10),
   integration: make(60_000, 600),
+  metaWebhook: make(60_000, 1200),
+  metaOAuth: make(15 * 60_000, 30),
 };

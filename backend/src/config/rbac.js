@@ -88,6 +88,8 @@ export const LEAD_STATUSES = [
   { code: 'INTERESTED', name: 'Interested', color: 'violet' },
   { code: 'FOLLOW_UP', name: 'Follow-up', color: 'amber' },
   { code: 'QUALIFIED', name: 'Qualified', color: 'indigo' },
+  { code: 'SITE_VISIT', name: 'Site visit', color: 'indigo' },
+  { code: 'NEGOTIATION', name: 'Negotiation', color: 'violet' },
   { code: 'CONVERTED', name: 'Converted', color: 'green', isConversion: 1, isClosed: 1 },
   { code: 'NOT_INTERESTED', name: 'Not interested', color: 'slate', isClosed: 1 },
   { code: 'LOST', name: 'Lost', color: 'red', isClosed: 1 },

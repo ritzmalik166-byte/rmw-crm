@@ -8,6 +8,8 @@ import { normalizePhone, normalizeEmail } from '../utils/normalize.js';
 import { randomToken } from '../utils/crypto.js';
 import { env } from '../config/env.js';
 import { parseBound, startOfTodayIst } from '../utils/dateRange.js';
+import { recordStatusConversion } from './conversionService.js';
+import { LEAD_SOURCE_TYPES } from '../config/leadSources.js';
 
 /** Absolute URL for a stored resume path ("/uploads/x.pdf" or a full URL). */
 export function resumeUrl(p) {
@@ -22,7 +24,7 @@ const RECEIVED = 'COALESCE(l.external_created_at, l.created_at)';
 const SORTS = { created_at: RECEIVED, received_at: RECEIVED, updated_at: 'l.updated_at', name: 'l.name', status: 's.sort_order', website: 'w.code' };
 
 const LIST_SELECT = `l.id, l.external_lead_id, l.name, l.phone, l.email, l.location, l.interest, l.form_type, l.created_at, l.updated_at,
-  l.external_created_at, COALESCE(JSON_UNQUOTE(JSON_EXTRACT(a.extra, '$.resume')), JSON_UNQUOTE(JSON_EXTRACT(l.raw_payload, '$.resume')), JSON_UNQUOTE(JSON_EXTRACT(l.raw_payload, '$.resumePath'))) AS resume, COALESCE(l.external_created_at, l.created_at) AS received_at, l.is_duplicate_suspect, l.junk_reason, l.assigned_user_id, w.id AS website_id, w.code AS website_code,
+  l.external_created_at, COALESCE(JSON_UNQUOTE(JSON_EXTRACT(a.extra, '$.resume')), JSON_UNQUOTE(JSON_EXTRACT(l.raw_payload, '$.resume')), JSON_UNQUOTE(JSON_EXTRACT(l.raw_payload, '$.resumePath'))) AS resume, COALESCE(l.external_created_at, l.created_at) AS received_at, l.is_duplicate_suspect, l.junk_reason, l.assigned_user_id, l.source_type, w.id AS website_id, w.code AS website_code,
   s.id AS status_id, s.code AS status_code, s.name AS status_name, s.color AS status_color,
   u.full_name AS assigned_user_name, a.source, a.medium, a.campaign, a.utm_source, a.utm_campaign,
   (SELECT MIN(f.due_at) FROM lead_followups f WHERE f.lead_id = l.id AND f.status IN ('UPCOMING','OVERDUE')) AS next_followup_at`;
@@ -47,6 +49,7 @@ function buildFilters(req, f) {
   if (f.websiteId) { websiteScope(req, f.websiteId); where.push('l.website_id = ?'); params.push(f.websiteId); }
   if (f.statusId) { where.push('l.status_id = ?'); params.push(f.statusId); }
   if (f.source) { where.push('a.source = ?'); params.push(f.source); }
+  if (f.sourceType) { where.push('l.source_type = ?'); params.push(f.sourceType); }
   if (f.campaign) { where.push('(a.campaign = ? OR a.utm_campaign = ?)'); params.push(f.campaign, f.campaign); }
   if (f.assignedUserId === 'unassigned') where.push('l.assigned_user_id IS NULL');
   else if (f.assignedUserId === 'me') { where.push('l.assigned_user_id = ?'); params.push(req.auth.user.id); }
@@ -104,8 +107,10 @@ export const leadService = {
 
   async detail(req, id) {
     const lead = await loadVisibleLead(req, id);
-    const [base, attribution, notes, followups, activities, assignments, duplicates] = await Promise.all([
-      one(`SELECT ${LIST_SELECT}, l.message, l.extra, l.team_id, t.name AS team_name, d.name AS department_name
+    const [base, attribution, notes, followups, activities, assignments, duplicates, conversions] = await Promise.all([
+      one(`SELECT ${LIST_SELECT}, l.message, l.extra, l.team_id, t.name AS team_name, d.name AS department_name,
+             l.source_lead_id, l.campaign_id, l.campaign_name, l.ad_set_id, l.ad_set_name, l.ad_id, l.ad_name, l.form_id, l.form_name,
+             l.page_id, l.instagram_account_id, l.external_metadata
            ${LIST_FROM} LEFT JOIN teams t ON t.id = l.team_id LEFT JOIN departments d ON d.id = t.department_id WHERE l.id = ?`, [id]),
       one('SELECT * FROM lead_attributions WHERE lead_id = ?', [id]),
       query('SELECT n.*, u.full_name AS author FROM lead_notes n LEFT JOIN users u ON u.id = n.user_id WHERE n.lead_id = ? ORDER BY n.id DESC', [id]),
@@ -117,8 +122,9 @@ export const leadService = {
       query(`SELECT d.id, d.status, d.match_reasons, d.created_at, c.id AS candidate_id, c.external_lead_id, c.name, c.phone, c.email, w.code AS website_code
              FROM lead_duplicates d JOIN leads c ON c.id = d.candidate_lead_id JOIN websites w ON w.id = c.website_id
              WHERE d.lead_id = ? AND c.website_id IN (?) ORDER BY d.id DESC`, [id, req.auth.ctx.websiteIds]),
+      query('SELECT conversion_type, conversion_value, currency, conversion_date, provider, provider_sync_status FROM lead_conversions WHERE lead_id = ? ORDER BY conversion_date', [id]),
     ]);
-    return { ...withResume(base), merged_into_lead_id: lead.merged_into_lead_id, attribution, notes, followups, activities, assignments, duplicates };
+    return { ...withResume(base), merged_into_lead_id: lead.merged_into_lead_id, attribution, notes, followups, activities, assignments, duplicates, conversions };
   },
 
   async create(req, data) {
@@ -129,10 +135,10 @@ export const leadService = {
     const rawId = `M${Date.now().toString(36)}${randomToken(3)}`.toUpperCase();
     const id = await transaction(async (conn) => {
       const [r] = await conn.query(
-        `INSERT INTO leads (website_id, external_lead_id, external_raw_id, name, phone, phone_normalized, email, email_normalized, location, interest, message, form_type, status_id, assigned_user_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', ?, ?)`,
+        `INSERT INTO leads (website_id, external_lead_id, external_raw_id, name, phone, phone_normalized, email, email_normalized, location, interest, message, form_type, status_id, assigned_user_id, source_type)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', ?, ?, ?)`,
         [website.id, `${website.external_id_prefix}-${rawId}`, rawId, data.name, data.phone, normalizePhone(data.phone), data.email, normalizeEmail(data.email),
-          data.location, data.interest, data.message, status.id, req.auth.ctx.permissions.has('lead.assign') ? null : req.auth.user.id],
+          data.location, data.interest, data.message, status.id, req.auth.ctx.permissions.has('lead.assign') ? null : req.auth.user.id, LEAD_SOURCE_TYPES.MANUAL],
       );
       await conn.query(
         'INSERT INTO lead_attributions (lead_id, source, medium, campaign) VALUES (?, ?, ?, ?)',
@@ -180,6 +186,7 @@ export const leadService = {
     if (Object.keys(changes).length) await audit('LEAD_UPDATED', { actorId: req.auth.user.id, entityType: 'lead', entityId: id, req, meta: { fields: Object.keys(changes) } });
     if (statusChange) {
       await audit('LEAD_STATUS_CHANGED', { actorId: req.auth.user.id, entityType: 'lead', entityId: id, req, meta: statusChange });
+      await recordStatusConversion({ lead, statusCode: statusChange.to, isConversion: statusChange.conversion, userId: req.auth.user.id });
       const evt = { id, ...statusChange, by: req.auth.user.id };
       emitToWebsite(lead.website_id, EVENTS.LEAD_STATUS_CHANGED, evt);
       if (lead.assigned_user_id && lead.assigned_user_id !== req.auth.user.id) emitToUser(lead.assigned_user_id, EVENTS.LEAD_STATUS_CHANGED, evt);

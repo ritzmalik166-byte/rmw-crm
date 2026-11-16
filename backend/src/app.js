@@ -13,6 +13,7 @@ import authRoutes from './routes/authRoutes.js';
 import crmRoutes from './routes/crmRoutes.js';
 import { adminRouter, superAdminRouter } from './routes/adminRoutes.js';
 import integrationRoutes from './routes/integrationRoutes.js';
+import { metaPublicRouter } from './integrations/meta/meta.routes.js';
 
 export function createApp() {
   const app = express();
@@ -34,6 +35,8 @@ export function createApp() {
     try { await pingDb(); res.json({ ok: true }); } catch { res.status(503).json({ ok: false }); }
   });
 
+  // Meta webhook + OAuth callback: own body parser (raw bytes for signature checks). Must precede the generic mount.
+  app.use('/api/integrations/meta', metaPublicRouter);
   app.use('/api/integrations', express.json({ limit: '2mb', verify: (req, _res, buf) => { req.rawBody = buf.toString('utf8'); } }), integrationRoutes);
 
   app.use('/api', cors({ origin: corsOrigins, credentials: true }), cookieParser(), express.json({ limit: '200kb' }), originCheck, limiters.api);

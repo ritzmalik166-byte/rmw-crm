@@ -19,7 +19,7 @@ async function start() {
     const ms = await pingDb();
     logger.info(`MySQL connected (${ms} ms)`);
   } catch (err) {
-    logger.error({ err: err.message }, 'MySQL connection failed; check DB_* settings and the Aiven CA certificate');
+    logger.error({ err: err.message, host: env.DB_HOST, port: env.DB_PORT, database: env.DB_NAME }, 'MySQL connection failed; check the DB_* settings in .env (for the server DB from localhost, run npm run db:tunnel first)');
     process.exit(1);
   }
   if (!getRedis()) {
@@ -33,7 +33,11 @@ async function start() {
     const tick = async () => {
       if (running) return;
       running = true;
-      try { await syncAll(); } catch (e) { logger.error({ err: e.message }, 'Scheduled pull sync failed'); } finally { running = false; }
+      try { await syncAll(); } catch (e) { logger.error({ err: e.message }, 'Scheduled pull sync failed'); }
+      try {
+        const { metaSync } = await import('./integrations/meta/metaSync.service.js');
+        await metaSync.syncIfActive();
+      } catch (e) { logger.warn({ err: e.message }, 'Scheduled Meta sync skipped'); } finally { running = false; }
     };
     setTimeout(tick, 15_000);
     setInterval(tick, env.SYNC_INTERVAL_MINUTES * 60_000);

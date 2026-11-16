@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { passwordSchema, mobileSchema, emailSchema, avatarSchema } from './common.js';
+import { LEAD_SOURCE_TYPE_LIST } from '../config/leadSources.js';
 
 const id = z.coerce.number().int().positive();
 const optId = id.optional().nullable();
@@ -45,6 +46,7 @@ export const pagination = z.object({ page: z.coerce.number().int().min(1).defaul
 export const leads = {
   listQuery: pagination.extend({
     search: optStr(100), websiteId: optId, statusId: optId, source: optStr(), campaign: optStr(),
+    sourceType: z.enum(LEAD_SOURCE_TYPE_LIST).optional().or(z.literal('').transform(() => undefined)),
     assignedUserId: z.union([z.literal('me'), z.literal('unassigned'), id]).optional(),
     from: optStr(40).refine((v) => !v || !Number.isNaN(Date.parse(v)), 'Invalid date'),
     to: optStr(40).refine((v) => !v || !Number.isNaN(Date.parse(v)), 'Invalid date'),

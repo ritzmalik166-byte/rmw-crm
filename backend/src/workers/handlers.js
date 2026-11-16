@@ -3,10 +3,16 @@ import { processIntegrationEvent } from '../services/leadIngestService.js';
 import { emailService } from '../notifications/emailService.js';
 import { pushService } from '../notifications/pushService.js';
 import { runFollowupSweep } from '../services/followupScheduler.js';
+import { processMetaWebhookEvent } from '../integrations/meta/metaLead.service.js';
+import { runMetaSync } from '../integrations/meta/metaSync.service.js';
+import { metaConversion } from '../integrations/meta/metaConversion.service.js';
 
 export async function processJob(queueName, jobName, data) {
   switch (queueName) {
     case 'lead-sync':
+      if (jobName === 'meta-lead') return processMetaWebhookEvent(data.eventId);
+      if (jobName === 'meta-sync') return runMetaSync({ trigger: data.trigger || 'manual', actorId: data.actorId || null });
+      if (jobName === 'meta-conversion') return metaConversion.dispatch(data.conversionId);
       return processIntegrationEvent(data.eventId);
     case 'email': {
       if (jobName === 'notification') {

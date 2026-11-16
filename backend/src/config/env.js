@@ -18,7 +18,7 @@ const schema = z.object({
   DB_USER: z.string(),
   DB_PASSWORD: z.string(),
   DB_SSL: bool(true),
-  DB_SSL_CA: z.string().optional(), // path to Aiven CA certificate (ca.pem)
+  DB_SSL_CA: z.string().optional(), // optional CA certificate (path or PEM) when DB_SSL=true
   DB_POOL_SIZE: int(10),
 
   REDIS_URL: z.string().optional(),
@@ -64,6 +64,13 @@ const schema = z.object({
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().default('mailto:admin@ritzmediaworld.com'),
   EXPO_ACCESS_TOKEN: z.string().optional(), // optional: only needed if Expo push security is enabled for the project
+
+  // Meta (Facebook + Instagram) Lead Ads. The integration stays disabled until APP_ID, APP_SECRET and REDIRECT_URI are set.
+  META_APP_ID: z.string().optional(),
+  META_APP_SECRET: z.string().optional(),
+  META_REDIRECT_URI: z.string().optional(), // {APP_URL}/api/integrations/meta/oauth/callback
+  META_API_VERSION: z.string().optional().transform((v) => (v && /^v\d+\.\d+$/.test(v.trim()) ? v.trim() : 'v23.0')),
+  META_WEBHOOK_VERIFY_TOKEN: z.string().optional(), // any random string; paste the same value in the Meta app webhook settings
 });
 
 const parsed = schema.safeParse(process.env);

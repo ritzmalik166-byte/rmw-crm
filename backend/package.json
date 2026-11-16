@@ -9,6 +9,7 @@
     "dev": "node --use-system-ca --watch src/server.js",
     "start": "node src/server.js",
     "worker": "node src/workers/index.js",
+    "db:tunnel": "node src/scripts/dbTunnel.js",
     "migrate": "node src/db/migrate.js",
     "seed": "node src/db/seed.js",
     "create-super-admin": "node src/scripts/createSuperAdmin.js",

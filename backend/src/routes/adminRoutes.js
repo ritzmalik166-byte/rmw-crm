@@ -4,11 +4,13 @@ import { authenticate, requireArea, requirePermission as can } from '../middlewa
 import { validate } from '../validators/common.js';
 import { admin as s, pagination } from '../validators/schemas.js';
 import { asyncHandler as h } from '../utils/http.js';
+import { metaAdminRouter, metaSuperAdminRouter } from '../integrations/meta/meta.routes.js';
 
 /** /api/admin: Admin and Super Admin. Each route also checks its own permission. */
 export const adminRouter = Router();
 const a = adminRouter;
 a.use(authenticate, requireArea('admin'));
+a.use(metaAdminRouter); // marketing integrations (Meta) + Meta analytics
 
 a.get('/user-requests', can('user.view'), validate(pagination, 'query'), h(c.listRequests));
 a.get('/users', can('user.view'), validate(s.userQuery, 'query'), h(c.listUsers));
@@ -43,6 +45,7 @@ a.get('/settings', can('settings.view'), h(c.getSettings));
 export const superAdminRouter = Router();
 const sa = superAdminRouter;
 sa.use(authenticate, requireArea('super_admin'));
+sa.use(metaSuperAdminRouter); // before /integrations/:id so "meta" is never read as a website id
 
 sa.post('/user-requests/:id/approve', can('user.approve'), validate(s.approve), h(c.approve));
 sa.post('/user-requests/:id/reject', can('user.approve'), validate(s.reject), h(c.reject));
