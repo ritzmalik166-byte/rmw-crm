@@ -250,7 +250,7 @@ function Shell({ area, nav, children }) {
             </span>
             <span className="hidden leading-tight lg:block">
               <span className="block text-[13px] font-semibold">RMW CRM</span>
-              <span className="block text-[10px] text-white/70">Ritz Media World Group · Lead Management</span>
+              <span className="block text-[10px] text-white/70">Ritz Media World· Lead Management</span>
             </span>
           </Link>
           <div className="ml-3 hidden h-full items-stretch lg:flex">

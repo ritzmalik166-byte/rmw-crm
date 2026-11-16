@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { ArrowRight, Users, Sparkles, CalendarCheck, AlertTriangle, Clock, TrendingUp, UserX } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
@@ -9,6 +10,8 @@ import { cn, timeAgo, titleCase, formatDate } from '@/lib/utils';
 import { StatusBadge, WebsiteBadge } from '@/components/ui/badge';
 import { EmptyState, ErrorState } from '@/components/ui/feedback';
 import { DashboardSkeleton } from '@/components/ui/skeletons';
+import { DateRangeFilter, rangeLabel, todayRange } from '@/components/ui/date-range';
+import { toQuery } from '@/lib/utils';
 
 
 function Panel({ title, action, children, className }) {
@@ -60,8 +63,12 @@ function greeting() {
 
 export default function CrmDashboard() {
   const { me } = useAuth();
-  const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: ['dashboard', 'crm'], queryFn: () => api('/crm/dashboard'), refetchInterval: 60_000 });
-  const { data: pipe } = useQuery({ queryKey: ['leads', 'pipelines'], queryFn: () => api('/crm/pipelines'), refetchInterval: 60_000 });
+  const [range, setRange] = useState(todayRange);
+  const rq = { from: range.from, to: range.to };
+  const label = rangeLabel(range);
+  const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: ['dashboard', 'crm', rq], queryFn: () => api(`/crm/dashboard${toQuery(rq)}`), refetchInterval: 60_000, placeholderData: keepPreviousData });
+  const { data: pipe } = useQuery({ queryKey: ['leads', 'pipelines', rq], queryFn: () => api(`/crm/pipelines${toQuery(rq)}`), refetchInterval: 60_000, placeholderData: keepPreviousData });
+  const { data: received } = useQuery({ queryKey: ['leads', 'dash-received', rq], queryFn: () => api(`/crm/leads${toQuery({ ...rq, limit: 10, sort: 'received_at', dir: 'desc' })}`), refetchInterval: 60_000, placeholderData: keepPreviousData });
 
   if (isLoading) return <DashboardSkeleton />;
   if (isError) return <div className="panel"><ErrorState error={error} onRetry={refetch} /></div>;
@@ -83,7 +90,12 @@ export default function CrmDashboard() {
         <p className="shrink-0 rounded-full border bg-white px-3 py-1 text-[12px] font-medium text-slate-600">{formatDate(new Date())}</p>
       </div>
 
-      <Panel title="Pipeline register" action={<Link href="/crm/leads" className="text-[12px] font-medium text-[hsl(var(--primary))] hover:underline">Open all leads</Link>}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <DateRangeFilter value={range} onChange={setRange} />
+        <p className="text-[12px] text-slate-500">Showing leads received <span className="font-semibold text-slate-700">{label.toLowerCase().startsWith('last') || label === 'This month' ? label.toLowerCase() : label === 'Today' || label === 'Yesterday' ? label.toLowerCase() : `on ${label}`}</span>. Follow-up figures are always live.</p>
+      </div>
+
+      <Panel title={`Pipeline register · ${label}`} action={<Link href={`/crm/leads${toQuery(rq)}`} className="text-[12px] font-medium text-[hsl(var(--primary))] hover:underline">Open all leads</Link>}>
         {/* Phones: one card per pipeline */}
         <ul className="divide-y divide-slate-100 md:hidden">
           {PIPELINE_ORDER.map((k) => {
@@ -116,7 +128,7 @@ export default function CrmDashboard() {
             <thead className="bg-[hsl(214_25%_96%)] text-[11px] uppercase tracking-wide text-slate-600">
               <tr>
                 <th className="px-3 py-2 text-left font-semibold">Pipeline</th>
-                {['Total', 'New', 'Received today', 'Unassigned', 'Overdue follow-ups', 'Converted', 'Conversion'].map((h) => <th key={h} className="px-3 py-2 text-right font-semibold">{h}</th>)}
+                {['Leads', 'New', 'Received today', 'Unassigned', 'Overdue follow-ups', 'Converted', 'Conversion'].map((h) => <th key={h} className="px-3 py-2 text-right font-semibold">{h}</th>)}
                 <th className="w-8" />
               </tr>
             </thead>
@@ -156,7 +168,7 @@ export default function CrmDashboard() {
       <div>
         <h2 className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">My work</h2>
         <Strip items={[
-          ['My leads', mine.leads.total, null, '/crm/leads?view=mine', Users],
+          [`My leads · ${label}`, mine.leads.total, null, `/crm/leads${toQuery({ view: 'mine', ...rq })}`, Users],
           ['New', mine.leads.new_leads, 'info', null, Sparkles],
           ["Today's follow-ups", mine.followups.today, null, '/crm/followups', CalendarCheck],
           ['Overdue', mine.followups.overdue, 'danger', '/crm/followups', AlertTriangle],
@@ -169,7 +181,7 @@ export default function CrmDashboard() {
         <div>
           <h2 className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">Team</h2>
           <Strip items={[
-            ['Team leads', team.leads.total, null, null, Users],
+            [`Team leads · ${label}`, team.leads.total, null, `/crm/leads${toQuery(rq)}`, Users],
             ['Unassigned', team.leads.unassigned, 'warn', '/crm/leads?view=unassigned', UserX],
             ['New', team.leads.new_leads, 'info', null, Sparkles],
             ['Follow-ups due today', team.followups.due_today, null, null, CalendarCheck],
@@ -180,8 +192,26 @@ export default function CrmDashboard() {
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Panel title="My recent leads" action={<Link href="/crm/leads?view=mine" className="text-[12px] font-medium text-[hsl(var(--primary))] hover:underline">View all</Link>}>
-          {mine.recent.length === 0 ? <EmptyState title="No leads assigned yet" description="Leads assigned to you will show up here." /> : (
+        <Panel title={`Leads received · ${label}`} action={<Link href={`/crm/leads${toQuery(rq)}`} className="text-[12px] font-medium text-[hsl(var(--primary))] hover:underline">View all{received?.meta?.total ? ` ${received.meta.total}` : ''}</Link>}>
+          {!received?.rows?.length ? <EmptyState title={`No leads ${label === 'Today' ? 'today yet' : 'in this period'}`} description="Pick another date range above to look back." /> : (
+            <ul className="divide-y">
+              {received.rows.map((l) => (
+                <li key={l.id}>
+                  <Link href={`/crm/leads/${l.id}`} className="flex items-center justify-between gap-3 px-3 py-2 hover:bg-[hsl(213_60%_97%)]">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-[hsl(var(--primary))]">{l.name || 'Unnamed lead'}</p>
+                      <p className="truncate text-[11px] text-slate-500">{[l.interest, l.assigned_user_name || 'Unassigned'].filter(Boolean).join(' · ')}</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2"><WebsiteBadge code={l.website_code} /><StatusBadge name={l.status_name} color={l.status_color} /><span className="w-20 text-right text-[11px] text-slate-500">{timeAgo(l.external_created_at || l.created_at)}</span></div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+
+        <Panel title={`My leads · ${label}`} action={<Link href={`/crm/leads${toQuery({ view: 'mine', ...rq })}`} className="text-[12px] font-medium text-[hsl(var(--primary))] hover:underline">View all</Link>}>
+          {mine.recent.length === 0 ? <EmptyState title="No leads assigned to you in this period" description="Leads assigned to you will show up here." /> : (
             <ul className="divide-y">
               {mine.recent.map((l) => (
                 <li key={l.id}>

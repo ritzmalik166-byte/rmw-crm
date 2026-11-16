@@ -31,11 +31,11 @@ Switch.displayName = 'Switch';
 
 export const Tabs = TabsPrimitive.Root;
 export const TabsList = React.forwardRef(({ className, ...props }, ref) => (
-  <TabsPrimitive.List ref={ref} className={cn('inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground', className)} {...props} />
+  <TabsPrimitive.List ref={ref} className={cn('inline-flex h-10 max-w-full items-center justify-start gap-0.5 overflow-x-auto rounded-xl border border-slate-200/80 bg-white p-1 text-slate-500 shadow-[0_1px_2px_rgba(16,24,40,0.04)]', className)} {...props} />
 ));
 TabsList.displayName = 'TabsList';
 export const TabsTrigger = React.forwardRef(({ className, ...props }, ref) => (
-  <TabsPrimitive.Trigger ref={ref} className={cn('inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow', className)} {...props} />
+  <TabsPrimitive.Trigger ref={ref} className={cn('group inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg px-3 text-[13px] font-medium transition-all hover:bg-slate-50 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-[hsl(213_70%_96%)] data-[state=active]:text-[hsl(var(--primary))] data-[state=active]:shadow-[inset_0_0_0_1px_hsl(213_60%_86%)]', className)} {...props} />
 ));
 TabsTrigger.displayName = 'TabsTrigger';
 export const TabsContent = React.forwardRef(({ className, ...props }, ref) => (
