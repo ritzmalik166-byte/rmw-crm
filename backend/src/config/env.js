@@ -63,6 +63,7 @@ const schema = z.object({
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().default('mailto:admin@ritzmediaworld.com'),
+  EXPO_ACCESS_TOKEN: z.string().optional(), // optional: only needed if Expo push security is enabled for the project
 });
 
 const parsed = schema.safeParse(process.env);

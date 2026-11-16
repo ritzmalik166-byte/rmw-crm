@@ -36,5 +36,7 @@ r.put('/notifications/preferences', validate(n.prefs), h(c.setPrefs));
 r.get('/push/public-key', h(c.pushKey));
 r.post('/push/subscribe', validate(n.subscribe), h(c.pushSubscribe));
 r.post('/push/unsubscribe', validate(n.unsubscribe), h(c.pushUnsubscribe));
+r.post('/push/expo', validate(n.expoToken), h(c.expoRegister));
+r.post('/push/expo/unregister', validate(n.expoUnregister), h(c.expoUnregister));
 
 export default r;

@@ -7,6 +7,7 @@ import { notFound, forbidden, badRequest } from '../utils/errors.js';
 import { normalizePhone, normalizeEmail } from '../utils/normalize.js';
 import { randomToken } from '../utils/crypto.js';
 import { env } from '../config/env.js';
+import { parseBound } from '../utils/dateRange.js';
 
 /** Absolute URL for a stored resume path ("/uploads/x.pdf" or a full URL). */
 export function resumeUrl(p) {
@@ -57,8 +58,8 @@ function buildFilters(req, f) {
   const junkCol = f.pipeline === 'career' ? "NULLIF(l.junk_reason, 'career')" : 'l.junk_reason';
   if (f.junk === 'only') where.push(`${junkCol} IS NOT NULL`);
   else if (f.junk !== 'all') where.push(`${junkCol} IS NULL`);
-  if (f.from) { where.push(`${RECEIVED} >= ?`); params.push(new Date(f.from)); }
-  if (f.to) { where.push(`${RECEIVED} <= ?`); params.push(new Date(f.to)); }
+  if (f.from) { where.push(`${RECEIVED} >= ?`); params.push(parseBound(f.from)); }
+  if (f.to) { where.push(`${RECEIVED} <= ?`); params.push(parseBound(f.to, true)); }
   if (f.duplicates) where.push('l.is_duplicate_suspect = 1');
   if (f.search) {
     const s = f.search.trim();
@@ -333,7 +334,7 @@ export const leadService = {
   },
 
   /** Per-pipeline counts for navigation and the dashboard (respects website access and visibility). */
-  async pipelineCounts(req) {
+  async pipelineCounts(req, r) {
     const vis = leadVisibilitySql(req);
     const out = {};
     for (const [key, p] of Object.entries(PIPELINES)) {
@@ -343,8 +344,8 @@ export const leadService = {
            SUM(${RECEIVED} >= UTC_DATE()) today,
            SUM(EXISTS (SELECT 1 FROM lead_followups f WHERE f.lead_id = l.id AND (f.status = 'OVERDUE' OR (f.status = 'UPCOMING' AND f.due_at < NOW(3))))) overdue
          FROM leads l JOIN lead_statuses s ON s.id = l.status_id
-         WHERE ${vis.sql} AND l.merged_into_lead_id IS NULL AND ${junkCol} IS NULL AND ${p.sql}`,
-        [...vis.params, ...p.params],
+         WHERE ${vis.sql} AND l.merged_into_lead_id IS NULL AND ${junkCol} IS NULL AND ${p.sql}${r ? ` AND ${RECEIVED} BETWEEN ? AND ?` : ''}`,
+        [...vis.params, ...p.params, ...(r ? [r.from, r.to] : [])],
       );
       out[key] = Object.fromEntries(Object.entries(r).map(([k, v]) => [k, Number(v || 0)]));
     }

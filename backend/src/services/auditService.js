@@ -1,6 +1,7 @@
 import { query } from '../config/db.js';
 import { logger } from '../config/logger.js';
 import { clientIp } from '../utils/http.js';
+import { parseBound } from '../utils/dateRange.js';
 
 const FORBIDDEN_KEYS = /pass|otp|token|secret|key|hash/i;
 
@@ -37,8 +38,8 @@ export async function listAudit({ action, actorId, entityType, entityId, from, t
   if (actorId) { where.push('a.actor_user_id = ?'); params.push(actorId); }
   if (entityType) { where.push('a.entity_type = ?'); params.push(entityType); }
   if (entityId) { where.push('a.entity_id = ?'); params.push(String(entityId)); }
-  if (from) { where.push('a.created_at >= ?'); params.push(new Date(from)); }
-  if (to) { where.push('a.created_at <= ?'); params.push(new Date(to)); }
+  if (from) { where.push('a.created_at >= ?'); params.push(parseBound(from)); }
+  if (to) { where.push('a.created_at <= ?'); params.push(parseBound(to, true)); }
   const w = where.join(' AND ');
   const [{ total }] = await query(`SELECT COUNT(*) total FROM audit_logs a WHERE ${w}`, params);
   const rows = await query(

@@ -3,18 +3,20 @@ import { analyticsService } from '../services/analyticsService.js';
 import { notificationService } from '../notifications/notificationService.js';
 import { pushService } from '../notifications/pushService.js';
 import { ok, pageMeta } from '../utils/http.js';
+import { dashboardRange } from '../utils/dateRange.js';
 
 const paged = (q) => ({ limit: q.limit, offset: (q.page - 1) * q.limit });
 
 export const crmController = {
   async dashboard(req, res) {
     const p = req.auth.ctx.permissions;
+    const r = dashboardRange(req.query);
     const [mine, team, activity] = await Promise.all([
-      analyticsService.myDashboard(req),
-      p.has('lead.view_all') ? analyticsService.teamDashboard(req) : null,
+      analyticsService.myDashboard(req, r),
+      p.has('lead.view_all') ? analyticsService.teamDashboard(req, r) : null,
       p.has('lead.view_all') ? analyticsService.recentActivity(req) : [],
     ]);
-    ok(res, { mine, team, activity });
+    ok(res, { mine, team, activity, range: r });
   },
 
   async listLeads(req, res) {
@@ -43,7 +45,10 @@ export const crmController = {
     ok(res, { rows, meta: pageMeta(q.page, q.limit, total) });
   },
   async resolveDuplicate(req, res) { await leadService.resolveDuplicate(req, Number(req.params.id), req.body); ok(res, null, 'Duplicate resolved'); },
-  async pipelines(req, res) { ok(res, await leadService.pipelineCounts(req)); },
+  async pipelines(req, res) {
+    const r = req.query.from || req.query.to || req.query.range === 'today' ? dashboardRange(req.query) : null;
+    ok(res, { ...(await leadService.pipelineCounts(req, r)), range: r });
+  },
   async lookups(req, res) {
     const [statuses, sources, users] = await Promise.all([leadService.statuses(), leadService.sources(), leadService.assignableUsers(req)]);
     ok(res, { statuses, sources, websites: req.auth.ctx.websites, users });
@@ -62,4 +67,6 @@ export const crmController = {
   async pushKey(_req, res) { ok(res, { publicKey: pushService.publicKey() }); },
   async pushSubscribe(req, res) { await pushService.subscribe(req.auth.user.id, req.body, req.get('user-agent')); ok(res, null, 'Push enabled'); },
   async pushUnsubscribe(req, res) { await pushService.unsubscribe(req.auth.user.id, req.body.endpoint); ok(res, null, 'Push disabled'); },
+  async expoRegister(req, res) { await pushService.registerExpo(req.auth.user.id, req.body); ok(res, null, 'Push enabled'); },
+  async expoUnregister(req, res) { await pushService.unregisterExpo(req.auth.user.id, req.body.token); ok(res, null, 'Push disabled'); },
 };

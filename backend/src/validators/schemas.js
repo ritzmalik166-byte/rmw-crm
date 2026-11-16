@@ -125,4 +125,6 @@ export const notifications = {
   prefs: z.object({ preferences: z.array(z.object({ type: z.string(), inApp: z.boolean(), push: z.boolean(), email: z.boolean() })) }),
   subscribe: z.object({ endpoint: z.string().url().max(2000), keys: z.object({ p256dh: z.string().max(255), auth: z.string().max(255) }) }),
   unsubscribe: z.object({ endpoint: z.string().url().max(2000) }),
+  expoToken: z.object({ token: z.string().regex(/^(ExponentPushToken|ExpoPushToken)\[[A-Za-z0-9_-]+\]$/, 'Invalid push token'), platform: z.string().max(20).optional(), deviceName: z.string().max(150).optional() }),
+  expoUnregister: z.object({ token: z.string().max(255) }),
 };
