@@ -70,6 +70,7 @@ const schema = z.object({
   META_APP_SECRET: z.string().optional(),
   META_REDIRECT_URI: z.string().optional(), // {APP_URL}/api/integrations/meta/oauth/callback
   META_API_VERSION: z.string().optional().transform((v) => (v && /^v\d+\.\d+$/.test(v.trim()) ? v.trim() : 'v23.0')),
+  META_LOGIN_CONFIG_ID: z.string().optional(), // Facebook Login for Business configuration id (replaces the scope list)
   META_WEBHOOK_VERIFY_TOKEN: z.string().optional(), // any random string; paste the same value in the Meta app webhook settings
 });
 

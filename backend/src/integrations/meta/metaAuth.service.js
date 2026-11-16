@@ -29,8 +29,13 @@ export function buildAuthUrl(state) {
   url.searchParams.set('redirect_uri', env.META_REDIRECT_URI);
   url.searchParams.set('state', state);
   url.searchParams.set('response_type', 'code');
-  url.searchParams.set('scope', META_SCOPES.join(','));
-  url.searchParams.set('auth_type', 'rerequest'); // re-prompts for permissions the user declined earlier
+  if (env.META_LOGIN_CONFIG_ID) {
+    // Facebook Login for Business: permissions come from the configuration set up in the app dashboard.
+    url.searchParams.set('config_id', env.META_LOGIN_CONFIG_ID);
+  } else {
+    url.searchParams.set('scope', META_SCOPES.join(','));
+    url.searchParams.set('auth_type', 'rerequest'); // re-prompts for permissions the user declined earlier
+  }
   return url.toString();
 }
 

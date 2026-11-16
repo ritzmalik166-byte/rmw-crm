@@ -55,7 +55,7 @@ export const metaAssets = {
     const warnings = [];
     try {
       const pages = await graphPaged('me/accounts', {
-        token, params: { fields: 'id,name,category,tasks,instagram_business_account{id,username,name},business{id,name}', limit: 100 },
+        token, params: { fields: 'id,name,category,tasks,instagram_business_account,business{id,name}', limit: 100 },
       });
       const [businesses, adAccounts] = await Promise.all([
         optional(warnings, 'Businesses', () => graphPaged('me/businesses', { token, params: { fields: 'id,name', limit: 100 } })),
@@ -117,7 +117,7 @@ export const metaAssets = {
 
     let page; let business = null; let adAccount = null;
     try {
-      page = await graph(pageId, { token, params: { fields: 'id,name,access_token,instagram_business_account{id,username}' } });
+      page = await graph(pageId, { token, params: { fields: 'id,name,access_token,instagram_business_account' } });
       if (!page?.access_token) throw badRequest('You do not have a role on this Page that allows reading leads', 'META_INVALID_PAGE');
       if (instagramId && String(page.instagram_business_account?.id || '') !== instagramId) {
         throw badRequest('That Instagram account is not linked to the selected Page', 'META_INVALID_INSTAGRAM');

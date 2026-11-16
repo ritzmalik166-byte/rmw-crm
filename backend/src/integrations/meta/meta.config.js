@@ -9,7 +9,7 @@ export const PROVIDER = 'META';
  *  pages_manage_ads, leads_retrieval       read Lead Ads forms and lead data
  *  ads_read                                campaign / ad set / ad names and spend (cost per lead)
  *  business_management                     list Business Manager accounts
- *  instagram_basic                         show the Instagram account linked to the Page
+ * The Instagram account linked to the Page is read through the Page itself (no Instagram permission needed).
  */
 export const META_SCOPES = [
   'pages_show_list',
@@ -19,7 +19,6 @@ export const META_SCOPES = [
   'leads_retrieval',
   'ads_read',
   'business_management',
-  'instagram_basic',
 ];
 
 /** Without these the integration cannot receive leads at all. */

@@ -10,6 +10,7 @@ process.env.META_APP_SECRET = 'test-app-secret';
 process.env.META_REDIRECT_URI = 'https://crm.example.com/api/integrations/meta/oauth/callback';
 process.env.META_API_VERSION = 'v23.0';
 process.env.META_WEBHOOK_VERIFY_TOKEN = 'verify-token-123';
+process.env.META_LOGIN_CONFIG_ID = ''; // test the scope-based dialog regardless of the local .env
 process.env.LOG_LEVEL = 'silent';
 
 const { normalizeMetaLead, parseFieldData, sanitizeValue } = await import('../src/integrations/meta/metaLead.service.js');
