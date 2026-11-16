@@ -90,9 +90,22 @@ export async function runMetaSync({ trigger = 'manual', actorId = null, full = f
 
   const started = Date.now();
   const since = full ? new Date(Date.now() - FULL_SYNC_DAYS * 86400_000) : syncWindowStart(conn.last_sync_at);
-  const stats = { trigger, since: since.toISOString(), forms: 0, fetched: 0, imported: 0, duplicatesSkipped: 0, junk: 0, errors: 0, spendRows: 0, warnings: [] };
+  const stats = {
+    trigger, since: since.toISOString(), forms: 0, formsDone: 0, fetched: 0, imported: 0, duplicatesSkipped: 0, junk: 0, errors: 0, spendRows: 0, warnings: [],
+    startedAt: new Date(started).toISOString(), phase: 'forms', currentForm: null,
+  };
   await integrationLog(PROVIDER, 'info', 'SYNC_STARTED', `Sync started (${trigger})`, { connectionId: conn.id, since: stats.since, actorId });
   let fatal = null;
+
+  // Live progress for the UI (progress bar + time left), written at most every 2s while the sync runs.
+  let lastSave = 0;
+  const saveProgress = async (force = false) => {
+    if (!force && Date.now() - lastSave < 2000) return;
+    lastSave = Date.now();
+    await query('UPDATE meta_connections SET last_sync_stats = ? WHERE id = ? AND sync_started_at IS NOT NULL',
+      [JSON.stringify({ ...stats, warnings: stats.warnings.slice(0, 5), inProgress: true, updatedAt: new Date().toISOString() }), conn.id]).catch(() => {});
+  };
+  await saveProgress(true);
 
   try {
     const pages = await query("SELECT external_id FROM meta_assets WHERE connection_id = ? AND asset_type = 'PAGE' AND is_selected = 1", [conn.id]);
@@ -107,9 +120,15 @@ export async function runMetaSync({ trigger = 'manual', actorId = null, full = f
       const forms = await fetchPageForms(pageId, page.token);
       await metaAssets.upsertForms(conn.id, pageId, forms);
       stats.forms += forms.length;
+      stats.phase = 'leads';
+      await saveProgress(true);
 
-      for (const form of forms) {
+      const formsBefore = stats.formsDone;
+      for (const [i, form] of forms.entries()) {
+        stats.formsDone = formsBefore + i; // forms fully processed so far
         if (await stopRequested()) { stats.stopped = true; break pagesLoop; }
+        stats.currentForm = form.name || form.id;
+        await saveProgress();
         let leads;
         try {
           leads = await fetchFormLeads(form.id, page.token, since);
@@ -142,10 +161,15 @@ export async function runMetaSync({ trigger = 'manual', actorId = null, full = f
             stats.errors += 1;
             if (stats.warnings.length < 10) stats.warnings.push(`Lead ${lead.id}: ${err.message}`);
           }
+          await saveProgress();
         }
       }
+      stats.formsDone = formsBefore + forms.length;
     }
 
+    stats.phase = 'spend';
+    stats.currentForm = null;
+    await saveProgress(true);
     const adAccount = (await query("SELECT external_id FROM meta_assets WHERE connection_id = ? AND asset_type = 'AD_ACCOUNT' AND is_selected = 1", [conn.id]))[0];
     const userToken = repo.userToken(conn);
     if (adAccount && userToken && !stats.stopped) {
@@ -163,7 +187,7 @@ export async function runMetaSync({ trigger = 'manual', actorId = null, full = f
   const status = fatal ? 'FAILED' : stats.errors || stats.warnings.length ? 'PARTIAL' : 'SUCCESS';
   await query(
     'UPDATE meta_connections SET sync_started_at = NULL, last_sync_at = NOW(3), last_sync_status = ?, last_sync_stats = ? WHERE id = ?',
-    [status, JSON.stringify({ ...stats, error: fatal ? fatal.message : undefined }), conn.id],
+    [status, JSON.stringify({ ...stats, phase: 'done', currentForm: null, error: fatal ? fatal.message : undefined }), conn.id],
   );
   if (!fatal && conn.status === 'ERROR' && conn.last_error_code !== 'META_TOKEN_INVALID') {
     await query("UPDATE meta_connections SET status = 'ACTIVE', last_error_code = NULL, last_error = NULL WHERE id = ?", [conn.id]);
