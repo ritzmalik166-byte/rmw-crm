@@ -66,9 +66,10 @@ export async function exchangeCodeForToken(code) {
     params: { client_id: env.META_APP_ID, client_secret: env.META_APP_SECRET, redirect_uri: env.META_REDIRECT_URI, code },
   });
   if (!short?.access_token) throw new MetaApiError('Meta did not return an access token', { errorCode: 'META_API_ERROR' });
+  // Long-lived exchange is best effort: Facebook Login for Business tokens may already be long-lived.
   const long = await graph('oauth/access_token', {
     params: { grant_type: 'fb_exchange_token', client_id: env.META_APP_ID, client_secret: env.META_APP_SECRET, fb_exchange_token: short.access_token },
-  });
+  }).catch(() => null);
   const token = long?.access_token || short.access_token;
   const expiresIn = Number(long?.expires_in || short.expires_in || 0);
   return { token, expiresAt: expiresIn ? new Date(Date.now() + expiresIn * 1000) : null };
@@ -130,10 +131,18 @@ export const metaAuth = {
       return { ok: false, reason: 'SESSION_MISMATCH' };
     }
 
+    let step = 'code exchange';
     try {
       const { token, expiresAt } = await exchangeCodeForToken(parsed.code);
-      const info = await inspectToken(token);
+      step = 'token check';
+      const info = await inspectToken(token).catch(async (e) => {
+        // debug_token unavailable: fall back to the user's own permission list.
+        await integrationLog(PROVIDER, 'warn', 'TOKEN_CHECK_SKIPPED', `debug_token failed (${e.metaMessage || e.message}); using /me/permissions`);
+        const perms = await graph('me/permissions', { token });
+        return { valid: true, expiresAt: null, scopes: (perms?.data || []).filter((p) => p.status === 'granted').map((p) => p.permission) };
+      });
       if (!info.valid) return { ok: false, reason: 'TOKEN_INVALID' };
+      step = 'profile';
       const me = await graph('me', { token, params: { fields: 'id,name' } });
       const connId = await repo.saveAuthorization({
         metaUserId: String(me.id), metaUserName: me.name || null, token, expiresAt: info.expiresAt || expiresAt, scopes: info.scopes, userId: stateRow.user_id,
@@ -149,7 +158,8 @@ export const metaAuth = {
       if (missing.length) return { ok: false, reason: 'MISSING_PERMISSIONS' };
       return { ok: true, reason: refreshed ? 'RECONNECTED' : 'CONNECTED' };
     } catch (err) {
-      await integrationLog(PROVIDER, 'error', 'OAUTH_FAILED', `OAuth exchange failed: ${err.message}`, { errorCode: err.errorCode, fbtraceId: err.fbtraceId });
+      await integrationLog(PROVIDER, 'error', 'OAUTH_FAILED', `OAuth failed at ${step}: ${err.metaMessage || err.message}${err.metaCode != null ? ` (Meta code ${err.metaCode})` : ''}`,
+        { step, errorCode: err.errorCode, metaCode: err.metaCode, metaSubcode: err.metaSubcode, fbtraceId: err.fbtraceId });
       return { ok: false, reason: err.errorCode || 'OAUTH_ERROR' };
     }
   },

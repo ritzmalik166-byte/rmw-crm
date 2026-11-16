@@ -62,7 +62,9 @@ export function fromGraphError(body, httpStatus) {
   const errorCode = classifyMetaError(Number(e.code), Number(e.error_subcode), e.type);
   const detail = String(e.error_user_msg || e.message || `Meta API error (HTTP ${httpStatus})`).replace(/access_token=[^&\s]+/gi, 'access_token=[REDACTED]');
   const message = FRIENDLY[errorCode] && errorCode !== 'META_PERMISSION_DENIED' ? FRIENDLY[errorCode] : `${FRIENDLY[errorCode] ? `${FRIENDLY[errorCode]} ` : ''}${detail}`.trim();
-  return new MetaApiError(message.slice(0, 500), { errorCode, metaCode: e.code ?? null, metaSubcode: e.error_subcode ?? null, fbtraceId: e.fbtrace_id ?? null });
+  const err = new MetaApiError(message.slice(0, 500), { errorCode, metaCode: e.code ?? null, metaSubcode: e.error_subcode ?? null, fbtraceId: e.fbtrace_id ?? null });
+  err.metaMessage = detail.slice(0, 300); // Meta's own text, for logs
+  return err;
 }
 
 /** HMAC of the token with the app secret; Meta rejects calls without it when "Require App Secret" is enabled. */
