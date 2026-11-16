@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { HealthCheck, IntegrationStatus, oauthReasonMessage } from './IntegrationStatus';
 import { MetaAssetSelector } from './MetaAssetSelector';
 import { MetaConnectionModal } from './MetaConnectionModal';
+import { SyncProgress } from './SyncProgress';
 
 export { MetaLogo } from './MetaLogo';
 import { MetaLogo } from './MetaLogo';
@@ -117,7 +118,8 @@ export function MetaIntegrationCard({ canManage }) {
               <HealthCheck label="API" ok={h.api.ok} okText="Connected" badText="Error" hint={h.api.error} />
               <HealthCheck label="Token" ok={h.token.valid} okText="Valid" badText="Expired" />
             </div>
-            {st && s.sync.lastSyncAt && (
+            {s.sync.running && <SyncProgress stats={st} className="mt-2" />}
+            {!s.sync.running && st && s.sync.lastSyncAt && (
               <p className="flex items-center gap-1.5 rounded-md bg-slate-50 px-2.5 py-1.5 text-[12px] text-slate-600">
                 {s.sync.status === 'FAILED' ? <AlertTriangle className="h-3.5 w-3.5 text-red-600" /> : <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />}
                 {s.sync.running ? 'Sync running…' : s.sync.status === 'FAILED' ? 'Last sync failed' : `${st.stopped ? 'Stopped · ' : ''}Imported ${st.imported} · Duplicates skipped ${st.duplicatesSkipped} · Errors ${st.errors}`}
