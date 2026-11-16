@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, Mail, Phone, MapPin, Target, UserPlus, Pencil, CalendarPlus, CheckCircle2, Copy, GitMerge, Clock, FileText,
   Sparkles, RefreshCw, ArrowRightLeft, MessageSquare, Trophy, ExternalLink, User, Users, Building2, CalendarClock, Globe2,
-  Check, Quote, Send,
+  Check, Quote, Send, Megaphone,
 } from 'lucide-react';
 import { api, apiMessage } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
@@ -24,6 +24,8 @@ import { ErrorState, EmptyState } from '@/components/ui/feedback';
 import { LeadDetailSkeleton } from '@/components/ui/skeletons';
 import { AssignDialog } from '@/components/leads/LeadForms';
 import { whatsappHref, WhatsAppIcon } from '@/components/leads/LeadsWorkspace';
+import { LeadAttribution } from '@/components/marketing/LeadAttribution';
+import { LEAD_SOURCE_TYPES } from '@/lib/leadSources';
 
 const parse = (v, fallback) => (typeof v === 'string' ? (() => { try { return JSON.parse(v || 'null') ?? fallback; } catch { return fallback; } })() : v ?? fallback);
 
@@ -116,6 +118,7 @@ const ACTIVITY = {
   FOLLOWUP_COMPLETED: { label: 'Follow-up completed', icon: CheckCircle2, tone: 'bg-emerald-50 text-emerald-600 ring-emerald-200' },
   CONVERTED: { label: 'Converted', icon: Trophy, tone: 'bg-emerald-50 text-emerald-600 ring-emerald-200' },
   LEAD_MERGED: { label: 'Merged', icon: GitMerge, tone: 'bg-orange-50 text-orange-600 ring-orange-200' },
+  META_LEAD_RECEIVED: { label: 'Lead received from Meta Ads', icon: Megaphone, tone: 'bg-blue-50 text-blue-600 ring-blue-200' },
 };
 
 function describeActivity(a) {
@@ -124,6 +127,8 @@ function describeActivity(a) {
   if (a.type === 'LEAD_UPDATED') return m.fields?.join(', ');
   if (a.type === 'LEAD_CREATED') return [m.website, m.externalLeadId, m.source && `via ${m.source}`].filter(Boolean).join(' · ');
   if (a.type === 'FOLLOWUP_CREATED') return m.dueAt && `Due ${formatDateTime(m.dueAt)}`;
+  if (a.type === 'META_LEAD_RECEIVED') return [m.campaign && `Campaign: ${m.campaign}`, m.form && `Form: ${m.form}`, m.platform && titleCase(m.platform)].filter(Boolean).join(' · ') || null;
+  if (a.type === 'LEAD_SYNCED' && m.via === 'meta') return 'Re-delivered by Meta';
   if (a.type === 'LEAD_MERGED') return m.mergedExternalId ? `Merged ${m.mergedExternalId} into this lead` : 'Merged into another lead';
   if (m.reason) return m.reason;
   return null;
@@ -302,7 +307,9 @@ export default function LeadDetailPage({ params }) {
   const openFollowups = lead.followups.filter((f) => f.status !== 'COMPLETED' && f.status !== 'CANCELLED');
   const wa = whatsappHref(lead.phone);
   const statuses = lk?.statuses?.filter((s) => s.is_active || s.id === lead.status_id);
-  const sourceText = [lead.source, lead.medium !== 'none' && lead.medium].filter(Boolean).join(' / ');
+  const sourceText = lead.source_type === LEAD_SOURCE_TYPES.META
+    ? `Meta Ads${lead.campaign_name ? ` · ${lead.campaign_name}` : ''}`
+    : [lead.source, lead.medium !== 'none' && lead.medium].filter(Boolean).join(' / ');
 
   return (
     <div className="space-y-4">
@@ -422,6 +429,7 @@ export default function LeadDetailPage({ params }) {
             </CardContent>
           </Card>
 
+          {lead.source_type === LEAD_SOURCE_TYPES.META ? <LeadAttribution lead={lead} /> : (
           <Card>
             <CardHeader><CardTitle>Source attribution</CardTitle></CardHeader>
             <CardContent>
@@ -459,6 +467,7 @@ export default function LeadDetailPage({ params }) {
               })()}
             </CardContent>
           </Card>
+          )}
 
           <Card>
             <CardHeader><CardTitle>Assignment</CardTitle></CardHeader>

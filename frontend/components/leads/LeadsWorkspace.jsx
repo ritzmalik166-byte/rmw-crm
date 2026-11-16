@@ -17,6 +17,7 @@ import { StatusBadge, WebsiteBadge, Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState, ErrorState, Pagination, TableSkeleton } from '@/components/ui/feedback';
 import { AssignDialog, BulkStatusDialog, CreateLeadDialog } from '@/components/leads/LeadForms';
+import { LEAD_SOURCE_OPTIONS } from '@/lib/leadSources';
 
 /** Status badge that doubles as a one-click status picker for users who can edit leads. */
 function StatusCell({ lead, editable }) {
@@ -52,7 +53,7 @@ function StatusCell({ lead, editable }) {
 }
 
 const JUNK_LABELS = { career: 'Job application', job_seeker: 'Job seeker / vendor', spam: 'Spam', test: 'Test', internal: 'Internal', repeat: 'Repeat submit', bad_phone: 'Fake phone', bad_name: 'Bad name', empty: 'Empty' };
-const FILTER_KEYS = ['search', 'view', 'websiteId', 'statusId', 'source', 'campaign', 'interest', 'formType', 'assignedUserId', 'from', 'to', 'duplicates', 'junk', 'sort', 'dir', 'page'];
+const FILTER_KEYS = ['search', 'view', 'websiteId', 'statusId', 'source', 'sourceType', 'campaign', 'interest', 'formType', 'assignedUserId', 'from', 'to', 'duplicates', 'junk', 'sort', 'dir', 'page'];
 const VIEWS = [
   { key: '', label: 'All' },
   { key: 'mine', label: 'My leads' },
@@ -202,7 +203,7 @@ export function LeadsWorkspace({ pipelineKey = 'all' }) {
   const allSelected = rows.length > 0 && rows.every((r) => selected.includes(r.id));
   const toggle = (id) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   const has = (f) => p.filters.includes(f);
-  const activeFilters = ['websiteId', 'statusId', 'source', 'campaign', 'interest', 'formType', 'assignedUserId', 'from', 'to', 'junk'].filter((k) => filters[k]).length;
+  const activeFilters = ['websiteId', 'statusId', 'source', 'sourceType', 'campaign', 'interest', 'formType', 'assignedUserId', 'from', 'to', 'junk'].filter((k) => filters[k]).length;
   const formTypes = (pipe?.formTypes || []).filter((f) => !p.website || f.website === p.website).filter((f) => pipelineKey !== 'rmw' || f.form_type?.toLowerCase() !== 'career');
   const stats = pipelineKey === 'all' ? null : pipe?.counts?.[pipelineKey];
 
@@ -284,6 +285,7 @@ export function LeadsWorkspace({ pipelineKey = 'all' }) {
             <div className="grid grid-cols-2 gap-2 border-b bg-slate-50/70 px-2.5 py-2 sm:grid-cols-3 lg:grid-cols-6">
               {has('website') && <Select value={filters.websiteId} onChange={(e) => setFilter({ websiteId: e.target.value })} aria-label="Website"><option value="">All websites</option>{lk?.websites?.map((w) => <option key={w.id} value={w.id}>{w.code}</option>)}</Select>}
               {has('source') && <Select value={filters.source} onChange={(e) => setFilter({ source: e.target.value })} aria-label="Source"><option value="">Any source</option>{lk?.sources?.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}</Select>}
+              {has('source') && <Select value={filters.sourceType} onChange={(e) => setFilter({ sourceType: e.target.value })} aria-label="Channel"><option value="">Any channel</option>{LEAD_SOURCE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</Select>}
               {has('campaign') && <Input value={filters.campaign} onChange={(e) => setFilter({ campaign: e.target.value })} placeholder="Campaign" aria-label="Campaign" />}
               {has('interest') && <Input value={filters.interest} onChange={(e) => setFilter({ interest: e.target.value })} placeholder={p.interestPlaceholder} aria-label={p.interestLabel} />}
               {has('formType') && formTypes.length > 0 && (
