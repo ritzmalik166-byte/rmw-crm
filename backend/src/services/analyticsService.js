@@ -1,5 +1,6 @@
 import { query, one } from '../config/db.js';
 import { leadVisibilitySql, websiteScope } from '../middleware/scope.js';
+import { parseBound } from '../utils/dateRange.js';
 
 function range(f) {
   const to = parseBound(f.to, true) || new Date();
