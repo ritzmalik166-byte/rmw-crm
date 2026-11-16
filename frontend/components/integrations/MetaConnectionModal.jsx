@@ -124,7 +124,7 @@ export function MetaConnectionModal({ open, onOpenChange, status, canManage, onC
           <DialogTitle className="flex items-center gap-3">Meta Lead Ads <IntegrationStatus state={status.state} /></DialogTitle>
           <DialogDescription>{c?.metaUserName ? `Connected as ${c.metaUserName}${c.connectedBy ? ` by ${c.connectedBy}` : ''} · ${formatDateTime(c.connectedAt)}` : 'Not connected'}</DialogDescription>
         </DialogHeader>
-        <Tabs defaultValue="health">
+        <Tabs defaultValue={c ? 'health' : 'log'}>
           <TabsList>
             <TabsTrigger value="health">Health</TabsTrigger>
             {canManage && c && <TabsTrigger value="routing">Lead routing</TabsTrigger>}

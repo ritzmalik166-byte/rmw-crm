@@ -44,4 +44,4 @@ const REASONS = {
   META_RATE_LIMITED: 'Meta rate limit reached. Try again in a few minutes.',
 };
 
-export const oauthReasonMessage = (reason) => REASONS[reason] || 'Could not connect to Meta. Try again or check the integration log.';
+export const oauthReasonMessage = (reason) => REASONS[reason] || `Could not connect to Meta (${reason || 'unknown error'}). Open "Activity log" on the Meta card for details.`;

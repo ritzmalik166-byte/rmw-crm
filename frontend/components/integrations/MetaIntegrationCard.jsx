@@ -134,6 +134,7 @@ export function MetaIntegrationCard({ canManage }) {
           {(s.state === 'NOT_CONNECTED' || s.state === 'NOT_CONFIGURED') && (
             <Button loading={connect.isPending} disabled={s.state === 'NOT_CONFIGURED'} onClick={() => connect.mutate()}><PlugZap />Connect Meta</Button>
           )}
+          {!c && <Button variant="ghost" onClick={() => setDialog('manage')}>Activity log</Button>}
           {s.state === 'ERROR' && <Button loading={connect.isPending} onClick={() => connect.mutate()}><PlugZap />Reconnect</Button>}
           {s.state === 'SETUP_REQUIRED' && <Button onClick={() => setDialog('assets')}><Settings2 />Choose Page</Button>}
           {c && <Button variant="outline" onClick={() => setDialog('manage')}><Settings2 />Manage</Button>}
