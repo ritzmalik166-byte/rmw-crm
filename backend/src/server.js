@@ -33,11 +33,8 @@ async function start() {
     const tick = async () => {
       if (running) return;
       running = true;
-      try { await syncAll(); } catch (e) { logger.error({ err: e.message }, 'Scheduled pull sync failed'); }
-      try {
-        const { metaSync } = await import('./integrations/meta/metaSync.service.js');
-        await metaSync.syncIfActive();
-      } catch (e) { logger.warn({ err: e.message }, 'Scheduled Meta sync skipped'); } finally { running = false; }
+      // Meta is not synced on a schedule: webhooks deliver new leads, and a full sync runs only when started from Integrations.
+      try { await syncAll(); } catch (e) { logger.error({ err: e.message }, 'Scheduled pull sync failed'); } finally { running = false; }
     };
     setTimeout(tick, 15_000);
     setInterval(tick, env.SYNC_INTERVAL_MINUTES * 60_000);

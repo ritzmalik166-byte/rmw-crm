@@ -4,6 +4,7 @@ import { notificationService } from '../notifications/notificationService.js';
 import { pushService } from '../notifications/pushService.js';
 import { ok, pageMeta } from '../utils/http.js';
 import { dashboardRange } from '../utils/dateRange.js';
+import { metaAnalytics } from '../integrations/meta/metaAnalytics.service.js';
 
 const paged = (q) => ({ limit: q.limit, offset: (q.page - 1) * q.limit });
 
@@ -47,12 +48,15 @@ export const crmController = {
   async resolveDuplicate(req, res) { await leadService.resolveDuplicate(req, Number(req.params.id), req.body); ok(res, null, 'Duplicate resolved'); },
   async pipelines(req, res) {
     const r = req.query.from || req.query.to || req.query.range === 'today' ? dashboardRange(req.query) : null;
-    ok(res, { ...(await leadService.pipelineCounts(req, r)), range: r });
+    const channel = ['meta', 'website'].includes(req.query.channel) ? req.query.channel : null;
+    ok(res, { ...(await leadService.pipelineCounts(req, r, channel)), range: r });
   },
   async lookups(req, res) {
     const [statuses, sources, users] = await Promise.all([leadService.statuses(), leadService.sources(), leadService.assignableUsers(req)]);
     ok(res, { statuses, sources, websites: req.auth.ctx.websites, users });
   },
+
+  async metaForms(req, res) { ok(res, await metaAnalytics.leadForms(req, req.query)); },
 
   async notifications(req, res) {
     const q = req.validQuery;

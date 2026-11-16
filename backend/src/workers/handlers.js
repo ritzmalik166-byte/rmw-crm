@@ -11,7 +11,7 @@ export async function processJob(queueName, jobName, data) {
   switch (queueName) {
     case 'lead-sync':
       if (jobName === 'meta-lead') return processMetaWebhookEvent(data.eventId);
-      if (jobName === 'meta-sync') return runMetaSync({ trigger: data.trigger || 'manual', actorId: data.actorId || null });
+      if (jobName === 'meta-sync') return runMetaSync({ trigger: data.trigger || 'manual', actorId: data.actorId || null, full: Boolean(data.full) });
       if (jobName === 'meta-conversion') return metaConversion.dispatch(data.conversionId);
       return processIntegrationEvent(data.eventId);
     case 'email': {

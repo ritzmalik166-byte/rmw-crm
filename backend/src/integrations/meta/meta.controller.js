@@ -60,9 +60,14 @@ export const metaController = {
   async select(req, res) { ok(res, await metaAssets.select(req, req.body), 'Meta connection saved'); },
   async settings(req, res) { await metaAssets.updateSettings(req, req.body); ok(res, null, 'Settings saved'); },
   async sync(req, res) {
-    const r = await metaSync.requestSync(req.auth.user.id);
-    await audit('INTEGRATION_CHANGED', { actorId: req.auth.user.id, entityType: 'meta_connection', req, meta: { action: 'meta_sync' } });
+    const full = req.body?.full === true;
+    const r = await metaSync.requestSync(req.auth.user.id, { full });
+    await audit('INTEGRATION_CHANGED', { actorId: req.auth.user.id, entityType: 'meta_connection', req, meta: { action: full ? 'meta_full_sync' : 'meta_sync' } });
     ok(res, r, 'Sync started', 202);
+  },
+  async stopSync(req, res) {
+    const r = await metaSync.stopSync(req.auth.user.id);
+    ok(res, r, r.stopped ? 'Stopping sync' : 'No sync is running');
   },
   async retryEvent(req, res) {
     const id = Number(req.params.id);

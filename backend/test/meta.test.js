@@ -61,6 +61,7 @@ describe('lead normalisation', () => {
     assert.equal(c.sourceType, 'META');
     assert.equal(c.sourceLeadId, LEAD.id);
     assert.equal(c.externalRawId, `META-${LEAD.id}`);
+    assert.equal(c.externalLeadId, `META-${LEAD.id}`); // no MPF- prefix
     assert.equal(c.name, 'Rahul Sharma');
     assert.equal(c.phone, '+919876543211');
     assert.equal(c.email, 'rahul@gmail.com');

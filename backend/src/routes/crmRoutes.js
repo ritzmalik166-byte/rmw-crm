@@ -24,6 +24,8 @@ r.post('/leads/:id/notes', requirePermission('lead.view'), validate(s.note), h(c
 r.post('/leads/:id/followups', requirePermission('lead.view'), validate(s.followup), h(c.addFollowup));
 r.post('/duplicates/:id/resolve', requirePermission('lead.merge'), validate(s.duplicate), h(c.resolveDuplicate));
 
+r.get('/meta/forms', requirePermission('lead.view'), h(c.metaForms));
+
 r.get('/followups', validate(s.followupQuery, 'query'), h(c.listFollowups));
 r.patch('/followups/:id', validate(s.followupUpdate), h(c.updateFollowup));
 

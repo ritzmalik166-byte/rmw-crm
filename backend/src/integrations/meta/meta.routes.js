@@ -58,5 +58,6 @@ metaSuperAdminRouter.get('/integrations/meta/assets/forms', m, h(c.forms));
 metaSuperAdminRouter.put('/integrations/meta/selection', m, validate(schemas.select), h(c.select));
 metaSuperAdminRouter.patch('/integrations/meta/settings', m, validate(schemas.settings), h(c.settings));
 metaSuperAdminRouter.post('/integrations/meta/sync', m, h(c.sync));
+metaSuperAdminRouter.post('/integrations/meta/sync/stop', m, h(c.stopSync));
 metaSuperAdminRouter.post('/integrations/meta/events/:id/retry', m, h(c.retryEvent));
 metaSuperAdminRouter.delete('/integrations/meta', m, h(c.disconnect));

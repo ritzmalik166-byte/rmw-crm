@@ -116,6 +116,37 @@ export const metaAnalytics = {
     };
   },
 
+  /**
+   * Meta lead forms with lead counts (caller's visible leads; junk excluded). Forms synced from Meta that have no
+   * leads yet are included with zero counts. `from`/`to` add an in-range count for the dashboard.
+   */
+  async leadForms(req, f = {}) {
+    const vis = leadVisibilitySql(req);
+    const from = parseBound(f.from);
+    const to = parseBound(f.to, true);
+    const where = [vis.sql, 'l.source_type = ?', 'l.merged_into_lead_id IS NULL', 'l.junk_reason IS NULL', 'l.form_id IS NOT NULL'];
+    const params = [...vis.params, LEAD_SOURCE_TYPES.META];
+    if (f.websiteId) { websiteScope(req, f.websiteId); where.push('l.website_id = ?'); params.push(Number(f.websiteId)); }
+    const inRange = from && to ? `SUM(${RECEIVED} BETWEEN ? AND ?)` : 'NULL';
+    const [counts, forms] = await Promise.all([
+      query(`SELECT l.form_id, MAX(l.form_name) name, COUNT(*) total, SUM(s.code = 'NEW') new_leads, SUM(l.assigned_user_id IS NULL) unassigned,
+               SUM(s.is_conversion) converted, MAX(${RECEIVED}) last_lead_at, ${inRange} in_range ${FROM}
+             WHERE ${where.join(' AND ')} GROUP BY l.form_id`, [...(from && to ? [from, to] : []), ...params]),
+      query("SELECT f.form_id, f.name, f.status, f.page_id, a.name page_name FROM meta_forms f LEFT JOIN meta_assets a ON a.asset_type = 'PAGE' AND a.external_id = f.page_id AND a.connection_id = f.connection_id"),
+    ]);
+    const byId = new Map(forms.map((x) => [x.form_id, x]));
+    const rows = counts.map((c) => {
+      const m = byId.get(c.form_id);
+      byId.delete(c.form_id);
+      return { formId: c.form_id, name: m?.name || c.name || `Form ${c.form_id}`, status: m?.status || null, pageName: m?.page_name || null,
+        total: n(c.total), newLeads: n(c.new_leads), unassigned: n(c.unassigned), converted: n(c.converted), inRange: c.in_range == null ? null : n(c.in_range), lastLeadAt: c.last_lead_at };
+    });
+    for (const m of byId.values()) {
+      rows.push({ formId: m.form_id, name: m.name || `Form ${m.form_id}`, status: m.status, pageName: m.page_name, total: 0, newLeads: 0, unassigned: 0, converted: 0, inRange: from && to ? 0 : null, lastLeadAt: null });
+    }
+    return rows.sort((a, b) => b.total - a.total || String(a.name).localeCompare(String(b.name)));
+  },
+
   /** Values for the filter dropdowns (only what exists in the caller's visible Meta leads). */
   async filterOptions(req) {
     const vis = leadVisibilitySql(req);

@@ -77,7 +77,10 @@ async function syncInsights(adAccountId, userToken) {
 }
 
 /** Run a sync now (in this process). Holds a DB lock so two syncs never overlap. */
-export async function runMetaSync({ trigger = 'manual', actorId = null } = {}) {
+/** Meta only returns leads from the last 90 days; a full sync reads that whole window. */
+const FULL_SYNC_DAYS = 90;
+
+export async function runMetaSync({ trigger = 'manual', actorId = null, full = false } = {}) {
   const conn = await repo.current();
   if (!conn || conn.status === 'DISCONNECTED') throw conflict('Meta is not connected', 'META_NOT_CONNECTED');
   const lock = await query(
@@ -86,7 +89,7 @@ export async function runMetaSync({ trigger = 'manual', actorId = null } = {}) {
   if (!lock.affectedRows) throw conflict('A Meta sync is already running', 'META_SYNC_RUNNING');
 
   const started = Date.now();
-  const since = syncWindowStart(conn.last_sync_at);
+  const since = full ? new Date(Date.now() - FULL_SYNC_DAYS * 86400_000) : syncWindowStart(conn.last_sync_at);
   const stats = { trigger, since: since.toISOString(), forms: 0, fetched: 0, imported: 0, duplicatesSkipped: 0, junk: 0, errors: 0, spendRows: 0, warnings: [] };
   await integrationLog(PROVIDER, 'info', 'SYNC_STARTED', `Sync started (${trigger})`, { connectionId: conn.id, since: stats.since, actorId });
   let fatal = null;
@@ -95,6 +98,9 @@ export async function runMetaSync({ trigger = 'manual', actorId = null } = {}) {
     const pages = await query("SELECT external_id FROM meta_assets WHERE connection_id = ? AND asset_type = 'PAGE' AND is_selected = 1", [conn.id]);
     if (!pages.length) throw conflict('Select a Facebook Page before syncing', 'META_NO_PAGE');
 
+    // "Stop sync" clears sync_started_at; the loop checks it between forms and every 25 leads.
+    const stopRequested = async () => !(await query('SELECT sync_started_at FROM meta_connections WHERE id = ?', [conn.id]))[0]?.sync_started_at;
+    pagesLoop:
     for (const { external_id: pageId } of pages) {
       const page = await repo.pageWithToken(pageId);
       if (!page?.token) throw conflict('No Page token stored. Reconnect Meta.', 'META_TOKEN_INVALID');
@@ -103,6 +109,7 @@ export async function runMetaSync({ trigger = 'manual', actorId = null } = {}) {
       stats.forms += forms.length;
 
       for (const form of forms) {
+        if (await stopRequested()) { stats.stopped = true; break pagesLoop; }
         let leads;
         try {
           leads = await fetchFormLeads(form.id, page.token, since);
@@ -119,6 +126,7 @@ export async function runMetaSync({ trigger = 'manual', actorId = null } = {}) {
         const have = new Set((await query('SELECT source_lead_id FROM leads WHERE source_type = ? AND source_lead_id IN (?)', [LEAD_SOURCE_TYPES.META, ids])).map((r) => r.source_lead_id));
         for (const lead of leads.sort((a, b) => new Date(a.created_time) - new Date(b.created_time))) {
           if (have.has(String(lead.id))) { stats.duplicatesSkipped += 1; continue; }
+          if ((stats.imported + stats.errors) % 25 === 24 && await stopRequested()) { stats.stopped = true; break pagesLoop; }
           try {
             const res = await importMetaLead(page, lead, { silent: true });
             if (res.created) stats.imported += 1; else stats.duplicatesSkipped += 1;
@@ -140,7 +148,7 @@ export async function runMetaSync({ trigger = 'manual', actorId = null } = {}) {
 
     const adAccount = (await query("SELECT external_id FROM meta_assets WHERE connection_id = ? AND asset_type = 'AD_ACCOUNT' AND is_selected = 1", [conn.id]))[0];
     const userToken = repo.userToken(conn);
-    if (adAccount && userToken) {
+    if (adAccount && userToken && !stats.stopped) {
       try { stats.spendRows = await syncInsights(adAccount.external_id, userToken); } catch (err) {
         if (err.isTokenError) throw err;
         stats.warnings.push(`Campaign spend: ${err.message}`);
@@ -161,7 +169,7 @@ export async function runMetaSync({ trigger = 'manual', actorId = null } = {}) {
     await query("UPDATE meta_connections SET status = 'ACTIVE', last_error_code = NULL, last_error = NULL WHERE id = ?", [conn.id]);
   }
   await integrationLog(PROVIDER, fatal ? 'error' : stats.errors ? 'warn' : 'info', 'SYNC_COMPLETED',
-    fatal ? `Sync failed: ${fatal.message}` : `Sync completed: ${stats.imported} imported, ${stats.duplicatesSkipped} duplicates skipped, ${stats.errors} errors`,
+    fatal ? `Sync failed: ${fatal.message}` : `Sync ${stats.stopped ? 'stopped by user' : 'completed'}: ${stats.imported} imported, ${stats.duplicatesSkipped} duplicates skipped, ${stats.errors} errors`,
     { connectionId: conn.id, ...stats, warnings: stats.warnings.slice(0, 5) });
   if (fatal) throw fatal;
   return { status, ...stats };
@@ -169,12 +177,21 @@ export async function runMetaSync({ trigger = 'manual', actorId = null } = {}) {
 
 export const metaSync = {
   /** Queue a sync and return immediately; the UI polls the status endpoint. */
-  async requestSync(actorId) {
+  async requestSync(actorId, { full = false } = {}) {
     const conn = await repo.current();
     if (!conn || conn.status === 'DISCONNECTED') throw conflict('Meta is not connected', 'META_NOT_CONNECTED');
     if (conn.sync_started_at && Date.now() - new Date(conn.sync_started_at).getTime() < LOCK_MINUTES * 60_000) throw conflict('A Meta sync is already running', 'META_SYNC_RUNNING');
-    await enqueue('lead-sync', 'meta-sync', { trigger: 'manual', actorId }, { jobId: `meta-sync-${Date.now()}`, attempts: 1 });
+    await enqueue('lead-sync', 'meta-sync', { trigger: full ? 'full' : 'manual', actorId, full: Boolean(full) }, { jobId: `meta-sync-${Date.now()}`, attempts: 1 });
     return { queued: true };
+  },
+
+  /** Ask a running sync to stop. It finishes the lead it is on, saves what it imported, then ends. */
+  async stopSync(actorId) {
+    const conn = await repo.current();
+    if (!conn?.sync_started_at) return { stopped: false };
+    await query('UPDATE meta_connections SET sync_started_at = NULL WHERE id = ?', [conn.id]);
+    await integrationLog(PROVIDER, 'info', 'SYNC_STOP_REQUESTED', 'Stop requested for the running sync', { connectionId: conn.id, actorId });
+    return { stopped: true };
   },
 
   /** Scheduled fallback (SYNC_INTERVAL_MINUTES). Silently skips when Meta isn't active. */

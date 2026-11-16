@@ -50,6 +50,9 @@ function buildFilters(req, f) {
   if (f.statusId) { where.push('l.status_id = ?'); params.push(f.statusId); }
   if (f.source) { where.push('a.source = ?'); params.push(f.source); }
   if (f.sourceType) { where.push('l.source_type = ?'); params.push(f.sourceType); }
+  if (f.formId) { where.push('l.form_id = ?'); params.push(f.formId); }
+  if (f.channel === 'meta') { where.push('l.source_type = ?'); params.push(LEAD_SOURCE_TYPES.META); }
+  else if (f.channel === 'website') { where.push("COALESCE(l.source_type, '') <> ?"); params.push(LEAD_SOURCE_TYPES.META); }
   if (f.campaign) { where.push('(a.campaign = ? OR a.utm_campaign = ?)'); params.push(f.campaign, f.campaign); }
   if (f.assignedUserId === 'unassigned') where.push('l.assigned_user_id IS NULL');
   else if (f.assignedUserId === 'me') { where.push('l.assigned_user_id = ?'); params.push(req.auth.user.id); }
@@ -341,7 +344,10 @@ export const leadService = {
   },
 
   /** Per-pipeline counts for navigation and the dashboard (respects website access and visibility). */
-  async pipelineCounts(req, r) {
+  async pipelineCounts(req, r, channel = null) {
+    // Optional channel split (MPF page: Website / App vs Meta).
+    const ch = channel === 'meta' ? { sql: ' AND l.source_type = ?', params: [LEAD_SOURCE_TYPES.META] }
+      : channel === 'website' ? { sql: " AND COALESCE(l.source_type, '') <> ?", params: [LEAD_SOURCE_TYPES.META] } : { sql: '', params: [] };
     const vis = leadVisibilitySql(req);
     const out = {};
     for (const [key, p] of Object.entries(PIPELINES)) {
@@ -351,8 +357,8 @@ export const leadService = {
            SUM(${RECEIVED} >= ?) today,
            SUM(EXISTS (SELECT 1 FROM lead_followups f WHERE f.lead_id = l.id AND (f.status = 'OVERDUE' OR (f.status = 'UPCOMING' AND f.due_at < NOW(3))))) overdue
          FROM leads l JOIN lead_statuses s ON s.id = l.status_id
-         WHERE ${vis.sql} AND l.merged_into_lead_id IS NULL AND ${junkCol} IS NULL AND ${p.sql}${r ? ` AND ${RECEIVED} BETWEEN ? AND ?` : ''}`,
-        [startOfTodayIst(), ...vis.params, ...p.params, ...(r ? [r.from, r.to] : [])],
+         WHERE ${vis.sql} AND l.merged_into_lead_id IS NULL AND ${junkCol} IS NULL AND ${p.sql}${ch.sql}${r ? ` AND ${RECEIVED} BETWEEN ? AND ?` : ''}`,
+        [startOfTodayIst(), ...vis.params, ...p.params, ...ch.params, ...(r ? [r.from, r.to] : [])],
       );
       out[key] = Object.fromEntries(Object.entries(row).map(([k, v]) => [k, Number(v || 0)]));
     }

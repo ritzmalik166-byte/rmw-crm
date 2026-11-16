@@ -87,6 +87,7 @@ export function normalizeMetaLead(lead, ctx = {}) {
 
   return {
     externalRawId: `META-${lead.id}`,
+    externalLeadId: `META-${lead.id}`, // no website prefix: Meta leads are identified by their Meta id
     sourceType: LEAD_SOURCE_TYPES.META,
     sourceLeadId: String(lead.id),
     name: clean(name, 150),
