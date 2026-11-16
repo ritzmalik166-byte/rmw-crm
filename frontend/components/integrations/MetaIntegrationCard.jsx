@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Facebook, Instagram, RefreshCw, Settings2, Unplug, PlugZap, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Square, RefreshCw, Settings2, Unplug, PlugZap, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { api, apiMessage } from '@/lib/api';
 import { formatDateTime, timeAgo } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -13,14 +13,8 @@ import { HealthCheck, IntegrationStatus, oauthReasonMessage } from './Integratio
 import { MetaAssetSelector } from './MetaAssetSelector';
 import { MetaConnectionModal } from './MetaConnectionModal';
 
-export function MetaLogo() {
-  return (
-    <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#1877F2] text-white">
-      <Facebook className="h-5 w-5" />
-      <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-tr from-amber-400 via-pink-500 to-purple-600 ring-2 ring-white"><Instagram className="h-3 w-3" /></span>
-    </span>
-  );
-}
+export { MetaLogo } from './MetaLogo';
+import { MetaLogo } from './MetaLogo';
 
 function Row({ label, children }) {
   return <div className="flex justify-between gap-3 text-[13px]"><span className="text-slate-500">{label}</span><span className="min-w-0 truncate text-right text-slate-800">{children}</span></div>;
@@ -71,8 +65,13 @@ export function MetaIntegrationCard({ canManage }) {
     onError: (e) => toast.error(apiMessage(e)),
   });
   const sync = useMutation({
-    mutationFn: () => api('/super-admin/integrations/meta/sync', { method: 'POST' }),
-    onSuccess: () => { toast.info('Sync started'); setTimeout(() => setSyncRequested(true), 1500); qc.invalidateQueries({ queryKey: ['meta', 'status'] }); },
+    mutationFn: (full = false) => api('/super-admin/integrations/meta/sync', { method: 'POST', body: { full } }),
+    onSuccess: (_r, full) => { toast.info(full ? 'Full sync started: reading the last 90 days of leads. This can take a few minutes.' : 'Sync started'); setTimeout(() => setSyncRequested(true), 1500); qc.invalidateQueries({ queryKey: ['meta', 'status'] }); },
+    onError: (e) => toast.error(apiMessage(e)),
+  });
+  const stop = useMutation({
+    mutationFn: () => api('/super-admin/integrations/meta/sync/stop', { method: 'POST' }),
+    onSuccess: () => { toast.info('Stopping sync. Leads already imported are kept.'); qc.invalidateQueries({ queryKey: ['meta', 'status'] }); },
     onError: (e) => toast.error(apiMessage(e)),
   });
   const disconnect = useMutation({
@@ -121,7 +120,7 @@ export function MetaIntegrationCard({ canManage }) {
             {st && s.sync.lastSyncAt && (
               <p className="flex items-center gap-1.5 rounded-md bg-slate-50 px-2.5 py-1.5 text-[12px] text-slate-600">
                 {s.sync.status === 'FAILED' ? <AlertTriangle className="h-3.5 w-3.5 text-red-600" /> : <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />}
-                {s.sync.status === 'FAILED' ? 'Last sync failed' : `Imported ${st.imported} · Duplicates skipped ${st.duplicatesSkipped} · Errors ${st.errors}`}
+                {s.sync.running ? 'Sync running…' : s.sync.status === 'FAILED' ? 'Last sync failed' : `${st.stopped ? 'Stopped · ' : ''}Imported ${st.imported} · Duplicates skipped ${st.duplicatesSkipped} · Errors ${st.errors}`}
               </p>
             )}
             {s.error && <p className="rounded-md bg-red-50 p-2 text-xs text-red-700">{s.error.message}</p>}
@@ -138,7 +137,11 @@ export function MetaIntegrationCard({ canManage }) {
           {s.state === 'ERROR' && <Button loading={connect.isPending} onClick={() => connect.mutate()}><PlugZap />Reconnect</Button>}
           {s.state === 'SETUP_REQUIRED' && <Button onClick={() => setDialog('assets')}><Settings2 />Choose Page</Button>}
           {c && <Button variant="outline" onClick={() => setDialog('manage')}><Settings2 />Manage</Button>}
-          {c && s.state !== 'SETUP_REQUIRED' && <Button variant="outline" loading={syncing} onClick={() => sync.mutate()}>{!syncing && <RefreshCw />}{syncing ? 'Syncing…' : 'Sync now'}</Button>}
+          {c && s.state !== 'SETUP_REQUIRED' && (syncing ? (
+            <Button variant="outline" className="border-red-200 text-red-700 hover:bg-red-50" loading={stop.isPending} onClick={() => stop.mutate()}><Square />Stop sync</Button>
+          ) : (
+            <Button variant="outline" title="Read every lead Meta still keeps (last 90 days) and import any that are missing" onClick={() => sync.mutate(true)}><RefreshCw />Full sync (90 days)</Button>
+          ))}
           {c && <Button variant="ghost" className="text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => setDialog('disconnect')}><Unplug />Disconnect</Button>}
         </div>
       ) : c ? (

@@ -12,6 +12,7 @@ import { EmptyState, ErrorState } from '@/components/ui/feedback';
 import { DashboardSkeleton } from '@/components/ui/skeletons';
 import { DateRangeFilter, rangeLabel, todayRange } from '@/components/ui/date-range';
 import { toQuery } from '@/lib/utils';
+import { MetaLeadFormsList } from '@/components/marketing/MetaLeadForms';
 
 
 function Panel({ title, action, children, className }) {
@@ -226,6 +227,10 @@ export default function CrmDashboard() {
               ))}
             </ul>
           )}
+        </Panel>
+
+        <Panel title={`Meta lead forms · ${label}`} action={<Link href="/crm/pipeline/mpf?channel=meta&tab=forms" className="text-[12px] font-medium text-[hsl(var(--primary))] hover:underline">All forms</Link>}>
+          <MetaLeadFormsList compact limit={8} params={rq} />
         </Panel>
 
         {team ? (

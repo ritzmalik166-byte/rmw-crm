@@ -53,7 +53,7 @@ function StatusCell({ lead, editable }) {
 }
 
 const JUNK_LABELS = { career: 'Job application', job_seeker: 'Job seeker / vendor', spam: 'Spam', test: 'Test', internal: 'Internal', repeat: 'Repeat submit', bad_phone: 'Fake phone', bad_name: 'Bad name', empty: 'Empty' };
-const FILTER_KEYS = ['search', 'view', 'websiteId', 'statusId', 'source', 'sourceType', 'campaign', 'interest', 'formType', 'assignedUserId', 'from', 'to', 'duplicates', 'junk', 'sort', 'dir', 'page'];
+const FILTER_KEYS = ['search', 'view', 'websiteId', 'statusId', 'source', 'sourceType', 'formId', 'channel', 'campaign', 'interest', 'formType', 'assignedUserId', 'from', 'to', 'duplicates', 'junk', 'sort', 'dir', 'page'];
 const VIEWS = [
   { key: '', label: 'All' },
   { key: 'mine', label: 'My leads' },
@@ -161,14 +161,19 @@ function LeadCard({ lead: l, pipelineKey, editable, canTransfer, me, onTransfer,
   );
 }
 
-export function LeadsWorkspace({ pipelineKey = 'all' }) {
+/**
+ * `channel` ('meta' | 'website') embeds the workspace inside the MPF channel view: no pipeline tabs, channel title,
+ * and the summary strip counts only that channel.
+ */
+export function LeadsWorkspace({ pipelineKey = 'all', channel = null, title = null, description = null, icon = null }) {
   const p = PIPELINES[pipelineKey];
+  const embedded = Boolean(channel);
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
   const { can, me } = useAuth();
   const { data: lk } = useLookups();
-  const { data: pipe } = useQuery({ queryKey: ['leads', 'pipelines'], queryFn: () => api('/crm/pipelines'), staleTime: 60_000 });
+  const { data: pipe } = useQuery({ queryKey: ['leads', 'pipelines', channel], queryFn: () => api(`/crm/pipelines${toQuery({ channel })}`), staleTime: 60_000 });
   const filters = useMemo(() => Object.fromEntries(FILTER_KEYS.map((k) => [k, params.get(k) || ''])), [params]);
   const [search, setSearch] = useState(filters.search);
   const debounced = useDebounced(search);
@@ -219,20 +224,22 @@ export function LeadsWorkspace({ pipelineKey = 'all' }) {
   const colCount = 7 + (p.showWebsite ? 1 : 0) + (p.showSource ? 1 : 0);
 
   return (
-    <div className="-mx-4 -mt-4 sm:-mx-6 sm:-mt-6">
-      {!p.standalone && <PipelineTabs active={pipelineKey} counts={pipe?.counts} />}
+    <div className={embedded ? '' : '-mx-4 -mt-4 sm:-mx-6 sm:-mt-6'}>
+      {!p.standalone && !embedded && <PipelineTabs active={pipelineKey} counts={pipe?.counts} />}
 
-      <div className={cn('px-4 sm:px-6', p.standalone ? 'pt-4' : 'pt-3')}>
+      <div className={cn(!embedded && 'px-4 sm:px-6', embedded ? 'pt-0' : p.standalone ? 'pt-4' : 'pt-3')}>
         {/* Title row */}
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <div>
-            <h1 className="flex items-center gap-2 text-[17px] font-semibold text-slate-900"><PipelineLogo src={p.logo} className="h-6 w-6" />{p.title}</h1>
-            <p className="hidden text-[12px] text-muted-foreground sm:block">{p.description}</p>
-          </div>
+        <div className={cn('mb-2 flex items-center gap-2', embedded ? 'justify-end' : 'justify-between')}>
+          {!embedded && (
+            <div>
+              <h1 className="flex items-center gap-2 text-[17px] font-semibold text-slate-900">{icon || <PipelineLogo src={p.logo} className="h-6 w-6" />}{title || p.title}</h1>
+              <p className="hidden text-[12px] text-muted-foreground sm:block">{description || p.description}</p>
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => refetch()} aria-label="Refresh"><RefreshCw className={isFetching ? 'animate-spin' : ''} /></Button>
             {can('lead.export') && <Button variant="outline" size="sm" onClick={exportCsv}><Download />Export</Button>}
-            {can('lead.create') && pipelineKey !== 'career' && <Button size="sm" className="hidden lg:inline-flex" onClick={() => setDialog('create')}><Plus />Add lead</Button>}
+            {can('lead.create') && pipelineKey !== 'career' && channel !== 'meta' && <Button size="sm" className="hidden lg:inline-flex" onClick={() => setDialog('create')}><Plus />Add lead</Button>}
           </div>
         </div>
 
@@ -297,7 +304,7 @@ export function LeadsWorkspace({ pipelineKey = 'all' }) {
               {has('dates') && <Input type="date" value={filters.from} onChange={(e) => setFilter({ from: e.target.value })} aria-label="Received from" title="Received from" />}
               {has('dates') && <Input type="date" value={filters.to} onChange={(e) => setFilter({ to: e.target.value })} aria-label="Received to" title="Received to" />}
               {has('quality') && <Select value={filters.junk} onChange={(e) => setFilter({ junk: e.target.value })} aria-label="Lead quality"><option value="">Genuine leads</option><option value="only">Junk / spam only</option><option value="all">Include junk</option></Select>}
-              {activeFilters > 0 && <Button variant="ghost" size="sm" onClick={() => { setSearch(''); router.replace(pathname); }}><X />Clear all</Button>}
+              {activeFilters > 0 && <Button variant="ghost" size="sm" onClick={() => { setSearch(''); router.replace(params.get('channel') ? `${pathname}?channel=${params.get('channel')}` : pathname); }}><X />Clear all</Button>}
             </div>
           )}
 
