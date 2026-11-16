@@ -9,7 +9,7 @@ import { randomToken, sha256 } from '../../utils/crypto.js';
 import { badRequest } from '../../utils/errors.js';
 import { audit } from '../../services/auditService.js';
 import { integrationLog } from '../../services/integrationLogService.js';
-import { graph, appAccessToken, MetaApiError } from './metaApi.service.js';
+import { graph, appAccessToken, appSecretProof, MetaApiError } from './metaApi.service.js';
 import { metaConnectionRepo as repo } from './metaConnection.repo.js';
 import { META_SCOPES, REQUIRED_SCOPES, PROVIDER, isMetaConfigured, missingConfig } from './meta.config.js';
 
@@ -76,7 +76,9 @@ export async function exchangeCodeForToken(code) {
 
 /** Ask Meta whether a user token is valid, when it expires and which scopes it carries. */
 export async function inspectToken(token) {
-  const body = await graph('debug_token', { params: { input_token: token, access_token: appAccessToken() } });
+  // App token + its appsecret_proof: required when "Require app secret" is on in the Meta app.
+  const appToken = appAccessToken();
+  const body = await graph('debug_token', { params: { input_token: token, access_token: appToken, appsecret_proof: appSecretProof(appToken) } });
   const d = body?.data || {};
   return {
     valid: Boolean(d.is_valid) && String(d.app_id) === String(env.META_APP_ID),
