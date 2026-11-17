@@ -14,7 +14,6 @@ import crmRoutes from './routes/crmRoutes.js';
 import { adminRouter, superAdminRouter } from './routes/adminRoutes.js';
 import integrationRoutes from './routes/integrationRoutes.js';
 import { metaPublicRouter } from './integrations/meta/meta.routes.js';
-import { googleAdsPublicRouter } from './integrations/googleAds/googleAds.routes.js';
 
 export function createApp() {
   const app = express();
@@ -38,7 +37,6 @@ export function createApp() {
 
   // Meta webhook + OAuth callback: own body parser (raw bytes for signature checks). Must precede the generic mount.
   app.use('/api/integrations/meta', metaPublicRouter);
-  app.use('/api/integrations/google-ads', googleAdsPublicRouter);
   app.use('/api/integrations', express.json({ limit: '2mb', verify: (req, _res, buf) => { req.rawBody = buf.toString('utf8'); } }), integrationRoutes);
 
   app.use('/api', cors({ origin: corsOrigins, credentials: true }), cookieParser(), express.json({ limit: '200kb' }), originCheck, limiters.api);

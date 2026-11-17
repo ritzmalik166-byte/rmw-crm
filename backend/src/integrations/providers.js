@@ -5,7 +5,7 @@
  *   - OAuth or credential connect flow, with tokens encrypted at rest and never sent to the browser
  *   - webhook and/or pull sync that normalises each lead to the canonical shape (integrations/canonical.js)
  *   - hands every lead to the shared Lead Processor: services/leadIngestService.upsertCanonicalLead
- *     (one pipeline for Website, Meta, Google Ads and WhatsApp; no per-source lead tables)
+ *     (one pipeline for Website, Meta and WhatsApp; no per-source lead tables)
  *   - sets canonical.sourceType (config/leadSources.js) and sourceLeadId for duplicate detection
  *   - status() for the Integrations page; logs via services/integrationLogService
  */
@@ -20,14 +20,6 @@ export const INTEGRATION_PROVIDERS = [
     category: 'ADS',
     implemented: true,
     serverConfig: () => ({ configured: isMetaConfigured(), webhookConfigured: isWebhookConfigured(), missing: missingConfig() }),
-  },
-  {
-    key: LEAD_SOURCE_TYPES.GOOGLE_ADS,
-    name: 'Google Ads',
-    description: 'Google Ads lead form webhook',
-    category: 'ADS',
-    implemented: true,
-    serverConfig: () => ({ configured: true, missing: [] }),
   },
   {
     key: LEAD_SOURCE_TYPES.WHATSAPP,

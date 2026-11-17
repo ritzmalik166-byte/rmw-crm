@@ -61,8 +61,6 @@ const schema = z.object({
   SYNC_INTERVAL_MINUTES: int(0),
   // Near-real-time Meta lead poll (safety net for missed webhooks). 0 disables.
   META_LIVE_POLL_SECONDS: int(60),
-  // Public URL shown for the Google Ads lead form webhook (default: API origin + /api/integrations/google-ads/webhook).
-  GOOGLE_ADS_WEBHOOK_URL: z.string().optional(),
 
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),

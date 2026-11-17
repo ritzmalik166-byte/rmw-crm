@@ -2,7 +2,7 @@ import { query } from '../config/db.js';
 import { logger } from '../config/logger.js';
 
 const SENSITIVE = /token|secret|proof|password|authorization|cookie/i;
-const LABELS = { META: 'Meta', GOOGLE_ADS: 'Google Ads', WHATSAPP: 'WhatsApp', WEBSITE: 'Website' };
+const LABELS = { META: 'Meta', WHATSAPP: 'WhatsApp', WEBSITE: 'Website' };
 
 /** Drop any key that could hold a credential, at any depth. */
 export function scrubMeta(meta) {
