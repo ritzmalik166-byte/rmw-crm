@@ -14,6 +14,7 @@ export const PERMISSIONS = [
   ['lead.export', 'lead', 'Export leads'],
   ['lead.merge', 'lead', 'Resolve duplicates and merge leads'],
   ['career.view', 'lead', 'View career applications and resumes'],
+  ['lead.channel.meta', 'lead', 'View Meta (Facebook + Instagram) leads: dashboard section, sidebar and Meta channel'],
 
   ['user.view', 'user', 'View users'],
   ['user.create', 'user', 'Create users'],

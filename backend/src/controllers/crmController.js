@@ -5,8 +5,15 @@ import { pushService } from '../notifications/pushService.js';
 import { ok, pageMeta } from '../utils/http.js';
 import { dashboardRange } from '../utils/dateRange.js';
 import { metaAnalytics } from '../integrations/meta/metaAnalytics.service.js';
+import { forbidden } from '../utils/errors.js';
 
 const paged = (q) => ({ limit: q.limit, offset: (q.page - 1) * q.limit });
+
+/** The Meta channel (dashboard section, sidebar, ?channel=meta views, lead forms) needs lead.channel.meta. */
+const META_PERM = 'lead.channel.meta';
+function assertChannel(req, channel) {
+  if (channel === 'meta' && !req.auth.ctx.permissions.has(META_PERM)) throw forbidden('You do not have access to Meta leads', 'FORBIDDEN');
+}
 
 export const crmController = {
   async dashboard(req, res) {
@@ -26,6 +33,7 @@ export const crmController = {
     ok(res, { rows, meta: pageMeta(q.page, q.limit, total) });
   },
   async exportLeads(req, res) {
+    assertChannel(req, req.validQuery.channel);
     const csv = await leadService.exportCsv(req, req.validQuery);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="leads-${new Date().toISOString().slice(0, 10)}.csv"`);
@@ -49,6 +57,7 @@ export const crmController = {
   async pipelines(req, res) {
     const r = req.query.from || req.query.to || req.query.range === 'today' ? dashboardRange(req.query) : null;
     const channel = ['meta', 'website'].includes(req.query.channel) ? req.query.channel : null;
+    assertChannel(req, channel);
     ok(res, { ...(await leadService.pipelineCounts(req, r, channel)), range: r });
   },
   async lookups(req, res) {
@@ -56,7 +65,7 @@ export const crmController = {
     ok(res, { statuses, sources, websites: req.auth.ctx.websites, users });
   },
 
-  async metaForms(req, res) { ok(res, await metaAnalytics.leadForms(req, req.query)); },
+  async metaForms(req, res) { assertChannel(req, 'meta'); ok(res, await metaAnalytics.leadForms(req, req.query)); },
 
   async notifications(req, res) {
     const q = req.validQuery;
