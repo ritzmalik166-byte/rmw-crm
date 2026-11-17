@@ -1,6 +1,7 @@
 'use client';
 import { LayoutDashboard, Users2, CalendarClock, Bell, Settings, ShieldCheck, Briefcase } from 'lucide-react';
 import { AreaShell } from '@/components/layout/AppShell';
+import { MetaMark } from '@/components/integrations/MetaLogo';
 
 const NAV = [
   { items: [
@@ -11,6 +12,9 @@ const NAV = [
     { href: '/crm/pipeline/mpf', label: 'MPF Leads', logo: '/mpf-mark.png', countKey: 'mpf' },
     { href: '/crm/pipeline/rmw', label: 'RMW Leads', logo: '/rmw-mark.png', countKey: 'rmw' },
     { href: '/crm/pipeline/ct', label: 'CT Leads', logo: '/ct-mark.png', countKey: 'ct' },
+  ] },
+  { title: 'Lead channels', items: [
+    { href: '/crm/meta', label: 'Meta Leads', icon: MetaMark, brandIcon: true, perm: 'lead.channel.meta' },
   ] },
   { title: 'Recruitment', items: [
     { href: '/crm/pipeline/career', label: 'Career applications', icon: Briefcase, countKey: 'career', perm: 'career.view' },

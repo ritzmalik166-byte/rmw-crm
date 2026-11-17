@@ -1,6 +1,26 @@
 import { useId } from 'react';
 import { cn } from '@/lib/utils';
 
+/** Bare Meta infinity mark, sized like a lucide icon (sidebar, inline). */
+export function MetaMark({ className }) {
+  const id = useId().replace(/:/g, '');
+  return (
+    <svg viewBox="0 0 36 24" className={cn('h-4 w-4 shrink-0', className)} aria-hidden>
+      <defs>
+        <linearGradient id={`mm${id}`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#0064E0" />
+          <stop offset="0.55" stopColor="#0082FB" />
+          <stop offset="1" stopColor="#00A3FF" />
+        </linearGradient>
+      </defs>
+      <path
+        fill="none" stroke={`url(#mm${id})`} strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round"
+        d="M4 15.5C4 9.5 6.6 4.5 10.2 4.5c3 0 5 3.3 7.8 8.2 2.9 5 4.9 7.8 7.7 7.8 2.7 0 4.3-2.6 4.3-6.2 0-5.4-2.4-9.8-5.9-9.8-2.9 0-5 3.1-7.8 7.9-2.8 4.9-4.6 8.1-7.6 8.1C5.8 20.5 4 18.6 4 15.5z"
+      />
+    </svg>
+  );
+}
+
 /** Meta infinity mark with an Instagram badge (Facebook + Instagram lead ads). Inline SVG, no external assets. */
 export function MetaLogo({ className, badge = true, tile = true }) {
   const id = useId().replace(/:/g, '');

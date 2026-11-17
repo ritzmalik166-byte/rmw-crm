@@ -13,6 +13,7 @@ import { DashboardSkeleton } from '@/components/ui/skeletons';
 import { DateRangeFilter, rangeLabel, todayRange } from '@/components/ui/date-range';
 import { toQuery } from '@/lib/utils';
 import { MetaLeadFormsList } from '@/components/marketing/MetaLeadForms';
+import { MetaMark } from '@/components/integrations/MetaLogo';
 
 
 function Panel({ title, action, children, className }) {
@@ -63,12 +64,17 @@ function greeting() {
 }
 
 export default function CrmDashboard() {
-  const { me } = useAuth();
+  const { me, can } = useAuth();
   const [range, setRange] = useState(todayRange);
   const rq = { from: range.from, to: range.to };
   const label = rangeLabel(range);
   const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: ['dashboard', 'crm', rq], queryFn: () => api(`/crm/dashboard${toQuery(rq)}`), refetchInterval: 60_000, placeholderData: keepPreviousData });
   const { data: pipe } = useQuery({ queryKey: ['leads', 'pipelines', rq], queryFn: () => api(`/crm/pipelines${toQuery(rq)}`), refetchInterval: 60_000, placeholderData: keepPreviousData });
+  const canMeta = can('lead.channel.meta');
+  const { data: metaPipe } = useQuery({
+    queryKey: ['leads', 'pipelines', 'meta', rq], queryFn: () => api(`/crm/pipelines${toQuery({ ...rq, channel: 'meta' })}`),
+    enabled: canMeta, refetchInterval: 60_000, placeholderData: keepPreviousData,
+  });
   const { data: received } = useQuery({ queryKey: ['leads', 'dash-received', rq], queryFn: () => api(`/crm/leads${toQuery({ ...rq, limit: 10, sort: 'received_at', dir: 'desc' })}`), refetchInterval: 60_000, placeholderData: keepPreviousData });
 
   if (isLoading) return <DashboardSkeleton />;
@@ -166,6 +172,31 @@ export default function CrmDashboard() {
         </div>
       </Panel>
 
+      {canMeta && (
+        <div>
+          <h2 className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+            <MetaMark className="h-3.5 w-3.5" />Meta leads · {label}
+            <Link href="/crm/meta" className="ml-auto text-[12px] font-medium normal-case tracking-normal text-[hsl(var(--primary))] hover:underline">Open Meta leads</Link>
+          </h2>
+          {(() => {
+            const m = PIPELINE_ORDER.reduce((a, k) => {
+              Object.entries(metaPipe?.counts?.[k] || {}).forEach(([f, v]) => { a[f] = (a[f] || 0) + v; });
+              return a;
+            }, {});
+            return (
+              <Strip items={[
+                ['Meta leads', m.total, null, '/crm/meta', Users],
+                ['New', m.new_leads, 'info', '/crm/meta?view=new', Sparkles],
+                ['Received today', m.today, null, null, CalendarCheck],
+                ['Unassigned', m.unassigned, 'warn', '/crm/meta?view=unassigned', UserX],
+                ['Overdue follow-ups', m.overdue, 'danger', null, AlertTriangle],
+                ['Converted', m.converted, 'success', null, TrendingUp],
+              ]} />
+            );
+          })()}
+        </div>
+      )}
+
       <div>
         <h2 className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">My work</h2>
         <Strip items={[
@@ -229,9 +260,11 @@ export default function CrmDashboard() {
           )}
         </Panel>
 
-        <Panel title={`Meta lead forms · ${label}`} action={<Link href="/crm/pipeline/mpf?channel=meta&tab=forms" className="text-[12px] font-medium text-[hsl(var(--primary))] hover:underline">All forms</Link>}>
-          <MetaLeadFormsList compact limit={8} params={rq} />
-        </Panel>
+        {canMeta && (
+          <Panel title={`Meta lead forms · ${label}`} action={<Link href="/crm/meta?tab=forms" className="text-[12px] font-medium text-[hsl(var(--primary))] hover:underline">All forms</Link>}>
+            <MetaLeadFormsList compact limit={8} params={rq} />
+          </Panel>
+        )}
 
         {team ? (
           <Panel title="Team performance">

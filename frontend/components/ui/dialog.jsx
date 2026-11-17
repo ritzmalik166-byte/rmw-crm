@@ -8,6 +8,21 @@ const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
 const DialogClose = DialogPrimitive.Close;
 
+/**
+ * A caller's width cap (e.g. max-w-md) applies from sm up, so the phone sheet stays full width.
+ * The sm: classes are written out literally: Tailwind only generates classes it finds in source,
+ * so building "sm:" + cls at runtime produced classes that did not exist (modals went full width).
+ */
+const SM_MAX_W = {
+  'max-w-xs': 'sm:max-w-xs', 'max-w-sm': 'sm:max-w-sm', 'max-w-md': 'sm:max-w-md', 'max-w-lg': 'sm:max-w-lg',
+  'max-w-xl': 'sm:max-w-xl', 'max-w-2xl': 'sm:max-w-2xl', 'max-w-3xl': 'sm:max-w-3xl', 'max-w-4xl': 'sm:max-w-4xl',
+  'max-w-5xl': 'sm:max-w-5xl', 'max-w-6xl': 'sm:max-w-6xl',
+};
+function responsiveWidth(className) {
+  if (!className) return className;
+  return className.split(/\s+/).map((c) => SM_MAX_W[c] || (c.startsWith('max-w-') ? `sm:${c}` : c)).join(' ');
+}
+
 const DialogContent = React.forwardRef(({ className, children, ...props }, ref) => (
   <DialogPrimitive.Portal>
     <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
@@ -18,8 +33,7 @@ const DialogContent = React.forwardRef(({ className, children, ...props }, ref) 
         'fixed inset-x-0 bottom-0 z-50 grid max-h-[92dvh] w-full gap-4 overflow-y-auto rounded-t-2xl border bg-background p-5 pb-[calc(env(safe-area-inset-bottom)+20px)] pt-7 shadow-2xl',
         'data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom data-[state=open]:duration-300',
         'sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[90vh] sm:w-[calc(100%-2rem)] sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:p-6 sm:data-[state=open]:slide-in-from-bottom-0 sm:data-[state=open]:zoom-in-95',
-        // A caller's width cap (e.g. max-w-sm) applies from sm up, so the phone sheet stays full width.
-        className?.replace(/(^|\s)max-w-/g, '$1sm:max-w-'),
+        responsiveWidth(className),
       )}
       {...props}
     >

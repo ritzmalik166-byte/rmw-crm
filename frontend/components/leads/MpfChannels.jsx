@@ -12,6 +12,12 @@ import { LeadsWorkspace } from '@/components/leads/LeadsWorkspace';
 import { MetaLogo } from '@/components/integrations/MetaLogo';
 import { MetaLeadFormsList, useMetaLeadForms } from '@/components/marketing/MetaLeadForms';
 import { ymd } from '@/components/ui/date-range';
+import { EmptyState } from '@/components/ui/feedback';
+import { useAuth } from '@/providers/AuthProvider';
+
+export function MetaNoAccess() {
+  return <EmptyState title="No access to Meta leads" description="Ask a Super Admin to grant your role the “View Meta leads” permission (Super Admin → Roles)." />;
+}
 
 const WebsiteIcon = ({ className }) => (
   <span className={cn('inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700 ring-1 ring-teal-100', className)}><Globe2 className="h-5 w-5" /></span>
@@ -80,19 +86,21 @@ function MetaFormsHint() {
 }
 
 /** Page header for a channel: back link, logo + title, and (Meta) underline tabs Leads / Lead forms. */
-function ChannelHeader({ channel, tab, tabs }) {
+function ChannelHeader({ channel, tab, tabs, standalone = false }) {
   const pathname = usePathname();
   const { title, description, Icon } = CHANNELS[channel];
   return (
     <div className="mb-4 overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
       <div className="flex items-center gap-3 px-4 pb-3 pt-3">
-        <Link href={pathname} aria-label="Back to MPF Leads" title="Back to MPF Leads"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-[hsl(var(--primary))]">
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
+        {!standalone && (
+          <Link href={pathname} aria-label="Back to MPF Leads" title="Back to MPF Leads"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-[hsl(var(--primary))]">
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        )}
         <Icon />
         <div className="min-w-0">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">MPF Leads</p>
+          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{standalone ? 'Lead channel' : 'MPF Leads'}</p>
           <h1 className="truncate text-[17px] font-semibold leading-tight text-slate-900">{title}</h1>
           <p className="hidden truncate text-[12px] text-slate-500 sm:block">{description}</p>
         </div>
@@ -115,7 +123,8 @@ function ChannelHeader({ channel, tab, tabs }) {
   );
 }
 
-function MetaChannel() {
+/** Meta channel view. Used inside MPF Leads (?channel=meta) and standalone at /crm/meta (sidebar). */
+export function MetaChannel({ standalone = false }) {
   const params = useSearchParams();
   const pathname = usePathname();
   const tab = params.get('tab') === 'forms' ? 'forms' : params.get('junk') === 'only' ? 'junk' : 'leads';
@@ -135,7 +144,7 @@ function MetaChannel() {
   ];
   return (
     <>
-      <ChannelHeader channel="meta" tab={tab} tabs={tabs} />
+      <ChannelHeader channel="meta" tab={tab} tabs={tabs} standalone={standalone} />
       {tab === 'forms' ? <Card className="overflow-hidden"><MetaLeadFormsList /></Card> : (
         <>
           {formId && (
@@ -165,10 +174,12 @@ export function MpfChannels() {
   const params = useSearchParams();
   const { data: lk } = useLookups();
   const newStatusId = lk?.statuses?.find((s) => s.code === 'NEW')?.id;
+  const { can } = useAuth();
+  const canMeta = can('lead.channel.meta');
   // Old links (?formId=… or ?tab=forms) belong to the Meta channel.
   const channel = params.get('channel') || (params.get('formId') || params.get('tab') === 'forms' ? 'meta' : null);
 
-  if (channel === 'meta') return <MetaChannel />;
+  if (channel === 'meta') return canMeta ? <MetaChannel /> : <MetaNoAccess />;
   if (channel === 'website') {
     return (
       <>
@@ -185,7 +196,7 @@ export function MpfChannels() {
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <ChannelCard channel="website" newStatusId={newStatusId} />
-        <ChannelCard channel="meta" newStatusId={newStatusId} extra={<MetaFormsHint />} />
+        {canMeta && <ChannelCard channel="meta" newStatusId={newStatusId} extra={<MetaFormsHint />} />}
       </div>
     </>
   );

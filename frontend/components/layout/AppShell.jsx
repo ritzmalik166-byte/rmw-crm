@@ -216,7 +216,7 @@ function Shell({ area, nav, children }) {
                   <li key={item.href}>
                     <Link href={item.href} onClick={navigate(item.href)} className={cn('relative mx-2 flex items-center gap-2.5 rounded-lg px-3 py-[7px] text-[13px] transition-colors',
                       active ? 'bg-[hsl(213_70%_95%)] font-semibold text-[hsl(var(--primary))] shadow-[inset_0_0_0_1px_hsl(213_60%_88%)] before:absolute before:inset-y-1.5 before:-left-2 before:w-[3px] before:rounded-r-full before:bg-[hsl(var(--saffron))]' : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900')}>
-                      {item.logo ? <img src={item.logo} alt="" className="h-[18px] w-[18px] shrink-0 object-contain" /> : <item.icon className={cn('h-4 w-4 shrink-0', active ? 'text-[hsl(var(--primary))]' : 'text-slate-400')} />}
+                      {item.logo ? <img src={item.logo} alt="" className="h-[18px] w-[18px] shrink-0 object-contain" /> : <item.icon className={cn(item.brandIcon ? 'h-[18px] w-[18px] shrink-0' : 'h-4 w-4 shrink-0', !item.brandIcon && (active ? 'text-[hsl(var(--primary))]' : 'text-slate-400'))} />}
                       <span className="flex-1 truncate">{item.label}</span>
                       {c && <span className="tabular-nums text-[11px] text-slate-400">{c.total}</span>}
                       {c?.new_leads > 0 && <span className="min-w-5 rounded-full bg-blue-600 px-1.5 text-center text-[10px] font-semibold leading-[18px] text-white shadow-sm shadow-blue-600/30" title={`${c.new_leads} new`}>{c.new_leads}</span>}
