@@ -8,6 +8,7 @@ const schema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: int(4000),
   APP_URL: z.string().default('http://localhost:3000'),
+  PUBLIC_API_URL: z.string().optional(), // base URL shown for the public Lead Capture API (default APP_URL)
   CORS_ORIGINS: z.string().default('http://localhost:3000'),
   TRUST_PROXY: int(1),
   LOG_LEVEL: z.string().default('info'),

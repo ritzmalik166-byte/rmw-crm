@@ -23,7 +23,7 @@ const withResume = (r) => (r ? { ...r, resume_url: resumeUrl(r.resume) } : r);
 const RECEIVED = 'COALESCE(l.external_created_at, l.created_at)';
 const SORTS = { created_at: RECEIVED, received_at: RECEIVED, updated_at: 'l.updated_at', name: 'l.name', status: 's.sort_order', website: 'w.code' };
 
-const LIST_SELECT = `l.id, l.external_lead_id, l.name, l.phone, l.email, l.location, l.interest, l.form_type, l.created_at, l.updated_at,
+const LIST_SELECT = `l.id, l.external_lead_id, l.name, l.phone, l.email, l.location, l.interest, l.form_type, l.form_name, l.created_at, l.updated_at,
   l.external_created_at, COALESCE(JSON_UNQUOTE(JSON_EXTRACT(a.extra, '$.resume')), JSON_UNQUOTE(JSON_EXTRACT(l.raw_payload, '$.resume')), JSON_UNQUOTE(JSON_EXTRACT(l.raw_payload, '$.resumePath'))) AS resume, COALESCE(l.external_created_at, l.created_at) AS received_at, l.is_duplicate_suspect, l.junk_reason, l.assigned_user_id, l.source_type, w.id AS website_id, w.code AS website_code,
   s.id AS status_id, s.code AS status_code, s.name AS status_name, s.color AS status_color,
   u.full_name AS assigned_user_name, a.source, a.medium, a.campaign, a.utm_source, a.utm_campaign,
@@ -42,6 +42,15 @@ export const PIPELINES = {
   general: { sql: `NOT ${IS_CAREER}`, params: [] },
 };
 
+/** Lead channels: Meta (connector), client landing pages (Lead Capture API), and website / app (everything else). */
+export function channelSql(channel) {
+  const { META, LANDING_PAGE } = LEAD_SOURCE_TYPES;
+  if (channel === 'meta') return { sql: 'l.source_type = ?', params: [META] };
+  if (channel === 'client') return { sql: 'l.source_type = ?', params: [LANDING_PAGE] };
+  if (channel === 'website') return { sql: "COALESCE(l.source_type, '') NOT IN (?, ?)", params: [META, LANDING_PAGE] };
+  return { sql: '', params: [] };
+}
+
 function buildFilters(req, f) {
   const vis = leadVisibilitySql(req);
   const where = [vis.sql, 'l.merged_into_lead_id IS NULL'];
@@ -51,8 +60,9 @@ function buildFilters(req, f) {
   if (f.source) { where.push('a.source = ?'); params.push(f.source); }
   if (f.sourceType) { where.push('l.source_type = ?'); params.push(f.sourceType); }
   if (f.formId) { where.push('l.form_id = ?'); params.push(f.formId); }
-  if (f.channel === 'meta') { where.push('l.source_type = ?'); params.push(LEAD_SOURCE_TYPES.META); }
-  else if (f.channel === 'website') { where.push("COALESCE(l.source_type, '') <> ?"); params.push(LEAD_SOURCE_TYPES.META); }
+  const ch = channelSql(f.channel);
+  if (ch.sql) { where.push(ch.sql); params.push(...ch.params); }
+  if (f.clientName) { where.push('l.form_name = ?'); params.push(f.clientName); }
   if (f.campaign) { where.push('(a.campaign = ? OR a.utm_campaign = ?)'); params.push(f.campaign, f.campaign); }
   if (f.assignedUserId === 'unassigned') where.push('l.assigned_user_id IS NULL');
   else if (f.assignedUserId === 'me') { where.push('l.assigned_user_id = ?'); params.push(req.auth.user.id); }
@@ -346,8 +356,8 @@ export const leadService = {
   /** Per-pipeline counts for navigation and the dashboard (respects website access and visibility). */
   async pipelineCounts(req, r, channel = null) {
     // Optional channel split (MPF page: Website / App vs Meta).
-    const ch = channel === 'meta' ? { sql: ' AND l.source_type = ?', params: [LEAD_SOURCE_TYPES.META] }
-      : channel === 'website' ? { sql: " AND COALESCE(l.source_type, '') <> ?", params: [LEAD_SOURCE_TYPES.META] } : { sql: '', params: [] };
+    const c = channelSql(channel);
+    const ch = c.sql ? { sql: ` AND ${c.sql}`, params: c.params } : c;
     const vis = leadVisibilitySql(req);
     const out = {};
     for (const [key, p] of Object.entries(PIPELINES)) {
@@ -367,6 +377,22 @@ export const leadService = {
        WHERE ${vis.sql} AND l.form_type IS NOT NULL GROUP BY w.code, l.form_type ORDER BY c DESC`, vis.params,
     );
     return { counts: out, formTypes: forms };
+  },
+
+  /** Client Leads tab: one row per client (Lead Capture API key name) with lead counts and their projects. */
+  async clientSources(req) {
+    const vis = leadVisibilitySql(req);
+    const rows = await query(
+      `SELECT l.form_name AS client, COUNT(*) total, SUM(s.code = 'NEW') new_leads,
+         SUM(${RECEIVED} >= ?) today, MAX(${RECEIVED}) last_lead_at,
+         SUBSTRING_INDEX(GROUP_CONCAT(DISTINCT l.interest ORDER BY l.interest SEPARATOR '||'), '||', 5) projects
+       FROM leads l JOIN lead_statuses s ON s.id = l.status_id
+       WHERE ${vis.sql} AND l.merged_into_lead_id IS NULL AND l.junk_reason IS NULL AND l.source_type = ?
+       GROUP BY l.form_name ORDER BY last_lead_at DESC`,
+      [startOfTodayIst(), ...vis.params, LEAD_SOURCE_TYPES.LANDING_PAGE],
+    );
+    return rows.map((r) => ({ client: r.client || 'Unnamed client', clientName: r.client, total: Number(r.total), newLeads: Number(r.new_leads || 0),
+      today: Number(r.today || 0), lastLeadAt: r.last_lead_at, projects: r.projects ? r.projects.split('||').filter(Boolean) : [] }));
   },
 
   statuses: () => query('SELECT * FROM lead_statuses ORDER BY sort_order'),

@@ -9,10 +9,11 @@ import { forbidden } from '../utils/errors.js';
 
 const paged = (q) => ({ limit: q.limit, offset: (q.page - 1) * q.limit });
 
-/** The Meta channel (dashboard section, sidebar, ?channel=meta views, lead forms) needs lead.channel.meta. */
-const META_PERM = 'lead.channel.meta';
+/** Channel views need their permission: Meta (lead.channel.meta), Client landing-page leads (lead.channel.client). */
+const CHANNEL_PERMS = { meta: ['lead.channel.meta', 'Meta leads'], client: ['lead.channel.client', 'client leads'] };
 function assertChannel(req, channel) {
-  if (channel === 'meta' && !req.auth.ctx.permissions.has(META_PERM)) throw forbidden('You do not have access to Meta leads', 'FORBIDDEN');
+  const p = CHANNEL_PERMS[channel];
+  if (p && !req.auth.ctx.permissions.has(p[0])) throw forbidden(`You do not have access to ${p[1]}`, 'FORBIDDEN');
 }
 
 export const crmController = {
@@ -29,6 +30,7 @@ export const crmController = {
 
   async listLeads(req, res) {
     const q = req.validQuery;
+    assertChannel(req, q.channel);
     const { total, rows } = await leadService.list(req, q, paged(q));
     ok(res, { rows, meta: pageMeta(q.page, q.limit, total) });
   },
@@ -56,7 +58,7 @@ export const crmController = {
   async resolveDuplicate(req, res) { await leadService.resolveDuplicate(req, Number(req.params.id), req.body); ok(res, null, 'Duplicate resolved'); },
   async pipelines(req, res) {
     const r = req.query.from || req.query.to || req.query.range === 'today' ? dashboardRange(req.query) : null;
-    const channel = ['meta', 'website'].includes(req.query.channel) ? req.query.channel : null;
+    const channel = ['meta', 'website', 'client'].includes(req.query.channel) ? req.query.channel : null;
     assertChannel(req, channel);
     ok(res, { ...(await leadService.pipelineCounts(req, r, channel)), range: r });
   },
@@ -65,6 +67,7 @@ export const crmController = {
     ok(res, { statuses, sources, websites: req.auth.ctx.websites, users });
   },
 
+  async clientSources(req, res) { assertChannel(req, 'client'); ok(res, await leadService.clientSources(req)); },
   async metaForms(req, res) { assertChannel(req, 'meta'); ok(res, await metaAnalytics.leadForms(req, req.query)); },
 
   async notifications(req, res) {

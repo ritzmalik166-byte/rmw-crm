@@ -46,7 +46,7 @@ export const pagination = z.object({ page: z.coerce.number().int().min(1).defaul
 export const leads = {
   listQuery: pagination.extend({
     search: optStr(100), websiteId: optId, statusId: optId, source: optStr(), campaign: optStr(),
-    channel: z.enum(['meta', 'website']).optional().or(z.literal('').transform(() => undefined)),
+    channel: z.enum(['meta', 'website', 'client']).optional().or(z.literal('').transform(() => undefined)),
     sourceType: z.enum(LEAD_SOURCE_TYPE_LIST).optional().or(z.literal('').transform(() => undefined)),
     formId: z.string().trim().regex(/^\d{1,32}$/).optional().or(z.literal('').transform(() => undefined)),
     assignedUserId: z.union([z.literal('me'), z.literal('unassigned'), id]).optional(),
@@ -56,6 +56,7 @@ export const leads = {
     junk: z.enum(['hide', 'only', 'all']).optional(),
     pipeline: z.enum(['mpf', 'ct', 'rmw', 'career', 'general']).optional(),
     formType: optStr(80),
+    clientName: optStr(150),
     interest: optStr(100),
     sort: z.enum(['created_at', 'received_at', 'updated_at', 'name', 'status', 'website']).optional(),
     dir: z.enum(['asc', 'desc']).optional(),

@@ -15,6 +15,7 @@ export const PERMISSIONS = [
   ['lead.merge', 'lead', 'Resolve duplicates and merge leads'],
   ['career.view', 'lead', 'View career applications and resumes'],
   ['lead.channel.meta', 'lead', 'View Meta (Facebook + Instagram) leads: dashboard section, sidebar and Meta channel'],
+  ['lead.channel.client', 'lead', 'View Client Leads: leads from client landing pages (Lead Capture API), sidebar tab'],
 
   ['user.view', 'user', 'View users'],
   ['user.create', 'user', 'Create users'],
@@ -64,7 +65,7 @@ export const ROLES = [
     code: 'ADMIN', name: 'Admin', level: 50, description: 'Operational management',
     permissions: [
       'area.crm', 'area.admin',
-      'lead.view', 'lead.view_all', 'lead.create', 'lead.edit', 'lead.assign', 'lead.reassign', 'lead.export', 'lead.merge',
+      'lead.view', 'lead.view_all', 'lead.create', 'lead.edit', 'lead.assign', 'lead.reassign', 'lead.export', 'lead.merge', 'lead.channel.meta', 'lead.channel.client',
       'user.view', 'user.edit', 'user.disable',
       'role.view', 'team.manage', 'department.manage',
       'analytics.view', 'analytics.export', 'integration.view',

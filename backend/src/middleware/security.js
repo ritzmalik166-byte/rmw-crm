@@ -31,4 +31,5 @@ export const limiters = {
   integration: make(60_000, 600),
   metaWebhook: make(60_000, 1200),
   metaOAuth: make(15 * 60_000, 30),
+  publicLead: make(60_000, 30), // public Lead Capture API, per IP
 };
