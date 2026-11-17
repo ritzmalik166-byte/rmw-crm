@@ -198,7 +198,8 @@ export function LeadsWorkspace({ pipelineKey = 'all', channel = null, title = nu
     new: { statusId: lk?.statuses?.find((s) => s.code === 'NEW')?.id || '' },
   }[filters.view] || {};
   const { view, ...apiFilters } = filters;
-  const query = { ...apiFilters, ...viewFilters, pipeline: p.apiPipeline || pipelineKey, page: filters.page || 1, limit: 50 };
+  // The `channel` prop always wins over the URL, so embedded channel views (MPF website, Meta) never mix channels.
+  const query = { ...apiFilters, ...viewFilters, ...(channel ? { channel } : {}), pipeline: p.apiPipeline || pipelineKey, page: filters.page || 1, limit: 50 };
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['leads', query], queryFn: () => api(`/crm/leads${toQuery(query)}`), placeholderData: keepPreviousData,

@@ -69,7 +69,8 @@ export default function CrmDashboard() {
   const rq = { from: range.from, to: range.to };
   const label = rangeLabel(range);
   const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: ['dashboard', 'crm', rq], queryFn: () => api(`/crm/dashboard${toQuery(rq)}`), refetchInterval: 60_000, placeholderData: keepPreviousData });
-  const { data: pipe } = useQuery({ queryKey: ['leads', 'pipelines', rq], queryFn: () => api(`/crm/pipelines${toQuery(rq)}`), refetchInterval: 60_000, placeholderData: keepPreviousData });
+  // Pipeline register counts Website / App leads only; Meta (and future connectors) have their own section below.
+  const { data: pipe } = useQuery({ queryKey: ['leads', 'pipelines', 'website', rq], queryFn: () => api(`/crm/pipelines${toQuery({ ...rq, channel: 'website' })}`), refetchInterval: 60_000, placeholderData: keepPreviousData });
   const canMeta = can('lead.channel.meta');
   const { data: metaPipe } = useQuery({
     queryKey: ['leads', 'pipelines', 'meta', rq], queryFn: () => api(`/crm/pipelines${toQuery({ ...rq, channel: 'meta' })}`),

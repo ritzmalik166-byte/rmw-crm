@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState, TableSkeleton } from '@/components/ui/feedback';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-export const formLeadsHref = (formId) => `/crm/pipeline/mpf${toQuery({ channel: 'meta', formId })}`;
+export const formLeadsHref = (formId) => `/crm/meta${toQuery({ formId })}`;
 
 export function useMetaLeadForms(params = {}) {
   return useQuery({

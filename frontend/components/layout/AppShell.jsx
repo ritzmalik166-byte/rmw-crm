@@ -8,6 +8,7 @@ import { useAuth } from '@/providers/AuthProvider';
 import { SocketProvider, useSocket } from '@/providers/SocketProvider';
 import { api } from '@/lib/api';
 import { cn, timeAgo } from '@/lib/utils';
+import { useNewBadges, clearNew } from '@/lib/newLeadBadges';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/controls';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -198,9 +199,14 @@ function Shell({ area, nav, children }) {
     if (isPlainClick(e) && href !== pathname) setPendingHref(href);
   };
   const areaLabel = AREAS.find((a) => a.key === area)?.label;
-  const needsCounts = nav.some((g) => g.items.some((i) => i.countKey));
-  const { data: pipe } = useQuery({ queryKey: ['leads', 'pipelines'], queryFn: () => api('/crm/pipelines'), enabled: needsCounts, staleTime: 60_000 });
   const home = `/${area === 'superAdmin' ? 'super-admin' : area}/dashboard`;
+  // "New" tags: set by live NEW_LEAD events, cleared when the section is opened.
+  const badges = useNewBadges();
+  useEffect(() => {
+    nav.forEach((g) => g.items.forEach((i) => {
+      if (i.badgeKey && (pathname === i.href || pathname.startsWith(`${i.href}/`))) clearNew(i.badgeKey);
+    }));
+  }, [pathname, nav, badges]);
 
   const sidebar = (
     <nav className="flex h-full flex-col bg-white">
@@ -211,15 +217,14 @@ function Shell({ area, nav, children }) {
             <ul>
               {group.items.filter((i) => !i.hidden && (!i.perm || can(i.perm))).map((item) => {
                 const active = item.exact ? pathname === item.href : (pathname === item.href || (item.href !== home && pathname.startsWith(`${item.href}/`)));
-                const c = item.countKey ? pipe?.counts?.[item.countKey] : null;
+                const isNew = Boolean(item.badgeKey && badges[item.badgeKey]) && !active;
                 return (
                   <li key={item.href}>
                     <Link href={item.href} onClick={navigate(item.href)} className={cn('relative mx-2 flex items-center gap-2.5 rounded-lg px-3 py-[7px] text-[13px] transition-colors',
                       active ? 'bg-[hsl(213_70%_95%)] font-semibold text-[hsl(var(--primary))] shadow-[inset_0_0_0_1px_hsl(213_60%_88%)] before:absolute before:inset-y-1.5 before:-left-2 before:w-[3px] before:rounded-r-full before:bg-[hsl(var(--saffron))]' : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900')}>
                       {item.logo ? <img src={item.logo} alt="" className="h-[18px] w-[18px] shrink-0 object-contain" /> : <item.icon className={cn(item.brandIcon ? 'h-[18px] w-[18px] shrink-0' : 'h-4 w-4 shrink-0', !item.brandIcon && (active ? 'text-[hsl(var(--primary))]' : 'text-slate-400'))} />}
                       <span className="flex-1 truncate">{item.label}</span>
-                      {c && <span className="tabular-nums text-[11px] text-slate-400">{c.total}</span>}
-                      {c?.new_leads > 0 && <span className="min-w-5 rounded-full bg-blue-600 px-1.5 text-center text-[10px] font-semibold leading-[18px] text-white shadow-sm shadow-blue-600/30" title={`${c.new_leads} new`}>{c.new_leads}</span>}
+                      {isNew && <span className="rounded-full bg-blue-600 px-1.5 text-[10px] font-semibold uppercase leading-[18px] tracking-wide text-white shadow-sm shadow-blue-600/30" title="New leads arrived">New</span>}
                     </Link>
                   </li>
                 );

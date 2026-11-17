@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useAuth } from './AuthProvider';
+import { markNew, badgeKeyFor } from '@/lib/newLeadBadges';
 
 const SocketContext = createContext({ connected: false });
 
@@ -29,6 +30,7 @@ export function SocketProvider({ children }) {
     socket.on('connect', () => setConnected(true));
     socket.on('disconnect', () => setConnected(false));
     socket.on('NEW_LEAD', (l) => {
+      markNew(badgeKeyFor(l));
       invalidateLeads();
       qc.invalidateQueries({ queryKey: ['pipelines'] });
       toast.info(`New ${l.website} ${l.kind || 'lead'}`, { duration: 10_000, description: l.name || l.externalLeadId, action: { label: 'Open', onClick: () => router.push(`/crm/leads/${l.id}`) } });

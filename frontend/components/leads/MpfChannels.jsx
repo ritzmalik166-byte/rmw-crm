@@ -1,19 +1,16 @@
 'use client';
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { useEffect } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ArrowRight, Globe2, X, Users2, FileText, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Globe2, X, Users2, FileText, ShieldAlert } from 'lucide-react';
 import { api } from '@/lib/api';
-import { useLookups } from '@/lib/hooks';
 import { cn, toQuery } from '@/lib/utils';
-import { Skeleton } from '@/components/ui/feedback';
 import { Card } from '@/components/ui/card';
 import { LeadsWorkspace } from '@/components/leads/LeadsWorkspace';
 import { MetaLogo } from '@/components/integrations/MetaLogo';
 import { MetaLeadFormsList, useMetaLeadForms } from '@/components/marketing/MetaLeadForms';
-import { ymd } from '@/components/ui/date-range';
 import { EmptyState } from '@/components/ui/feedback';
-import { useAuth } from '@/providers/AuthProvider';
 
 export function MetaNoAccess() {
   return <EmptyState title="No access to Meta leads" description="Ask a Super Admin to grant your role the “View Meta leads” permission (Super Admin → Roles)." />;
@@ -24,69 +21,12 @@ const WebsiteIcon = ({ className }) => (
 );
 
 const CHANNELS = {
-  website: { title: 'Website / App Leads', description: 'Enquiries from mypropertyfact.in, the app and manual entries.', Icon: WebsiteIcon, accent: 'border-t-teal-500' },
+  website: { title: 'Website / App Leads', description: 'Enquiries from mypropertyfact.in, the app and manual entries. Meta leads are under Lead channels → Meta Leads.', Icon: WebsiteIcon, accent: 'border-t-teal-500' },
   meta: { title: 'Meta Leads', description: 'Facebook + Instagram lead form submissions, with campaign and form.', Icon: MetaLogo, accent: 'border-t-[#0082FB]' },
 };
 
-/** Counts for a channel card: total, received today, new, unassigned (genuine leads only, same rules as the list). */
-function useChannelCounts(channel, newStatusId) {
-  const base = { pipeline: 'mpf', channel, limit: 1 };
-  const today = ymd(new Date());
-  const q = (extra) => () => api(`/crm/leads${toQuery({ ...base, ...extra })}`).then((r) => r?.meta?.total ?? 0);
-  const total = useQuery({ queryKey: ['leads', 'channel', channel, 'total'], queryFn: q({}), refetchInterval: 60_000 });
-  const todayQ = useQuery({ queryKey: ['leads', 'channel', channel, 'today', today], queryFn: q({ from: today, to: today }), refetchInterval: 60_000 });
-  const fresh = useQuery({ queryKey: ['leads', 'channel', channel, 'new', newStatusId], queryFn: q({ statusId: newStatusId }), enabled: Boolean(newStatusId), refetchInterval: 60_000 });
-  const unassigned = useQuery({ queryKey: ['leads', 'channel', channel, 'unassigned'], queryFn: q({ assignedUserId: 'unassigned' }), refetchInterval: 60_000 });
-  return { total: total.data, today: todayQ.data, fresh: fresh.data, unassigned: unassigned.data, loading: total.isLoading };
-}
-
-function Stat({ label, value, tone }) {
-  return (
-    <div className="min-w-0">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className={cn('mt-0.5 text-lg font-semibold tabular-nums text-slate-900', tone)}>{value ?? '—'}</p>
-    </div>
-  );
-}
-
-function ChannelCard({ channel, newStatusId, extra }) {
-  const c = useChannelCounts(channel, newStatusId);
-  const { title, description, Icon, accent } = CHANNELS[channel];
-  return (
-    <Link href={`?channel=${channel}`} className="group block focus-visible:outline-none">
-      <Card className={cn('h-full border-t-[3px] p-5 transition group-hover:-translate-y-0.5 group-hover:shadow-md group-focus-visible:ring-2 group-focus-visible:ring-[hsl(var(--ring))]', accent)}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <Icon />
-            <div className="min-w-0">
-              <p className="text-[16px] font-semibold text-slate-900">{title}</p>
-              <p className="text-[12.5px] text-slate-500">{description}</p>
-            </div>
-          </div>
-          <ArrowRight className="mt-1 h-5 w-5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[hsl(var(--primary))]" />
-        </div>
-        {c.loading ? <Skeleton className="mt-5 h-12" /> : (
-          <div className="mt-5 grid grid-cols-4 gap-3 border-t pt-4">
-            <Stat label="Total" value={c.total?.toLocaleString('en-IN')} />
-            <Stat label="Today" value={c.today?.toLocaleString('en-IN')} />
-            <Stat label="New" value={c.fresh?.toLocaleString('en-IN')} tone="text-blue-700" />
-            <Stat label="Unassigned" value={c.unassigned?.toLocaleString('en-IN')} tone={c.unassigned ? 'text-amber-700' : ''} />
-          </div>
-        )}
-        {extra}
-      </Card>
-    </Link>
-  );
-}
-
-function MetaFormsHint() {
-  const { data } = useMetaLeadForms();
-  if (!data?.length) return null;
-  return <p className="mt-3 text-[12px] text-slate-500">{data.length} lead form{data.length === 1 ? '' : 's'} · top: <span className="font-medium text-slate-700">{data[0].name}</span></p>;
-}
-
 /** Page header for a channel: back link, logo + title, and (Meta) underline tabs Leads / Lead forms. */
-function ChannelHeader({ channel, tab, tabs, standalone = false }) {
+function ChannelHeader({ channel, tab, tabs, standalone = false, eyebrow = null }) {
   const pathname = usePathname();
   const { title, description, Icon } = CHANNELS[channel];
   return (
@@ -100,7 +40,7 @@ function ChannelHeader({ channel, tab, tabs, standalone = false }) {
         )}
         <Icon />
         <div className="min-w-0">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{standalone ? 'Lead channel' : 'MPF Leads'}</p>
+          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{eyebrow || (standalone ? 'Lead channel' : 'MPF Leads')}</p>
           <h1 className="truncate text-[17px] font-semibold leading-tight text-slate-900">{title}</h1>
           <p className="hidden truncate text-[12px] text-slate-500 sm:block">{description}</p>
         </div>
@@ -167,37 +107,26 @@ export function MetaChannel({ standalone = false }) {
 }
 
 /**
- * MPF Leads: first a choice between Website / App Leads and Meta Leads, then only that channel's leads.
- * The choice lives in the URL (?channel=website|meta) so it survives refresh and can be linked to.
+ * MPF Leads: Website / App leads only. Meta leads live in their own section (/crm/meta, sidebar → Lead channels).
+ * Old MPF links to the Meta channel (?channel=meta, ?formId=…, ?tab=forms) are forwarded there.
  */
 export function MpfChannels() {
   const params = useSearchParams();
-  const { data: lk } = useLookups();
-  const newStatusId = lk?.statuses?.find((s) => s.code === 'NEW')?.id;
-  const { can } = useAuth();
-  const canMeta = can('lead.channel.meta');
-  // Old links (?formId=… or ?tab=forms) belong to the Meta channel.
-  const channel = params.get('channel') || (params.get('formId') || params.get('tab') === 'forms' ? 'meta' : null);
+  const router = useRouter();
+  const isMetaLink = params.get('channel') === 'meta' || params.get('formId') || params.get('tab') === 'forms';
 
-  if (channel === 'meta') return canMeta ? <MetaChannel /> : <MetaNoAccess />;
-  if (channel === 'website') {
-    return (
-      <>
-        <ChannelHeader channel="website" />
-        <LeadsWorkspace key="mpf-website" pipelineKey="mpf" channel="website" />
-      </>
-    );
-  }
+  useEffect(() => {
+    if (!isMetaLink) return;
+    const sp = new URLSearchParams(params.toString());
+    sp.delete('channel');
+    router.replace(`/crm/meta${sp.toString() ? `?${sp}` : ''}`);
+  }, [isMetaLink, params, router]);
+
+  if (isMetaLink) return null;
   return (
     <>
-      <div className="mb-4 border-b pb-3">
-        <h1 className="text-[17px] font-semibold text-slate-900">MPF Leads</h1>
-        <p className="mt-0.5 text-[12px] text-muted-foreground">Choose where the leads came from.</p>
-      </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        <ChannelCard channel="website" newStatusId={newStatusId} />
-        {canMeta && <ChannelCard channel="meta" newStatusId={newStatusId} extra={<MetaFormsHint />} />}
-      </div>
+      <ChannelHeader channel="website" standalone eyebrow="MPF Leads" />
+      <LeadsWorkspace key="mpf-website" pipelineKey="mpf" channel="website" />
     </>
   );
 }
