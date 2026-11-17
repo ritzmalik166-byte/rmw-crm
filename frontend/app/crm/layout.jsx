@@ -1,5 +1,5 @@
 'use client';
-import { LayoutDashboard, Users2, CalendarClock, Bell, Settings, ShieldCheck, Briefcase } from 'lucide-react';
+import { LayoutDashboard, Users2, CalendarClock, Bell, Settings, ShieldCheck, Briefcase, Handshake } from 'lucide-react';
 import { AreaShell } from '@/components/layout/AppShell';
 import { MetaMark } from '@/components/integrations/MetaLogo';
 
@@ -16,6 +16,7 @@ const NAV = [
   // One item per lead connector; its badgeKey must match lib/newLeadBadges CONNECTOR_KEYS.
   { title: 'Lead channels', items: [
     { href: '/crm/meta', label: 'Meta Leads', icon: MetaMark, brandIcon: true, perm: 'lead.channel.meta', badgeKey: 'meta' },
+    { href: '/crm/client-leads', label: 'Client Leads', icon: Handshake, perm: 'lead.channel.client', badgeKey: 'client' },
   ] },
   { title: 'Recruitment', items: [
     { href: '/crm/pipeline/career', label: 'Career applications', icon: Briefcase, badgeKey: 'career', perm: 'career.view' },

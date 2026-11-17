@@ -53,7 +53,7 @@ function StatusCell({ lead, editable }) {
 }
 
 const JUNK_LABELS = { career: 'Job application', job_seeker: 'Job seeker / vendor', spam: 'Spam', test: 'Test', internal: 'Internal', repeat: 'Repeat submit', bad_phone: 'Fake phone', bad_name: 'Bad name', empty: 'Empty' };
-const FILTER_KEYS = ['search', 'view', 'websiteId', 'statusId', 'source', 'sourceType', 'formId', 'channel', 'campaign', 'interest', 'formType', 'assignedUserId', 'from', 'to', 'duplicates', 'junk', 'sort', 'dir', 'page'];
+const FILTER_KEYS = ['search', 'view', 'websiteId', 'statusId', 'source', 'sourceType', 'formId', 'clientName', 'channel', 'campaign', 'interest', 'formType', 'assignedUserId', 'from', 'to', 'duplicates', 'junk', 'sort', 'dir', 'page'];
 const VIEWS = [
   { key: '', label: 'All' },
   { key: 'mine', label: 'My leads' },
@@ -124,7 +124,7 @@ function LeadCard({ lead: l, pipelineKey, editable, canTransfer, me, onTransfer,
               {showWebsite && <WebsiteBadge code={l.website_code} />}
               <span className="ml-auto shrink-0 text-[11px] text-slate-400">{timeAgo(l.received_at || l.created_at)}</span>
             </div>
-            <p className="truncate text-[12.5px] text-slate-600">{l.interest || l.form_type || l.external_lead_id}</p>
+            <p className="truncate text-[12.5px] text-slate-600">{l.source_type === 'LANDING_PAGE' && l.form_name ? <b className="font-semibold text-indigo-600">{l.form_name} · </b> : null}{l.interest || l.form_type || l.external_lead_id}</p>
             {(l.location || l.source) && (
               <p className="truncate text-[11.5px] text-slate-400">{[l.location, l.source && `${l.source}${l.medium && l.medium !== 'none' ? ` / ${l.medium}` : ''}`].filter(Boolean).join(' · ')}</p>
             )}
@@ -240,7 +240,7 @@ export function LeadsWorkspace({ pipelineKey = 'all', channel = null, title = nu
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => refetch()} aria-label="Refresh"><RefreshCw className={isFetching ? 'animate-spin' : ''} /></Button>
             {can('lead.export') && <Button variant="outline" size="sm" onClick={exportCsv}><Download />Export</Button>}
-            {can('lead.create') && pipelineKey !== 'career' && channel !== 'meta' && <Button size="sm" className="hidden lg:inline-flex" onClick={() => setDialog('create')}><Plus />Add lead</Button>}
+            {can('lead.create') && pipelineKey !== 'career' && channel !== 'meta' && channel !== 'client' && <Button size="sm" className="hidden lg:inline-flex" onClick={() => setDialog('create')}><Plus />Add lead</Button>}
           </div>
         </div>
 
@@ -339,7 +339,7 @@ export function LeadsWorkspace({ pipelineKey = 'all', channel = null, title = nu
                     <TableHead>Lead</TableHead>
                     <TableHead>Contact</TableHead>
                     {p.showWebsite && <TableHead>Site</TableHead>}
-                    <TableHead>{p.interestLabel}</TableHead>
+                    <TableHead>{channel === 'client' ? 'Client / project' : p.interestLabel}</TableHead>
                     {p.showResume && <TableHead>Resume</TableHead>}
                     {p.showSource && <TableHead>Source / campaign</TableHead>}
                     <TableHead>Status</TableHead>
@@ -367,6 +367,7 @@ export function LeadsWorkspace({ pipelineKey = 'all', channel = null, title = nu
                       </TableCell>
                       {p.showWebsite && <TableCell><WebsiteBadge code={l.website_code} /></TableCell>}
                       <TableCell className="max-w-[200px]">
+                        {l.source_type === 'LANDING_PAGE' && l.form_name && <div className="truncate text-[11px] font-semibold uppercase tracking-wide text-indigo-600" title={l.form_name}>{l.form_name}</div>}
                         <div className="truncate" title={l.interest || ''}>{l.interest || <span className="text-slate-400">—</span>}</div>
                         {l.location && <div className="truncate text-[11px] text-slate-500">{l.location}</div>}
                       </TableCell>
