@@ -4,6 +4,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { formatDateTime, toQuery } from '@/lib/utils';
 import { Input, Select } from '@/components/ui/input';
+import { FILTER_MIN_DATE, filterMaxDate } from '@/components/ui/date-range';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -26,8 +27,8 @@ export function AuditLogTable() {
       <Card className="mb-4 grid gap-2 p-3 sm:grid-cols-4">
         <Select value={f.action} onChange={(e) => setF({ ...f, action: e.target.value, page: 1 })} aria-label="Action"><option value="">All actions</option>{ACTIONS.map((a) => <option key={a} value={a}>{a}</option>)}</Select>
         <Select value={f.entityType} onChange={(e) => setF({ ...f, entityType: e.target.value, page: 1 })} aria-label="Entity"><option value="">All entities</option>{['user', 'lead', 'session', 'device', 'role', 'website', 'team', 'department', 'settings', 'registration_request'].map((x) => <option key={x} value={x}>{x}</option>)}</Select>
-        <Input type="date" value={f.from} onChange={(e) => setF({ ...f, from: e.target.value, page: 1 })} aria-label="From" />
-        <Input type="date" value={f.to} onChange={(e) => setF({ ...f, to: e.target.value ? `${e.target.value}T23:59:59` : '', page: 1 })} aria-label="To" />
+        <Input type="date" min={FILTER_MIN_DATE} max={filterMaxDate()} value={f.from} onChange={(e) => setF({ ...f, from: e.target.value, page: 1 })} aria-label="From" />
+        <Input type="date" min={FILTER_MIN_DATE} max={filterMaxDate()} value={(f.to || '').slice(0, 10)} onChange={(e) => setF({ ...f, to: e.target.value ? `${e.target.value}T23:59:59` : '', page: 1 })} aria-label="To" />
       </Card>
       <Card className="overflow-hidden">
         {isLoading ? <TableSkeleton cols={6} /> : isError ? <ErrorState error={error} onRetry={refetch} /> : !data.rows.length ? <EmptyState title="No events" /> : (

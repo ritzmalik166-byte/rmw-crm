@@ -12,6 +12,7 @@ import { PIPELINES, PIPELINE_ORDER, PipelineLogo } from '@/lib/pipelines';
 import { cn, formatDateTime, timeAgo, toQuery } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/input';
+import { FILTER_MIN_DATE, filterMaxDate } from '@/components/ui/date-range';
 import { Checkbox, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/controls';
 import { StatusBadge, WebsiteBadge, Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -302,8 +303,8 @@ export function LeadsWorkspace({ pipelineKey = 'all', channel = null, title = nu
                   {[...new Set(formTypes.map((f) => f.form_type))].map((f) => <option key={f} value={f}>{f}</option>)}
                 </Select>
               )}
-              {has('dates') && <Input type="date" value={filters.from} onChange={(e) => setFilter({ from: e.target.value })} aria-label="Received from" title="Received from" />}
-              {has('dates') && <Input type="date" value={filters.to} onChange={(e) => setFilter({ to: e.target.value })} aria-label="Received to" title="Received to" />}
+              {has('dates') && <Input type="date" min={FILTER_MIN_DATE} max={filters.to || filterMaxDate()} value={filters.from} onChange={(e) => setFilter({ from: e.target.value })} aria-label="Received from" title="Received from" />}
+              {has('dates') && <Input type="date" min={filters.from || FILTER_MIN_DATE} max={filterMaxDate()} value={filters.to} onChange={(e) => setFilter({ to: e.target.value })} aria-label="Received to" title="Received to" />}
               {has('quality') && <Select value={filters.junk} onChange={(e) => setFilter({ junk: e.target.value })} aria-label="Lead quality"><option value="">Genuine leads</option><option value="only">Junk / spam only</option><option value="all">Include junk</option></Select>}
               {activeFilters > 0 && <Button variant="ghost" size="sm" onClick={() => { setSearch(''); router.replace(params.get('channel') ? `${pathname}?channel=${params.get('channel')}` : pathname); }}><X />Clear all</Button>}
             </div>

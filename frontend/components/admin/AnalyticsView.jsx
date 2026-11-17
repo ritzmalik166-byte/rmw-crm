@@ -6,6 +6,7 @@ import { Users2, Trophy, Percent, UserX } from 'lucide-react';
 import { api } from '@/lib/api';
 import { formatDate, toQuery } from '@/lib/utils';
 import { Input, Select } from '@/components/ui/input';
+import { FILTER_MIN_DATE, filterMaxDate } from '@/components/ui/date-range';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/badge';
 import { ErrorState, PageHeader, Skeleton, StatCard, EmptyState } from '@/components/ui/feedback';
@@ -53,7 +54,7 @@ function RankTable({ title, rows, label, empty }) {
 }
 
 export function AnalyticsView({ title = 'Analytics' }) {
-  const [range, setRange] = useState(() => ({ from: iso(new Date(Date.now() - 29 * 86400_000)), to: iso(new Date()) }));
+  const [range, setRange] = useState(() => { const from = iso(new Date(Date.now() - 29 * 86400_000)); return { from: from < FILTER_MIN_DATE ? FILTER_MIN_DATE : from, to: filterMaxDate() }; });
   const [websiteId, setWebsiteId] = useState('');
   const { data: websites } = useQuery({ queryKey: ['admin', 'websites'], queryFn: () => api('/admin/websites') });
   const q = { websiteId, from: range.from, to: `${range.to}T23:59:59` };
@@ -76,9 +77,9 @@ export function AnalyticsView({ title = 'Analytics' }) {
     <>
       <PageHeader title={title} description="Lead volume, conversion and attribution across websites." />
       <div className="mb-5 flex flex-wrap items-center gap-2">
-        <Input type="date" className="w-40" value={range.from} max={range.to} onChange={(e) => setRange({ ...range, from: e.target.value })} aria-label="From" />
+        <Input type="date" className="w-40" value={range.from} min={FILTER_MIN_DATE} max={range.to || filterMaxDate()} onChange={(e) => setRange({ ...range, from: e.target.value })} aria-label="From" />
         <span className="text-sm text-muted-foreground">to</span>
-        <Input type="date" className="w-40" value={range.to} min={range.from} onChange={(e) => setRange({ ...range, to: e.target.value })} aria-label="To" />
+        <Input type="date" className="w-40" value={range.to} min={range.from || FILTER_MIN_DATE} max={filterMaxDate()} onChange={(e) => setRange({ ...range, to: e.target.value })} aria-label="To" />
         <Select className="w-40" value={websiteId} onChange={(e) => setWebsiteId(e.target.value)} aria-label="Website">
           <option value="">All websites</option>{websites?.map((w) => <option key={w.id} value={w.id}>{w.code}</option>)}
         </Select>
