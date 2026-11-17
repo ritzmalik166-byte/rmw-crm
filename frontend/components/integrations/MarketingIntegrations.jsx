@@ -1,6 +1,5 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
-import { Megaphone } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -9,10 +8,9 @@ import { IntegrationStatus } from './IntegrationStatus';
 import { MetaIntegrationCard } from './MetaIntegrationCard';
 
 const ICONS = {
-  GOOGLE_ADS: <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border bg-white text-[#4285F4]"><Megaphone className="h-5 w-5" /></span>,
   WHATSAPP: <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white"><WhatsAppIcon className="h-5 w-5" /></span>,
 };
-const CTA = { GOOGLE_ADS: 'Connect Google', WHATSAPP: 'Connect WhatsApp' };
+const CTA = { WHATSAPP: 'Connect WhatsApp' };
 
 /** Provider not built yet: same card frame, disabled action. */
 function UpcomingProviderCard({ provider }) {
