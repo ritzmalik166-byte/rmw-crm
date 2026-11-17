@@ -244,7 +244,7 @@ export function LeadsWorkspace({ pipelineKey = 'all', channel = null, title = nu
         </div>
 
         {/* Pipeline summary strip */}
-        {stats && (
+        {stats && filters.junk !== 'only' && (
           <div className="mb-3 grid grid-cols-3 gap-px overflow-hidden rounded-xl border bg-slate-200/70 sm:grid-cols-6">
             {[['Total', stats.total], ['New', stats.new_leads], ['Today', stats.today], ['Unassigned', stats.unassigned, stats.unassigned > 0 && 'text-amber-700'], ['Overdue follow-ups', stats.overdue, stats.overdue > 0 && 'text-red-700'], ['Converted', stats.converted, 'text-emerald-700']].map(([label, val, tone]) => (
               <div key={label} className="bg-white px-3 py-2">
