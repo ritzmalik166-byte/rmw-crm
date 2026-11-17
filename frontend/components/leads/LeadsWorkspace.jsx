@@ -124,7 +124,7 @@ function LeadCard({ lead: l, pipelineKey, editable, canTransfer, me, onTransfer,
               {showWebsite && <WebsiteBadge code={l.website_code} />}
               <span className="ml-auto shrink-0 text-[11px] text-slate-400">{timeAgo(l.received_at || l.created_at)}</span>
             </div>
-            <p className="truncate text-[12.5px] text-slate-600">{l.source_type === 'LANDING_PAGE' && l.form_name ? <b className="font-semibold text-indigo-600">{l.form_name} · </b> : null}{l.interest || l.form_type || l.external_lead_id}</p>
+            <p className="truncate text-[12.5px] text-slate-600">{(l.source_type === 'LANDING_PAGE' || l.source_type === 'META_FORM') && l.form_name ? <b className="font-semibold text-indigo-600">{l.form_name} · </b> : null}{l.interest || l.form_type || l.external_lead_id}</p>
             {(l.location || l.source) && (
               <p className="truncate text-[11.5px] text-slate-400">{[l.location, l.source && `${l.source}${l.medium && l.medium !== 'none' ? ` / ${l.medium}` : ''}`].filter(Boolean).join(' · ')}</p>
             )}
@@ -367,7 +367,7 @@ export function LeadsWorkspace({ pipelineKey = 'all', channel = null, title = nu
                       </TableCell>
                       {p.showWebsite && <TableCell><WebsiteBadge code={l.website_code} /></TableCell>}
                       <TableCell className="max-w-[200px]">
-                        {l.source_type === 'LANDING_PAGE' && l.form_name && <div className="truncate text-[11px] font-semibold uppercase tracking-wide text-indigo-600" title={l.form_name}>{l.form_name}</div>}
+                        {(l.source_type === 'LANDING_PAGE' || l.source_type === 'META_FORM') && l.form_name && <div className="truncate text-[11px] font-semibold uppercase tracking-wide text-indigo-600" title={l.form_name}>{l.form_name}</div>}
                         <div className="truncate" title={l.interest || ''}>{l.interest || <span className="text-slate-400">—</span>}</div>
                         {l.location && <div className="truncate text-[11px] text-slate-500">{l.location}</div>}
                       </TableCell>

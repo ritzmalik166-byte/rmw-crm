@@ -4,6 +4,7 @@ export const LEAD_SOURCE_TYPES = Object.freeze({
   WEBSITE: 'WEBSITE',
   META: 'META',
   LANDING_PAGE: 'LANDING_PAGE',
+  META_FORM: 'META_FORM',
   WHATSAPP: 'WHATSAPP',
   OTHER: 'OTHER',
 });
@@ -13,6 +14,7 @@ export const LEAD_SOURCE_LABELS = Object.freeze({
   WEBSITE: 'Website',
   META: 'Meta Ads',
   LANDING_PAGE: 'Client landing page',
+  META_FORM: 'Client Meta form',
   WHATSAPP: 'WhatsApp',
   OTHER: 'Other',
 });

@@ -23,7 +23,7 @@ function save(next) {
 }
 
 /** Lead source type -> sidebar key for leads that belong to a connector, not a website pipeline. */
-const CONNECTOR_KEYS = { META: 'meta', LANDING_PAGE: 'client' };
+const CONNECTOR_KEYS = { META: 'meta', LANDING_PAGE: 'client', META_FORM: 'client' };
 
 /** Which sidebar section a NEW_LEAD event belongs to. */
 export function badgeKeyFor(lead) {

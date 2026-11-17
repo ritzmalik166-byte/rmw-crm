@@ -30,7 +30,6 @@ function CodeBlock({ label, code }) {
   );
 }
 
-/** What the client pastes into their landing page. */
 function snippets(endpoint, apiKey, project) {
   const q = new URLSearchParams({ api_key: apiKey, name: 'dora', email: 'dora@gmail.com', phone: '9299999990', message: 'test', ...(project ? { project } : {}), utm_source: 'google', utm_medium: 'cpc', utm_campaign: '{campaignid}', gclid: 'TEST-GCLID' });
   const getUrl = `${endpoint}?${q.toString().replace(/%7B/g, '{').replace(/%7D/g, '}')}`;

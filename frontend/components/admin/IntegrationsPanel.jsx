@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { EmptyState, ErrorState, PageHeader, Pagination, TableSkeleton, Skeleton } from '@/components/ui/feedback';
 import { MarketingIntegrations } from '@/components/integrations/MarketingIntegrations';
 import { LeadCaptureKeys } from '@/components/integrations/LeadCaptureKeys';
+import { MetaLeadForms } from '@/components/integrations/MetaLeadForms';
 
 function health(i) {
   if (!i.is_active) return { label: 'Disabled', variant: 'secondary', icon: CircleSlash };
@@ -67,6 +68,7 @@ export function IntegrationsPanel({ canManage = false }) {
     <>
       <PageHeader title="Integrations" description="Lead sources feeding the CRM. Every delivery is logged, de-duplicated and retried on failure." />
       <MarketingIntegrations canManage={canManage} />
+      <MetaLeadForms canManage={canManage} />
       <LeadCaptureKeys canManage={canManage} />
       <h2 className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-slate-600">Website lead webhooks</h2>
       {isLoading ? <div className="grid gap-4 md:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-48" />)}</div> : isError ? <Card><ErrorState error={error} onRetry={refetch} /></Card> : (

@@ -29,7 +29,7 @@ function ClientLeads() {
           <div className="min-w-0">
             <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Lead channel</p>
             <h1 className="truncate text-[17px] font-semibold leading-tight text-slate-900">Client Leads</h1>
-            <p className="hidden truncate text-[12px] text-slate-500 sm:block">Enquiries from client landing pages (Lead Capture API), grouped by client and project.</p>
+            <p className="hidden truncate text-[12px] text-slate-500 sm:block">Enquiries from client landing pages (Lead Capture API) and client Meta lead forms, grouped by client and project.</p>
           </div>
         </div>
         {clients.length > 0 && (
