@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { WhatsAppIcon } from '@/components/leads/LeadsWorkspace';
 import { IntegrationStatus } from './IntegrationStatus';
 import { MetaIntegrationCard } from './MetaIntegrationCard';
+import { GoogleAdsIntegrationCard } from './GoogleAdsIntegrationCard';
 
 const ICONS = {
   GOOGLE_ADS: <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border bg-white text-[#4285F4]"><Megaphone className="h-5 w-5" /></span>,
@@ -37,12 +38,13 @@ function UpcomingProviderCard({ provider }) {
 /** "Marketing integrations" section of the Integrations page. */
 export function MarketingIntegrations({ canManage }) {
   const providers = useQuery({ queryKey: ['meta', 'providers'], queryFn: () => api('/admin/integrations/providers'), staleTime: 5 * 60_000 });
-  const others = (providers.data || []).filter((p) => p.key !== 'META');
+  const others = (providers.data || []).filter((p) => p.key !== 'META' && p.key !== 'GOOGLE_ADS');
   return (
     <section className="mb-6">
       <h2 className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-slate-600">Marketing integrations</h2>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <MetaIntegrationCard canManage={canManage} />
+        <GoogleAdsIntegrationCard canManage={canManage} />
         {others.map((p) => <UpcomingProviderCard key={p.key} provider={p} />)}
       </div>
     </section>
