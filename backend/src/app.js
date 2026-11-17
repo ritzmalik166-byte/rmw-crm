@@ -15,6 +15,7 @@ import { adminRouter, superAdminRouter } from './routes/adminRoutes.js';
 import integrationRoutes from './routes/integrationRoutes.js';
 import { metaPublicRouter } from './integrations/meta/meta.routes.js';
 import { leadCapturePublicRouter } from './routes/leadCaptureRoutes.js';
+import { metaFormPublicRouter } from './routes/metaFormRoutes.js';
 
 export function createApp() {
   const app = express();
@@ -39,6 +40,8 @@ export function createApp() {
   // Meta webhook + OAuth callback: own body parser (raw bytes for signature checks). Must precede the generic mount.
   app.use('/api/integrations/meta', metaPublicRouter);
   // Public Lead Capture API for client landing pages (open CORS, key in the request).
+  // Client Meta lead forms pushed by the client's middleware. Before the lead-capture router (it rate-limits all it sees).
+  app.use('/api/public', metaFormPublicRouter);
   app.use('/api/public', leadCapturePublicRouter);
   app.use('/api/integrations', express.json({ limit: '2mb', verify: (req, _res, buf) => { req.rawBody = buf.toString('utf8'); } }), integrationRoutes);
 

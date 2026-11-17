@@ -32,4 +32,5 @@ export const limiters = {
   metaWebhook: make(60_000, 1200),
   metaOAuth: make(15 * 60_000, 30),
   publicLead: make(60_000, 30), // public Lead Capture API, per IP
+  metaFormPush: make(60_000, 600), // client middleware pushing Meta form leads (Zapier/Make share IPs)
 };

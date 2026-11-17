@@ -42,12 +42,15 @@ export const PIPELINES = {
   general: { sql: `NOT ${IS_CAREER}`, params: [] },
 };
 
-/** Lead channels: Meta (connector), client landing pages (Lead Capture API), and website / app (everything else). */
+/**
+ * Lead channels: Meta (connector), client leads (landing pages via the Lead Capture API + client Meta forms pushed by
+ * the client's middleware), and website / app (everything else).
+ */
 export function channelSql(channel) {
-  const { META, LANDING_PAGE } = LEAD_SOURCE_TYPES;
+  const { META, LANDING_PAGE, META_FORM } = LEAD_SOURCE_TYPES;
   if (channel === 'meta') return { sql: 'l.source_type = ?', params: [META] };
-  if (channel === 'client') return { sql: 'l.source_type = ?', params: [LANDING_PAGE] };
-  if (channel === 'website') return { sql: "COALESCE(l.source_type, '') NOT IN (?, ?)", params: [META, LANDING_PAGE] };
+  if (channel === 'client') return { sql: 'l.source_type IN (?, ?)', params: [LANDING_PAGE, META_FORM] };
+  if (channel === 'website') return { sql: "COALESCE(l.source_type, '') NOT IN (?, ?, ?)", params: [META, LANDING_PAGE, META_FORM] };
   return { sql: '', params: [] };
 }
 
@@ -387,9 +390,9 @@ export const leadService = {
          SUM(${RECEIVED} >= ?) today, MAX(${RECEIVED}) last_lead_at,
          SUBSTRING_INDEX(GROUP_CONCAT(DISTINCT l.interest ORDER BY l.interest SEPARATOR '||'), '||', 5) projects
        FROM leads l JOIN lead_statuses s ON s.id = l.status_id
-       WHERE ${vis.sql} AND l.merged_into_lead_id IS NULL AND l.junk_reason IS NULL AND l.source_type = ?
+       WHERE ${vis.sql} AND l.merged_into_lead_id IS NULL AND l.junk_reason IS NULL AND l.source_type IN (?, ?)
        GROUP BY l.form_name ORDER BY last_lead_at DESC`,
-      [startOfTodayIst(), ...vis.params, LEAD_SOURCE_TYPES.LANDING_PAGE],
+      [startOfTodayIst(), ...vis.params, LEAD_SOURCE_TYPES.LANDING_PAGE, LEAD_SOURCE_TYPES.META_FORM],
     );
     return rows.map((r) => ({ client: r.client || 'Unnamed client', clientName: r.client, total: Number(r.total), newLeads: Number(r.new_leads || 0),
       today: Number(r.today || 0), lastLeadAt: r.last_lead_at, projects: r.projects ? r.projects.split('||').filter(Boolean) : [] }));
