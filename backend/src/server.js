@@ -13,6 +13,7 @@ const server = http.createServer(app);
 initSocket(server);
 
 let sweepTimer = null;
+let metaPollTimer = null;
 
 async function start() {
   try {
@@ -39,12 +40,16 @@ async function start() {
     setTimeout(tick, 15_000);
     setInterval(tick, env.SYNC_INTERVAL_MINUTES * 60_000);
   }
+  // Live Meta leads: webhook is instant; this poll catches anything it misses within ~1 minute.
+  const { startMetaLivePoll } = await import('./integrations/meta/metaLivePoll.service.js');
+  metaPollTimer = startMetaLivePoll(env.META_LIVE_POLL_SECONDS);
   server.listen(env.PORT, () => logger.info(`RMW CRM API listening on :${env.PORT}`));
 }
 
 async function shutdown(signal) {
   logger.info(`${signal} received, shutting down`);
   clearInterval(sweepTimer);
+  clearInterval(metaPollTimer);
   server.close();
   await closeQueues().catch(() => {});
   await pool.end().catch(() => {});

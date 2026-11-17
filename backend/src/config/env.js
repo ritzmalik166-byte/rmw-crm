@@ -59,6 +59,8 @@ const schema = z.object({
   CT_ADMIN_EMAIL: z.string().optional(),
   CT_ADMIN_PASSWORD: z.string().optional(),
   SYNC_INTERVAL_MINUTES: int(0),
+  // Near-real-time Meta lead poll (safety net for missed webhooks). 0 disables.
+  META_LIVE_POLL_SECONDS: int(60),
 
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
