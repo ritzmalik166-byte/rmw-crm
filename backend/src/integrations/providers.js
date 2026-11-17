@@ -24,10 +24,10 @@ export const INTEGRATION_PROVIDERS = [
   {
     key: LEAD_SOURCE_TYPES.GOOGLE_ADS,
     name: 'Google Ads',
-    description: 'Google Ads lead form extensions',
+    description: 'Google Ads lead form webhook',
     category: 'ADS',
-    implemented: false,
-    serverConfig: () => ({ configured: false, missing: [] }),
+    implemented: true,
+    serverConfig: () => ({ configured: true, missing: [] }),
   },
   {
     key: LEAD_SOURCE_TYPES.WHATSAPP,

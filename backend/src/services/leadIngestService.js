@@ -66,6 +66,7 @@ async function isRepeatSubmission(websiteId, leadId, phoneN, emailN, receivedAt,
  *   attributionOverride           { source, medium, campaign, term, content } used instead of UTM/referrer derivation
  *   receivedActivity              { type, meta } extra timeline entry after LEAD_CREATED
  *   notify                        { title, body } for the "new lead" notification
+ *   forceJunk                     junk reason set by the provider (e.g. 'test' for Google Ads test data)
  * Options: { silent, assignment: { teamId } }
  */
 export async function upsertCanonicalLead(website, c, { silent = false, assignment = null } = {}) {
@@ -75,7 +76,7 @@ export async function upsertCanonicalLead(website, c, { silent = false, assignme
   const phoneN = normalizePhone(c.phone);
   const emailN = normalizeEmail(c.email);
   const autoAssign = await settingsService.get('leads.auto_assign');
-  const contentJunk = junkReason({ name: c.name, email: c.email, phone: c.phone, message: c.message, formType: c.formType, websiteCode: website.code });
+  const contentJunk = c.forceJunk || junkReason({ name: c.name, email: c.email, phone: c.phone, message: c.message, formType: c.formType, websiteCode: website.code });
 
   const result = await transaction(async (conn) => {
     let existing = sourceLeadId ? await findBySourceLeadId(sourceType, sourceLeadId, conn, { lock: true }) : null;
