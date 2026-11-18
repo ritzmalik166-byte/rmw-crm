@@ -3,6 +3,7 @@ import { QueryProvider } from '@/providers/QueryProvider';
 import { AuthProvider } from '@/providers/AuthProvider';
 import { MaintenanceGate } from '@/components/MaintenanceGate';
 import { AppToaster, ServiceWorkerRegister } from '@/components/layout/AppChrome';
+import { PREFS_BOOT_SCRIPT } from '@/lib/preferences';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
@@ -27,7 +28,11 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
+      <head>
+        {/* Personal Appearance settings, applied before first paint. */}
+        <script dangerouslySetInnerHTML={{ __html: PREFS_BOOT_SCRIPT }} />
+      </head>
       <body className="font-sans">
         <QueryProvider>
           <AuthProvider>{children}</AuthProvider>

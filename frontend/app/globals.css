@@ -31,7 +31,16 @@
   }
   * { @apply border-border; }
   html { font-size: 14px; }
-  body { @apply text-foreground antialiased; background: radial-gradient(1200px 400px at 100% -10%, hsl(213 70% 94% / .7), transparent 60%), hsl(var(--page)); background-attachment: fixed; font-size: 13px; }
+  body {
+    @apply text-foreground antialiased; font-size: 13px;
+    /* Soft colour mesh behind every page: gives glass surfaces something to catch. */
+    background:
+      radial-gradient(900px 420px at 105% -8%, hsl(213 85% 90% / .75), transparent 62%),
+      radial-gradient(700px 360px at -10% 30%, hsl(28 95% 90% / .35), transparent 60%),
+      radial-gradient(800px 500px at 50% 115%, hsl(190 80% 92% / .45), transparent 60%),
+      linear-gradient(180deg, hsl(218 40% 98%), hsl(var(--page)));
+    background-attachment: fixed;
+  }
   h1, h2, h3 { letter-spacing: -0.005em; }
 
   /* ── App feel on phones & tablets ─────────────────────────────── */
@@ -54,15 +63,33 @@
 }
 
 @layer components {
-  .panel { @apply rounded-xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.06)]; }
-  .panel-head { @apply flex items-center justify-between gap-2 border-b border-slate-100 bg-white px-4 py-2.5; }
+  /* Glossy surface: frosted white, hairline border, layered soft shadow, 1px top sheen. */
+  .gloss {
+    @apply border border-white/70 bg-white/80 backdrop-blur-md;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / .9), 0 1px 2px rgb(16 24 40 / .04), 0 4px 14px -4px rgb(16 24 40 / .08), 0 12px 32px -12px rgb(25 65 115 / .10);
+  }
+  .gloss-hover { @apply transition-[transform,box-shadow] duration-200; }
+  .gloss-hover:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgb(255 255 255 / .9), 0 2px 4px rgb(16 24 40 / .05), 0 10px 24px -6px rgb(25 65 115 / .16); }
+  .panel { @apply gloss rounded-2xl; }
+  .panel-head { @apply flex items-center justify-between gap-2 rounded-t-2xl border-b border-slate-100/80 bg-gradient-to-b from-white to-slate-50/60 px-4 py-2.5; }
   .panel-title { @apply flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-slate-700 before:h-3.5 before:w-[3px] before:rounded-full before:bg-[hsl(var(--saffron))] before:content-['']; }
   /* Table polish shared by every list */
-  thead { @apply bg-slate-50/80; }
+  thead { @apply bg-gradient-to-b from-slate-50 to-slate-100/70; }
   tbody tr { @apply transition-colors; }
   ::selection { background: hsl(213 80% 88%); }
+  /* Page content fades in softly on navigation. */
+  main > * { animation: crm-rise .28s cubic-bezier(.2,.7,.2,1) both; }
+  @keyframes crm-rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { main > * { animation: none; } }
+  /* Shimmering sheen for the brand header. */
+  .header-sheen { position: relative; isolation: isolate; }
+  .header-sheen::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background: linear-gradient(180deg, rgb(255 255 255 / .14), rgb(255 255 255 / 0) 55%), radial-gradient(600px 120px at 20% -40%, rgb(255 255 255 / .18), transparent 70%); }
   /* Thin, quiet scrollbars */
-  * { scrollbar-width: thin; scrollbar-color: hsl(215 16% 80%) transparent; }
+  * { scrollbar-width: thin; scrollbar-color: hsl(215 16% 78%) transparent; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: hsl(215 16% 80%); border-radius: 999px; border: 3px solid transparent; background-clip: content-box; }
+  ::-webkit-scrollbar-thumb:hover { background-color: hsl(215 16% 66%); }
   .kv-label { @apply text-[11px] font-medium uppercase tracking-wide text-muted-foreground; }
 }
 
@@ -77,3 +104,17 @@
   .text-xs { font-size: 12.5px; }
   .text-sm { font-size: 14.5px; }
 }
+
+/* ── Personal Appearance settings (lib/preferences.js) ───────────────────────── */
+/* Lead count bar stays under the header while scrolling (header: 59px phones, 51px desktop). */
+html[data-sticky-summary='on'] .crm-sticky-summary {
+  position: sticky; top: calc(59px + env(safe-area-inset-top)); z-index: 20;
+  box-shadow: 0 10px 24px -14px rgb(15 23 42 / 0.35);
+}
+.crm-sticky-summary { backdrop-filter: blur(10px); }
+.crm-sticky-summary > div { background: linear-gradient(180deg, rgb(255 255 255 / .96), rgb(248 250 252 / .92)); }
+@media (min-width: 1024px) { html[data-sticky-summary='on'] .crm-sticky-summary { top: 51px; } }
+/* Compact density: tighter tables and cards. */
+html[data-density='compact'] td { padding-top: 0.3rem !important; padding-bottom: 0.3rem !important; }
+html[data-density='compact'] th { padding-top: 0.35rem !important; padding-bottom: 0.35rem !important; }
+html[data-density='compact'] main { padding-top: 0.75rem; }

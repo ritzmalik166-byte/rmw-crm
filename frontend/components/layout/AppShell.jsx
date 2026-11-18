@@ -3,13 +3,14 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Bell, LogOut, Menu, Settings, ShieldCheck, LayoutGrid, Briefcase, X, Loader2, ShieldAlert, Home, Users2, CalendarClock } from 'lucide-react';
+import { Palette, Bell, LogOut, Menu, Settings, ShieldCheck, LayoutGrid, Briefcase, X, Loader2, ShieldAlert, Home, Users2, CalendarClock } from 'lucide-react';
 import { useAuth } from '@/providers/AuthProvider';
 import { SocketProvider, useSocket } from '@/providers/SocketProvider';
 import { api } from '@/lib/api';
 import { cn, timeAgo } from '@/lib/utils';
 import { useNewBadges, clearNew } from '@/lib/newLeadBadges';
 import { Button } from '@/components/ui/button';
+import { AppearanceDialog } from '@/components/layout/AppearanceDialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/controls';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/feedback';
@@ -192,6 +193,7 @@ function Shell({ area, nav, children }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [pendingHref, setPendingHref] = useState(null);
   useEffect(() => { setPendingHref(null); }, [pathname]);
   const navigate = (href) => (e) => {
@@ -209,7 +211,7 @@ function Shell({ area, nav, children }) {
   }, [pathname, nav, badges]);
 
   const sidebar = (
-    <nav className="flex h-full flex-col bg-white">
+    <nav className="flex h-full flex-col bg-transparent">
       <div className="flex-1 overflow-y-auto py-2">
         {nav.filter((g) => g.items.some((i) => !i.hidden && (!i.perm || can(i.perm)))).map((group) => (
           <div key={group.title || 'main'} className="mb-1">
@@ -221,7 +223,7 @@ function Shell({ area, nav, children }) {
                 return (
                   <li key={item.href}>
                     <Link href={item.href} onClick={navigate(item.href)} className={cn('relative mx-2 flex items-center gap-2.5 rounded-lg px-3 py-[7px] text-[13px] transition-colors',
-                      active ? 'bg-[hsl(213_70%_95%)] font-semibold text-[hsl(var(--primary))] shadow-[inset_0_0_0_1px_hsl(213_60%_88%)] before:absolute before:inset-y-1.5 before:-left-2 before:w-[3px] before:rounded-r-full before:bg-[hsl(var(--saffron))]' : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900')}>
+                      active ? 'bg-[linear-gradient(180deg,#fff,hsl(var(--accent)))] font-semibold text-[hsl(var(--primary))] shadow-[inset_0_1px_0_#fff,0_0_0_1px_hsl(var(--ring)/0.18),0_4px_10px_-4px_hsl(var(--primary)/0.25)] before:absolute before:inset-y-1.5 before:-left-2 before:w-[3px] before:rounded-r-full before:bg-[hsl(var(--saffron))]' : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900')}>
                       {item.logo ? <img src={item.logo} alt="" className="h-[18px] w-[18px] shrink-0 object-contain" /> : <item.icon className={cn(item.brandIcon ? 'h-[18px] w-[18px] shrink-0' : 'h-4 w-4 shrink-0', !item.brandIcon && (active ? 'text-[hsl(var(--primary))]' : 'text-slate-400'))} />}
                       <span className="flex-1 truncate">{item.label}</span>
                       {isNew && <span className="rounded-full bg-blue-600 px-1.5 text-[10px] font-semibold uppercase leading-[18px] tracking-wide text-white shadow-sm shadow-blue-600/30" title="New leads arrived">New</span>}
@@ -244,7 +246,7 @@ function Shell({ area, nav, children }) {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-30 bg-gradient-to-r from-[hsl(213_68%_20%)] via-[hsl(var(--primary))] to-[hsl(212_58%_32%)] pt-[env(safe-area-inset-top)] text-white shadow-sm">
+      <header className="header-sheen sticky top-0 z-30 bg-gradient-to-r from-[hsl(213_68%_20%)] via-[hsl(213_62%_26%)] to-[hsl(212_58%_32%)] pt-[env(safe-area-inset-top)] text-white shadow-[0_6px_20px_-8px_rgb(13_38_76/0.55)]">
         <div className="flex h-14 items-center gap-3 px-3 sm:px-4 lg:h-12">
           <Link href={home} className="flex min-w-0 items-center gap-2.5">
             <img src="/rmw-mark.png" alt="Ritz Media World" className="h-9 w-9 shrink-0 rounded-lg bg-white object-contain p-0.5 lg:h-8 lg:w-8 lg:rounded-md" />
@@ -273,7 +275,7 @@ function Shell({ area, nav, children }) {
                 <button className="flex items-center gap-2 rounded px-1.5 py-1">
                   <span className="relative">
                     <UserAvatar src={me?.user?.avatar} name={me?.user?.full_name} className="h-7 w-7 bg-white/15 text-white ring-1 ring-white/30" />
-                    <span className={cn('absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-[hsl(var(--primary))]', connected ? 'bg-emerald-400' : 'bg-amber-400')} />
+                    <span className={cn('absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-[hsl(213_62%_26%)]', connected ? 'bg-emerald-400' : 'bg-amber-400')} />
                   </span>
                   <span className="hidden text-left leading-tight lg:block">
                     <span className="block text-[12px] font-medium">{me?.user?.full_name}</span>
@@ -290,6 +292,7 @@ function Shell({ area, nav, children }) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild><Link href="/crm/settings"><Settings />Settings</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/crm/settings/security"><ShieldCheck />Security &amp; devices</Link></DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setAppearanceOpen(true)}><Palette />Appearance</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={() => setLogoutOpen(true)}><LogOut />Log out</DropdownMenuItem>
               </DropdownMenuContent>
@@ -298,8 +301,9 @@ function Shell({ area, nav, children }) {
         </div>
         <div className="h-[3px] bg-gradient-to-r from-[hsl(28_92%_52%)] via-[hsl(38_95%_55%)] to-[hsl(28_92%_52%)]" />
       </header>
+      <AppearanceDialog open={appearanceOpen} onOpenChange={setAppearanceOpen} />
 
-      <aside className="fixed bottom-0 left-0 top-[51px] z-20 hidden w-56 border-r border-slate-200/80 shadow-[1px_0_0_rgba(16,24,40,0.02)] lg:block">{sidebar}</aside>
+      <aside className="fixed bottom-0 left-0 top-[51px] z-20 hidden w-56 border-r border-white/60 bg-white/65 shadow-[1px_0_0_rgb(16_24_40/0.04),8px_0_24px_-16px_rgb(16_24_40/0.12)] backdrop-blur-xl lg:block">{sidebar}</aside>
       {open && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] animate-in fade-in-0" onClick={() => setOpen(false)} />

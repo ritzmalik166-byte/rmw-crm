@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-const base = 'w-full rounded-lg border border-input bg-white text-[13px] shadow-[inset_0_1px_1px_rgba(16,24,40,0.03)] transition-[border-color,box-shadow] placeholder:text-muted-foreground focus-visible:border-[hsl(var(--ring))] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[hsl(213_70%_55%/0.18)] disabled:cursor-not-allowed disabled:opacity-50';
+const base = 'w-full rounded-lg border border-slate-200 bg-[linear-gradient(180deg,hsl(214_30%_98%),#fff)] text-[13px] shadow-[inset_0_1px_2px_rgba(16,24,40,0.05)] transition-[border-color,box-shadow,background] hover:border-slate-300 focus-visible:bg-white placeholder:text-muted-foreground focus-visible:border-[hsl(var(--ring))] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[hsl(var(--ring)/0.18)] disabled:cursor-not-allowed disabled:opacity-50';
 
 const Input = React.forwardRef(({ className, type, ...props }, ref) => (
   <input type={type} className={cn('flex h-8 px-2.5 py-1', base, className)} ref={ref} {...props} />

@@ -7,16 +7,47 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
 import { PIPELINES, PIPELINE_ORDER, PipelineLogo } from '@/lib/pipelines';
 import { cn, timeAgo, titleCase, formatDate } from '@/lib/utils';
-import { StatusBadge, WebsiteBadge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui/badge';
 import { EmptyState, ErrorState } from '@/components/ui/feedback';
 import { DashboardSkeleton } from '@/components/ui/skeletons';
 import { DateRangeFilter, rangeLabel, todayRange } from '@/components/ui/date-range';
 import { toQuery } from '@/lib/utils';
 import { MetaLeadFormsList } from '@/components/marketing/MetaLeadForms';
 import { MetaMark } from '@/components/integrations/MetaLogo';
+import { LeadSourceChip, leadChannel, CHANNEL_STYLE } from '@/components/leads/LeadSource';
 import { IntegrationMarketplace } from '@/components/integrations/IntegrationMarketplace';
 import { Plus } from 'lucide-react';
 
+
+const AVATAR_TONE = { meta: 'from-blue-500 to-indigo-600', client: 'from-violet-500 to-fuchsia-600', website: 'from-teal-500 to-emerald-600' };
+const initials = (n) => String(n || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
+
+/** One lead in a dashboard list: channel colour bar, initials, name + time, classified source chip, project, status and owner. */
+function DashLeadRow({ l, showOwner = true }) {
+  const ch = leadChannel(l);
+  return (
+    <li>
+      <Link href={`/crm/leads/${l.id}`} className="group relative flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-[hsl(var(--accent)/0.6)]">
+        <span aria-hidden className={cn('absolute inset-y-2 left-0 w-[3px] rounded-r-full opacity-70 group-hover:opacity-100', CHANNEL_STYLE[ch].bar)} />
+        <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-[12px] font-semibold text-white shadow-sm ring-2 ring-white', AVATAR_TONE[ch])}>{initials(l.name)}</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="truncate text-[13.5px] font-semibold text-slate-900 group-hover:text-[hsl(var(--primary))]">{l.name || 'Unnamed lead'}</p>
+            <span className="shrink-0 text-[11px] tabular-nums text-slate-400" title={formatDate(l.external_created_at || l.created_at)}>{timeAgo(l.external_created_at || l.created_at)}</span>
+          </div>
+          <div className="mt-1 flex min-w-0 items-center gap-2">
+            <LeadSourceChip lead={l} className="shrink-0" />
+            {l.interest && <span className="min-w-0 truncate text-[12px] text-slate-500" title={l.interest}>{l.interest}</span>}
+          </div>
+        </div>
+        <div className="hidden shrink-0 flex-col items-end gap-1 sm:flex">
+          <StatusBadge name={l.status_name} color={l.status_color} />
+          {showOwner && <span className={cn('text-[11px]', l.assigned_user_name ? 'text-slate-500' : 'font-medium text-amber-600')}>{l.assigned_user_name || 'Unassigned'}</span>}
+        </div>
+      </Link>
+    </li>
+  );
+}
 
 function Panel({ title, action, children, className }) {
   return (
@@ -104,7 +135,13 @@ export default function CrmDashboard() {
     queryKey: ['leads', 'pipelines', 'meta', rq], queryFn: () => api(`/crm/pipelines${toQuery({ ...rq, channel: 'meta' })}`),
     enabled: canMeta, refetchInterval: 60_000, placeholderData: keepPreviousData,
   });
-  const { data: received } = useQuery({ queryKey: ['leads', 'dash-received', rq], queryFn: () => api(`/crm/leads${toQuery({ ...rq, limit: 10, sort: 'received_at', dir: 'desc' })}`), refetchInterval: 60_000, placeholderData: keepPreviousData });
+  const [recvCh, setRecvCh] = useState('all');
+  const recvChannels = [['all', 'All'], ['website', 'Website / App'], ...(canMeta ? [['meta', 'Meta']] : []), ...(can('lead.channel.client') ? [['client', 'Client']] : [])];
+  const { data: received } = useQuery({
+    queryKey: ['leads', 'dash-received', rq, recvCh],
+    queryFn: () => api(`/crm/leads${toQuery({ ...rq, ...(recvCh !== 'all' ? { channel: recvCh } : {}), limit: 10, sort: 'received_at', dir: 'desc' })}`),
+    refetchInterval: 60_000, placeholderData: keepPreviousData,
+  });
 
   if (isLoading) return <DashboardSkeleton />;
   if (isError) return <div className="panel"><ErrorState error={error} onRetry={refetch} /></div>;
@@ -255,38 +292,27 @@ export default function CrmDashboard() {
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Panel title={`Leads received · ${label}`} action={<Link href={`/crm/leads${toQuery(rq)}`} className="text-[12px] font-medium text-[hsl(var(--primary))] hover:underline">View all{received?.meta?.total ? ` ${received.meta.total}` : ''}</Link>}>
-          {!received?.rows?.length ? <EmptyState title={`No leads ${label === 'Today' ? 'today yet' : 'in this period'}`} description="Pick another date range above to look back." /> : (
-            <ul className="divide-y">
-              {received.rows.map((l) => (
-                <li key={l.id}>
-                  <Link href={`/crm/leads/${l.id}`} className="flex items-center justify-between gap-3 px-3 py-2 hover:bg-[hsl(213_60%_97%)]">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-[hsl(var(--primary))]">{l.name || 'Unnamed lead'}</p>
-                      <p className="truncate text-[11px] text-slate-500">{[l.interest, l.assigned_user_name || 'Unassigned'].filter(Boolean).join(' · ')}</p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2"><WebsiteBadge code={l.website_code} /><StatusBadge name={l.status_name} color={l.status_color} /><span className="w-20 text-right text-[11px] text-slate-500">{timeAgo(l.external_created_at || l.created_at)}</span></div>
-                  </Link>
-                </li>
-              ))}
+        <Panel title={`Leads received · ${label}`} action={<Link href={`/crm/leads${toQuery({ ...rq, ...(recvCh !== 'all' ? { channel: recvCh } : {}) })}`} className="text-[12px] font-medium text-[hsl(var(--primary))] hover:underline">View all{received?.meta?.total ? ` ${received.meta.total}` : ''}</Link>}>
+          <div role="tablist" aria-label="Lead source" className="flex gap-1 overflow-x-auto border-b border-slate-100 bg-slate-50/50 px-3 py-2">
+            {recvChannels.map(([k, t]) => (
+              <button key={k} type="button" role="tab" aria-selected={recvCh === k} onClick={() => setRecvCh(k)}
+                className={cn('inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-medium transition',
+                  recvCh === k ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:bg-white/70 hover:text-slate-800')}>
+                {k !== 'all' && <span className={cn('h-2 w-2 rounded-full', CHANNEL_STYLE[k].bar)} />}{t}
+              </button>
+            ))}
+          </div>
+          {!received?.rows?.length ? <EmptyState title={`No ${recvCh === 'all' ? '' : `${recvChannels.find(([k]) => k === recvCh)?.[1]} `}leads ${label === 'Today' ? 'today yet' : 'in this period'}`} description="Pick another source or date range." /> : (
+            <ul className="divide-y divide-slate-100">
+              {received.rows.map((l) => <DashLeadRow key={l.id} l={l} />)}
             </ul>
           )}
         </Panel>
 
         <Panel title={`My leads · ${label}`} action={<Link href={`/crm/leads${toQuery({ view: 'mine', ...rq })}`} className="text-[12px] font-medium text-[hsl(var(--primary))] hover:underline">View all</Link>}>
           {mine.recent.length === 0 ? <EmptyState title="No leads assigned to you in this period" description="Leads assigned to you will show up here." /> : (
-            <ul className="divide-y">
-              {mine.recent.map((l) => (
-                <li key={l.id}>
-                  <Link href={`/crm/leads/${l.id}`} className="flex items-center justify-between gap-3 px-3 py-2 hover:bg-[hsl(213_60%_97%)]">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-[hsl(var(--primary))]">{l.name || 'Unnamed lead'}</p>
-                      <p className="truncate text-[11px] text-slate-500">{l.interest || l.external_lead_id}</p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2"><WebsiteBadge code={l.website_code} /><StatusBadge name={l.status_name} color={l.status_color} /><span className="w-20 text-right text-[11px] text-slate-500">{timeAgo(l.created_at)}</span></div>
-                  </Link>
-                </li>
-              ))}
+            <ul className="divide-y divide-slate-100">
+              {mine.recent.map((l) => <DashLeadRow key={l.id} l={l} showOwner={false} />)}
             </ul>
           )}
         </Panel>

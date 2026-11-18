@@ -13,22 +13,26 @@ import { MetaLogo } from './MetaLogo';
 /** Opens the Meta card's Pages dialog (MetaIntegrationCard listens for it). */
 export const META_OPEN_PAGES_EVENT = 'meta:open-pages';
 
-const Tile = ({ bg, children }) => (
-  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[13px] font-bold text-white" style={{ background: bg }}>{children}</span>
+/** Real brand logo (bundled in /public/brands), on a white rounded tile like the Meta logo. */
+const Brand = ({ src }) => (
+  <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white ring-1 ring-slate-200">
+    {/* eslint-disable-next-line @next/next/no-img-element */}
+    <img src={src} alt="" className="h-8 w-8 object-contain" />
+  </span>
 );
 
 /** Catalog. `live` providers work today; the rest are listed so the team can see what is planned. */
 const CATALOG = [
   { key: 'META', name: 'Meta', desc: 'Facebook + Instagram Lead Ads, all Pages in one login', category: 'Ads', live: true, icon: <MetaLogo /> },
   { key: 'WHATSAPP', name: 'WhatsApp Business', desc: 'Chats become leads; reply and send templates', category: 'Messaging', icon: <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white"><WhatsAppIcon className="h-5 w-5" /></span> },
-  { key: 'LINKEDIN', name: 'LinkedIn Lead Gen', desc: 'Lead Gen Form submissions from LinkedIn ads', category: 'Ads', icon: <Tile bg="#0A66C2">in</Tile> },
-  { key: 'GOOGLE_ADS', name: 'Google Ads', desc: 'Lead form extensions from Search, YouTube and Discovery', category: 'Ads', icon: <Tile bg="#4285F4">G</Tile> },
-  { key: '99ACRES', name: '99acres', desc: 'Property enquiries from your 99acres listings', category: 'Marketplace', icon: <Tile bg="#0078DB">99</Tile> },
-  { key: 'MAGICBRICKS', name: 'MagicBricks', desc: 'Buyer and tenant enquiries from MagicBricks', category: 'Marketplace', icon: <Tile bg="#D8232A">MB</Tile> },
-  { key: 'HOUSING', name: 'Housing.com', desc: 'Leads from Housing.com project and listing pages', category: 'Marketplace', icon: <Tile bg="#5E23DC">H</Tile> },
-  { key: 'INDIAMART', name: 'IndiaMART', desc: 'Buy leads and enquiries from IndiaMART', category: 'Marketplace', icon: <Tile bg="#2E3192">IM</Tile> },
-  { key: 'JUSTDIAL', name: 'Justdial', desc: 'Business enquiries from your Justdial listing', category: 'Marketplace', icon: <Tile bg="#FF6E00">JD</Tile> },
-  { key: 'WEBHOOK', name: 'Zapier / Make / Webhook', desc: 'Push leads from any tool with a secure URL', category: 'Other', icon: <Tile bg="#475569">{'{ }'}</Tile> },
+  { key: 'LINKEDIN', name: 'LinkedIn Lead Gen', desc: 'Lead Gen Form submissions from LinkedIn ads', category: 'Ads', icon: <Brand src="/brands/linkedin.svg" /> },
+  { key: 'GOOGLE_ADS', name: 'Google Ads', desc: 'Lead form extensions from Search, YouTube and Discovery', category: 'Ads', icon: <Brand src="/brands/google-ads.svg" /> },
+  { key: '99ACRES', name: '99acres', desc: 'Property enquiries from your 99acres listings', category: 'Marketplace', icon: <Brand src="/brands/99acres.png" /> },
+  { key: 'MAGICBRICKS', name: 'MagicBricks', desc: 'Buyer and tenant enquiries from MagicBricks', category: 'Marketplace', icon: <Brand src="/brands/magicbricks.png" /> },
+  { key: 'HOUSING', name: 'Housing.com', desc: 'Leads from Housing.com project and listing pages', category: 'Marketplace', icon: <Brand src="/brands/housing.svg" /> },
+  { key: 'INDIAMART', name: 'IndiaMART', desc: 'Buy leads and enquiries from IndiaMART', category: 'Marketplace', icon: <Brand src="/brands/indiamart.svg" /> },
+  { key: 'JUSTDIAL', name: 'Justdial', desc: 'Business enquiries from your Justdial listing', category: 'Marketplace', icon: <Brand src="/brands/justdial.svg" /> },
+  { key: 'WEBHOOK', name: 'Zapier / Make / Webhook', desc: 'Push leads from any tool with a secure URL', category: 'Other', icon: <Brand src="/brands/zapier.svg" /> },
 ];
 const CATEGORIES = ['All', 'Ads', 'Messaging', 'Marketplace', 'Other'];
 

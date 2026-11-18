@@ -7,11 +7,11 @@ const Table = React.forwardRef(({ className, ...props }, ref) => (
   </div>
 ));
 Table.displayName = 'Table';
-const TableHeader = React.forwardRef(({ className, ...props }, ref) => <thead ref={ref} className={cn('sticky top-0 z-[1] bg-[hsl(214_25%_96%)] [&_tr]:border-b', className)} {...props} />);
+const TableHeader = React.forwardRef(({ className, ...props }, ref) => <thead ref={ref} className={cn('sticky top-0 z-[1] bg-gradient-to-b from-slate-50 to-[hsl(214_28%_95%)] backdrop-blur [&_tr]:border-b', className)} {...props} />);
 TableHeader.displayName = 'TableHeader';
 const TableBody = React.forwardRef(({ className, ...props }, ref) => <tbody ref={ref} className={cn('[&_tr:last-child]:border-0', className)} {...props} />);
 TableBody.displayName = 'TableBody';
-const TableRow = React.forwardRef(({ className, ...props }, ref) => <tr ref={ref} className={cn('border-b border-slate-200/80 transition-colors hover:bg-[hsl(213_60%_97%)] data-[state=selected]:bg-[hsl(213_70%_95%)]', className)} {...props} />);
+const TableRow = React.forwardRef(({ className, ...props }, ref) => <tr ref={ref} className={cn('border-b border-slate-200/80 transition-colors hover:bg-[linear-gradient(90deg,hsl(var(--accent)),hsl(var(--accent)/0.4))] data-[state=selected]:bg-[hsl(var(--accent))]', className)} {...props} />);
 TableRow.displayName = 'TableRow';
 const TableHead = React.forwardRef(({ className, ...props }, ref) => <th ref={ref} className={cn('h-8 whitespace-nowrap px-2.5 text-left align-middle text-[11px] font-semibold uppercase tracking-wide text-slate-600', className)} {...props} />);
 TableHead.displayName = 'TableHead';

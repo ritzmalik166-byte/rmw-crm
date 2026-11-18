@@ -89,12 +89,14 @@ export function PageHeader({ title, description, actions }) {
 
 export function StatCard({ label, value, hint, icon: Icon, tone, logo }) {
   return (
-    <div className="rounded border border-l-[3px] border-l-[hsl(var(--primary))] bg-card px-3 py-2.5">
-      <div className="flex items-center justify-between">
+    <div className="gloss gloss-hover relative overflow-hidden rounded-2xl px-4 py-3">
+      <span aria-hidden className={cn('pointer-events-none absolute -right-8 -top-10 h-24 w-24 rounded-full opacity-60 blur-2xl', tone === 'danger' ? 'bg-red-200' : tone === 'warning' ? 'bg-amber-200' : tone === 'success' ? 'bg-emerald-200' : 'bg-[hsl(var(--accent))]')} />
+      <span aria-hidden className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-[hsl(var(--primary))] via-[hsl(var(--ring))] to-[hsl(var(--saffron))] opacity-80" />
+      <div className="relative flex items-center justify-between">
         <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">{logo && <img src={logo} alt="" aria-hidden className="h-4 w-4 object-contain" />}{label}</p>
-        {Icon && <Icon className={cn('h-4 w-4 text-muted-foreground', tone === 'danger' && 'text-red-500', tone === 'warning' && 'text-amber-500', tone === 'success' && 'text-emerald-600')} />}
+        {Icon && <span className={cn('flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-b from-white to-slate-100 shadow-[inset_0_1px_0_#fff,0_1px_2px_rgb(16_24_40/0.08)] ring-1 ring-slate-200/70', tone === 'danger' && 'text-red-500', tone === 'warning' && 'text-amber-500', tone === 'success' && 'text-emerald-600', !tone && 'text-[hsl(var(--primary))]')}><Icon className="h-3.5 w-3.5" /></span>}
       </div>
-      <p className="mt-1 text-xl font-semibold tabular-nums text-slate-900">{value ?? '—'}</p>
+      <p className="relative mt-1.5 text-[22px] font-semibold tabular-nums tracking-tight text-slate-900">{value ?? '—'}</p>
       {hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
     </div>
   );

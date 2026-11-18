@@ -1,11 +1,11 @@
 'use client';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Globe2, X, Users2, FileText, ShieldAlert, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Globe2, X, Users2, FileText, ShieldAlert, ChevronRight, Search, Check } from 'lucide-react';
 import { api } from '@/lib/api';
-import { cn, toQuery } from '@/lib/utils';
+import { cn, timeAgo, toQuery } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { LeadsWorkspace } from '@/components/leads/LeadsWorkspace';
 import { MetaLogo } from '@/components/integrations/MetaLogo';
@@ -161,34 +161,114 @@ function MetaPageBar({ page, backHref }) {
   );
 }
 
-/** Lead form name filter for the opened Page: picks ?formId=, keeps the Page and other filters. */
+/** Bold the matched part of a form name. */
+function Highlight({ text, term }) {
+  if (!term) return text;
+  const i = text.toLowerCase().indexOf(term);
+  if (i < 0) return text;
+  return <>{text.slice(0, i)}<mark className="rounded-sm bg-amber-100 px-0.5 text-slate-900">{text.slice(i, i + term.length)}</mark>{text.slice(i + term.length)}</>;
+}
+
+/** Every word of the query appears in the name (any order), so "terra hni" finds "Terra & Sol | HNI…". */
+const matchesWords = (name, words) => { const n = name.toLowerCase(); return words.every((w) => n.includes(w)); };
+
+/**
+ * Lead form picker for the opened Page: type-ahead search with suggestions (counts, last lead, keyboard ↑ ↓ Enter Esc),
+ * quick-pick chips for the busiest forms, and the selected form shown as a removable chip. Sets ?formId=.
+ */
 function MetaFormFilter({ forms, formId }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
   const [q, setQ] = useState('');
+  const [open, setOpen] = useState(false);
+  const [hi, setHi] = useState(0);
+  const boxRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = (e) => { if (!boxRef.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+
   if (!forms.length) return null;
   const set = (id) => {
     const next = new URLSearchParams(params.toString());
     if (id) next.set('formId', id); else next.delete('formId');
     next.delete('page');
     router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+    setQ(''); setOpen(false);
   };
-  const term = q.trim().toLowerCase();
-  const list = forms.filter((f) => !term || f.name?.toLowerCase().includes(term) || f.formId === formId);
+  const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const sorted = [...forms].sort((x, y) => (y.total - x.total) || String(x.name).localeCompare(String(y.name)));
+  const list = (words.length ? sorted.filter((f) => matchesWords(String(f.name || ''), words)) : sorted).slice(0, 50);
   const current = forms.find((f) => f.formId === formId);
+  const top = sorted.filter((f) => f.total > 0).slice(0, 5);
+  const onKey = (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setHi((h) => Math.min(h + 1, list.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setHi((h) => Math.max(h - 1, 0)); }
+    else if (e.key === 'Enter' && open && list[hi]) { e.preventDefault(); set(list[hi].formId); }
+    else if (e.key === 'Escape') setOpen(false);
+  };
+
   return (
-    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
-      <FileText className="h-4 w-4 shrink-0 text-indigo-600" />
-      <span className="text-[12.5px] font-medium text-slate-700">Lead form</span>
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search form name…" aria-label="Search lead forms"
-        className="h-9 w-48 rounded-md border border-slate-200 px-2.5 text-[13px] outline-none focus:border-blue-400" />
-      <select value={formId || ''} onChange={(e) => set(e.target.value)} aria-label="Filter by lead form"
-        className="h-9 min-w-0 max-w-full flex-1 rounded-md border border-slate-200 bg-white px-2 text-[13px] outline-none focus:border-blue-400 sm:max-w-md">
-        <option value="">All forms ({forms.length})</option>
-        {list.map((f) => <option key={f.formId} value={f.formId}>{f.name} · {f.total} leads</option>)}
-      </select>
-      {current && <button type="button" onClick={() => set('')} className="inline-flex items-center gap-1 text-[12px] font-medium text-blue-700 hover:underline"><X className="h-3.5 w-3.5" />Clear</button>}
+    <div className="mb-3 rounded-xl border border-slate-200 bg-white p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-700"><FileText className="h-4 w-4 text-indigo-600" />Lead form</span>
+        <div ref={boxRef} className="relative min-w-[240px] flex-1">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); setHi(0); }} onFocus={() => setOpen(true)} onKeyDown={onKey}
+            placeholder={`Search ${forms.length} forms by name… e.g. terra hni`} aria-label="Search lead forms" role="combobox"
+            aria-expanded={open} aria-controls="meta-form-suggest" aria-autocomplete="list"
+            className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50/60 pl-8 pr-8 text-[13.5px] outline-none transition focus:border-[hsl(var(--ring))] focus:bg-white focus:ring-2 focus:ring-[hsl(var(--ring)/0.15)]" />
+          {q && <button type="button" onClick={() => { setQ(''); setHi(0); }} aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"><X className="h-4 w-4" /></button>}
+          {open && (
+            <div id="meta-form-suggest" role="listbox" className="absolute left-0 right-0 top-[calc(100%+4px)] z-40 max-h-80 overflow-auto rounded-lg border bg-white py-1 shadow-lg">
+              <p className="px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                {words.length ? `${list.length}${list.length === 50 ? '+' : ''} matching form${list.length === 1 ? '' : 's'}` : 'Most leads first'}
+              </p>
+              {!words.length && (
+                <button type="button" role="option" aria-selected={!formId} onMouseDown={(e) => e.preventDefault()} onClick={() => set('')}
+                  className="flex w-full items-center justify-between px-3 py-2 text-left text-[13px] hover:bg-slate-50">
+                  <span className="font-medium text-slate-700">All forms</span><span className="text-[12px] text-slate-500">{forms.length} forms</span>
+                </button>
+              )}
+              {list.map((f, i) => (
+                <button key={f.formId} type="button" role="option" aria-selected={f.formId === formId} onMouseEnter={() => setHi(i)}
+                  onMouseDown={(e) => e.preventDefault()} onClick={() => set(f.formId)}
+                  className={cn('flex w-full items-center gap-3 px-3 py-2 text-left', i === hi ? 'bg-[hsl(var(--accent))]' : 'hover:bg-slate-50')}>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] text-slate-900"><Highlight text={String(f.name)} term={words[0]} /></span>
+                    <span className="block text-[11.5px] text-slate-500">{f.lastLeadAt ? `Last lead ${timeAgo(f.lastLeadAt)}` : 'No leads yet'}{f.status && f.status !== 'ACTIVE' ? ` · ${String(f.status).toLowerCase()}` : ''}</span>
+                  </span>
+                  <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11.5px] font-semibold tabular-nums text-slate-700">{f.total}</span>
+                  {f.formId === formId && <Check className="h-4 w-4 shrink-0 text-emerald-600" />}
+                </button>
+              ))}
+              {!list.length && <p className="px-3 py-4 text-center text-[13px] text-slate-500">No form matches “{q}”. Try fewer words.</p>}
+            </div>
+          )}
+        </div>
+        {current && (
+          <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 py-1 pl-3 pr-1 text-[12.5px] text-indigo-900">
+            <span className="truncate" title={current.name}>{current.name}</span>
+            <span className="rounded-full bg-white px-1.5 text-[11px] font-semibold tabular-nums">{current.total}</span>
+            <button type="button" onClick={() => set('')} aria-label="Remove form filter" className="rounded-full p-0.5 hover:bg-indigo-100"><X className="h-3.5 w-3.5" /></button>
+          </span>
+        )}
+      </div>
+      {!current && top.length > 1 && (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <span className="text-[11.5px] text-slate-500">Top forms:</span>
+          {top.map((f) => (
+            <button key={f.formId} type="button" onClick={() => set(f.formId)} title={f.name}
+              className="inline-flex max-w-[260px] items-center gap-1.5 rounded-full border bg-white px-2.5 py-1 text-[12px] text-slate-700 transition hover:border-[hsl(var(--ring))] hover:text-slate-900">
+              <span className="truncate">{f.name}</span><span className="font-semibold tabular-nums text-slate-500">{f.total}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
