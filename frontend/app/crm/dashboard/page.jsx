@@ -14,6 +14,8 @@ import { DateRangeFilter, rangeLabel, todayRange } from '@/components/ui/date-ra
 import { toQuery } from '@/lib/utils';
 import { MetaLeadFormsList } from '@/components/marketing/MetaLeadForms';
 import { MetaMark } from '@/components/integrations/MetaLogo';
+import { IntegrationMarketplace } from '@/components/integrations/IntegrationMarketplace';
+import { Plus } from 'lucide-react';
 
 
 function Panel({ title, action, children, className }) {
@@ -63,6 +65,32 @@ function greeting() {
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 }
 
+/** Home-page integrations strip for users granted "Manage integrations": Meta status + Add integration. */
+function HomeIntegrations() {
+  const [market, setMarket] = useState(false);
+  const { data: s } = useQuery({ queryKey: ['meta', 'status'], queryFn: () => api('/manage/integrations/meta/status'), staleTime: 60_000 });
+  const pages = s?.connection?.pages || [];
+  const connected = s && !['NOT_CONNECTED', 'NOT_CONFIGURED'].includes(s.state);
+  return (
+    <Panel title="Integrations" action={<Link href="/crm/integrations" className="text-[12px] font-medium text-[hsl(var(--primary))] hover:underline">Manage</Link>}>
+      <div className="flex flex-wrap items-center gap-3 p-3">
+        <Link href="/crm/integrations" className="flex min-w-0 flex-1 items-center gap-3 rounded-lg border p-2.5 hover:bg-slate-50">
+          <MetaMark className="h-6 w-6 shrink-0" />
+          <span className="min-w-0">
+            <span className="block text-[13px] font-semibold text-slate-900">Meta {connected ? <span className="font-normal text-emerald-700">· Connected</span> : <span className="font-normal text-slate-500">· Not connected</span>}</span>
+            <span className="block truncate text-[12px] text-slate-500">{pages.length ? pages.map((p) => p.name).join(', ') : connected ? 'No Page switched on yet' : 'Connect once to bring in all your Pages'}</span>
+          </span>
+        </Link>
+        <button type="button" onClick={() => setMarket(true)}
+          className="flex items-center gap-2 rounded-lg border-2 border-dashed border-slate-300 px-4 py-2.5 text-[13px] font-medium text-slate-600 hover:border-blue-400 hover:text-blue-700">
+          <Plus className="h-4 w-4" />Add integration
+        </button>
+      </div>
+      {market && <IntegrationMarketplace open onOpenChange={setMarket} onManageMeta={() => { window.location.href = '/crm/integrations?open=pages'; }} />}
+    </Panel>
+  );
+}
+
 export default function CrmDashboard() {
   const { me, can } = useAuth();
   const [range, setRange] = useState(todayRange);
@@ -97,6 +125,8 @@ export default function CrmDashboard() {
         </div>
         <p className="shrink-0 rounded-full border bg-white px-3 py-1 text-[12px] font-medium text-slate-600">{formatDate(new Date())}</p>
       </div>
+
+      {can('integration.manage') && <HomeIntegrations />}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <DateRangeFilter value={range} onChange={setRange} />

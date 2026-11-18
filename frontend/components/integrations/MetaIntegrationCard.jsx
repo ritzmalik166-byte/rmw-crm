@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Square, RefreshCw, Settings2, Unplug, PlugZap, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Square, RefreshCw, Settings2, Unplug, PlugZap, AlertTriangle, CheckCircle2, Layers } from 'lucide-react';
 import { api, apiMessage } from '@/lib/api';
 import { formatDateTime, timeAgo } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { HealthCheck, IntegrationStatus, oauthReasonMessage } from './IntegrationStatus';
 import { MetaAssetSelector } from './MetaAssetSelector';
 import { MetaConnectionModal } from './MetaConnectionModal';
+import { MetaPagesManager } from './MetaPagesManager';
+import { META_OPEN_PAGES_EVENT } from './IntegrationMarketplace';
 import { SyncProgress } from './SyncProgress';
 
 export { MetaLogo } from './MetaLogo';
@@ -28,11 +30,25 @@ export function MetaIntegrationCard({ canManage }) {
   const [syncRequested, setSyncRequested] = useState(false);
   const status = useQuery({
     queryKey: ['meta', 'status'],
-    queryFn: () => api('/admin/integrations/meta/status'),
+    queryFn: () => api('/manage/integrations/meta/status'),
     refetchInterval: (q) => (q.state.data?.sync?.running || syncRequested ? 3_000 : 60_000),
   });
   const s = status.data;
   const c = s?.connection;
+
+  // "Add integration" → Meta (already connected) opens the Pages dialog.
+  useEffect(() => {
+    if (!canManage) return undefined;
+    const open = () => setDialog('pages');
+    window.addEventListener(META_OPEN_PAGES_EVENT, open);
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get('open') === 'pages') {
+      open();
+      sp.delete('open');
+      window.history.replaceState(null, '', `${window.location.pathname}${sp.toString() ? `?${sp}` : ''}`);
+    }
+    return () => window.removeEventListener(META_OPEN_PAGES_EVENT, open);
+  }, [canManage]);
 
   // Return from Facebook: ?meta=connected|error&reason=...
   useEffect(() => {
@@ -41,8 +57,8 @@ export function MetaIntegrationCard({ canManage }) {
     if (!result) return;
     const reason = sp.get('reason');
     if (result === 'connected') {
-      toast.success(reason === 'RECONNECTED' ? 'Meta reconnected.' : 'Meta authorised. Now choose the Page and ad account.');
-      if (reason !== 'RECONNECTED' && canManage) setDialog('assets');
+      toast.success(reason === 'RECONNECTED' ? 'Meta reconnected. All your Pages were refreshed.' : 'Meta authorised. Switch on the Pages whose leads you want.');
+      if (reason !== 'RECONNECTED' && canManage) setDialog('pages');
     } else {
       toast.error(oauthReasonMessage(reason));
     }
@@ -61,22 +77,22 @@ export function MetaIntegrationCard({ canManage }) {
   }, [s, syncRequested]);
 
   const connect = useMutation({
-    mutationFn: () => api('/super-admin/integrations/meta/connect', { method: 'POST' }),
+    mutationFn: () => api('/manage/integrations/meta/connect', { method: 'POST' }),
     onSuccess: (r) => { window.location.assign(r.url); },
     onError: (e) => toast.error(apiMessage(e)),
   });
   const sync = useMutation({
-    mutationFn: (full = false) => api('/super-admin/integrations/meta/sync', { method: 'POST', body: { full } }),
+    mutationFn: (full = false) => api('/manage/integrations/meta/sync', { method: 'POST', body: { full } }),
     onSuccess: (_r, full) => { toast.info(full ? 'Full sync started: reading the last 90 days of leads. This can take a few minutes.' : 'Sync started'); setTimeout(() => setSyncRequested(true), 1500); qc.invalidateQueries({ queryKey: ['meta', 'status'] }); },
     onError: (e) => toast.error(apiMessage(e)),
   });
   const stop = useMutation({
-    mutationFn: () => api('/super-admin/integrations/meta/sync/stop', { method: 'POST' }),
+    mutationFn: () => api('/manage/integrations/meta/sync/stop', { method: 'POST' }),
     onSuccess: () => { toast.info('Stopping sync. Leads already imported are kept.'); qc.invalidateQueries({ queryKey: ['meta', 'status'] }); },
     onError: (e) => toast.error(apiMessage(e)),
   });
   const disconnect = useMutation({
-    mutationFn: () => api('/super-admin/integrations/meta', { method: 'DELETE' }),
+    mutationFn: () => api('/manage/integrations/meta', { method: 'DELETE' }),
     onSuccess: (r) => { toast.success(r?.warnings?.length ? 'Disconnected (some Meta-side cleanup failed; see the log)' : 'Meta disconnected'); setDialog(null); qc.invalidateQueries({ queryKey: ['meta'] }); },
     onError: (e) => toast.error(apiMessage(e)),
   });
@@ -108,7 +124,11 @@ export function MetaIntegrationCard({ canManage }) {
         {s.state === 'NOT_CONNECTED' && <p className="text-[13px] text-slate-600">Receive Facebook and Instagram lead form submissions in the CRM instantly, with campaign attribution.</p>}
         {c && (
           <>
-            <Row label="Page">{c.page?.name || <span className="text-amber-700">Not selected</span>}</Row>
+            <Row label={c.pages?.length > 1 ? `Pages (${c.pages.length} active)` : 'Page'}>
+              {c.pages?.length
+                ? <span title={c.pages.map((p) => p.name).join(', ')}>{c.pages.map((p) => p.name).join(', ')}</span>
+                : <span className="text-amber-700">None active{c.pagesAvailable ? ` (${c.pagesAvailable} available)` : ''}</span>}
+            </Row>
             <Row label="Ad account">{c.adAccount?.name || '—'}</Row>
             <Row label="Pipeline">{c.website?.code || '—'}</Row>
             <Row label="Last webhook">{h.webhook.lastReceivedAt ? timeAgo(h.webhook.lastReceivedAt) : 'Never'}</Row>
@@ -137,7 +157,8 @@ export function MetaIntegrationCard({ canManage }) {
           )}
           {!c && <Button variant="ghost" onClick={() => setDialog('manage')}>Activity log</Button>}
           {s.state === 'ERROR' && <Button loading={connect.isPending} onClick={() => connect.mutate()}><PlugZap />Reconnect</Button>}
-          {s.state === 'SETUP_REQUIRED' && <Button onClick={() => setDialog('assets')}><Settings2 />Choose Page</Button>}
+          {s.state === 'SETUP_REQUIRED' && <Button onClick={() => setDialog('pages')}><Settings2 />Choose Pages</Button>}
+          {c && s.state !== 'SETUP_REQUIRED' && <Button variant="outline" onClick={() => setDialog('pages')}><Layers />Pages{c.pagesAvailable ? ` (${c.pages?.length || 0}/${c.pagesAvailable})` : ''}</Button>}
           {c && <Button variant="outline" onClick={() => setDialog('manage')}><Settings2 />Manage</Button>}
           {c && s.state !== 'SETUP_REQUIRED' && (syncing ? (
             <Button variant="outline" className="border-red-200 text-red-700 hover:bg-red-50" loading={stop.isPending} onClick={() => stop.mutate()}><Square />Stop sync</Button>
@@ -151,6 +172,7 @@ export function MetaIntegrationCard({ canManage }) {
       ) : null}
 
       {dialog === 'assets' && <MetaAssetSelector open onOpenChange={(o) => !o && setDialog(null)} />}
+      {dialog === 'pages' && <MetaPagesManager open onOpenChange={(o) => !o && setDialog(null)} />}
       <MetaConnectionModal open={dialog === 'manage'} onOpenChange={(o) => !o && setDialog(null)} status={s} canManage={canManage} onChangeAssets={() => setDialog('assets')} />
       <Dialog open={dialog === 'disconnect'} onOpenChange={(o) => !o && setDialog(null)}>
         <DialogContent className="max-w-md">

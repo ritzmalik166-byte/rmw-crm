@@ -1,5 +1,5 @@
 'use client';
-import { LayoutDashboard, Users2, CalendarClock, Bell, Settings, ShieldCheck, Briefcase, Handshake } from 'lucide-react';
+import { LayoutDashboard, Users2, CalendarClock, Bell, Settings, ShieldCheck, Briefcase, Handshake, Plug } from 'lucide-react';
 import { AreaShell } from '@/components/layout/AppShell';
 import { MetaMark } from '@/components/integrations/MetaLogo';
 
@@ -26,6 +26,7 @@ const NAV = [
     { href: '/crm/notifications', label: 'Notifications', icon: Bell },
   ] },
   { title: 'Account', items: [
+    { href: '/crm/integrations', label: 'Integrations', icon: Plug, perm: 'integration.manage' },
     { href: '/crm/settings', label: 'Settings', icon: Settings, exact: true },
     { href: '/crm/settings/security', label: 'Security & devices', icon: ShieldCheck },
   ] },

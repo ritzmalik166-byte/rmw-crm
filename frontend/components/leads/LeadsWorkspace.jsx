@@ -54,7 +54,7 @@ function StatusCell({ lead, editable }) {
 }
 
 const JUNK_LABELS = { career: 'Job application', job_seeker: 'Job seeker / vendor', spam: 'Spam', test: 'Test', internal: 'Internal', repeat: 'Repeat submit', bad_phone: 'Fake phone', bad_name: 'Bad name', empty: 'Empty' };
-const FILTER_KEYS = ['search', 'view', 'websiteId', 'statusId', 'source', 'sourceType', 'formId', 'clientName', 'channel', 'campaign', 'interest', 'formType', 'assignedUserId', 'from', 'to', 'duplicates', 'junk', 'sort', 'dir', 'page'];
+const FILTER_KEYS = ['search', 'view', 'websiteId', 'statusId', 'source', 'sourceType', 'formId', 'pageId', 'clientName', 'channel', 'campaign', 'interest', 'formType', 'assignedUserId', 'from', 'to', 'duplicates', 'junk', 'sort', 'dir', 'page'];
 const VIEWS = [
   { key: '', label: 'All' },
   { key: 'mine', label: 'My leads' },

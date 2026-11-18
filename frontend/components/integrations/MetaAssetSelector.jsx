@@ -14,9 +14,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 /** Choose Business / Page / Instagram / Ad account + CRM website and team. Tokens never reach the browser. */
 export function MetaAssetSelector({ open, onOpenChange }) {
   const qc = useQueryClient();
-  const assets = useQuery({ queryKey: ['meta', 'assets'], queryFn: () => api('/super-admin/integrations/meta/assets'), enabled: open, staleTime: 60_000, retry: false });
-  const websites = useQuery({ queryKey: ['admin', 'websites'], queryFn: () => api('/admin/websites'), enabled: open, staleTime: 60_000 });
-  const teams = useQuery({ queryKey: ['admin', 'teams'], queryFn: () => api('/admin/teams'), enabled: open, staleTime: 60_000 });
+  const assets = useQuery({ queryKey: ['meta', 'assets'], queryFn: () => api('/manage/integrations/meta/assets'), enabled: open, staleTime: 60_000, retry: false });
+  const websites = useQuery({ queryKey: ['admin', 'websites'], queryFn: () => api('/manage/websites'), enabled: open, staleTime: 60_000 });
+  const teams = useQuery({ queryKey: ['admin', 'teams'], queryFn: () => api('/manage/teams'), enabled: open, staleTime: 60_000 });
   const [f, setF] = useState(null);
 
   useEffect(() => {
@@ -37,7 +37,7 @@ export function MetaAssetSelector({ open, onOpenChange }) {
 
   const forms = useQuery({
     queryKey: ['meta', 'forms', f?.pageId],
-    queryFn: () => api(`/super-admin/integrations/meta/assets/forms${toQuery({ pageId: f.pageId })}`),
+    queryFn: () => api(`/manage/integrations/meta/assets/forms${toQuery({ pageId: f.pageId })}`),
     enabled: open && Boolean(f?.pageId), retry: false, staleTime: 60_000,
   });
 
@@ -49,7 +49,7 @@ export function MetaAssetSelector({ open, onOpenChange }) {
   });
 
   const save = useMutation({
-    mutationFn: () => api('/super-admin/integrations/meta/selection', {
+    mutationFn: () => api('/manage/integrations/meta/selection', {
       method: 'PUT',
       body: {
         pageId: f.pageId, businessId: f.businessId || null, instagramId: f.instagramId || null, adAccountId: f.adAccountId || null,

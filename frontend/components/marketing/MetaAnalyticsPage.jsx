@@ -16,7 +16,7 @@ import { MetaOverview } from './MetaOverview';
 import { ConversionFunnel } from './ConversionFunnel';
 import { CampaignPerformance } from './CampaignPerformance';
 
-const EMPTY = { campaignId: '', adSetId: '', adId: '', formId: '', assignedUserId: '', statusId: '', platform: '', websiteId: '' };
+const EMPTY = { pageId: '', campaignId: '', adSetId: '', adId: '', formId: '', assignedUserId: '', statusId: '', platform: '', websiteId: '' };
 
 function DayTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
@@ -32,6 +32,7 @@ export function MetaAnalyticsPage({ integrationsHref }) {
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['meta', 'analytics', q], queryFn: () => api(`/admin/marketing/meta/analytics${toQuery(q)}`), placeholderData: keepPreviousData,
   });
+  const pages = useQuery({ queryKey: ['meta', 'activePages'], queryFn: () => api('/admin/marketing/meta/pages'), staleTime: 60_000 });
   const set = (k) => (e) => setF((s) => {
     const next = { ...s, [k]: e.target.value };
     if (k === 'campaignId') { next.adSetId = ''; next.adId = ''; }
@@ -50,7 +51,15 @@ export function MetaAnalyticsPage({ integrationsHref }) {
         description="Facebook + Instagram lead ads: volume, funnel and cost per lead from CRM data."
         actions={integrationsHref ? <Button variant="outline" asChild><Link href={integrationsHref}><ExternalLink />Connection</Link></Button> : null}
       />
-      <div className="mb-3"><DateRangeFilter value={range} onChange={setRange} /></div>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <DateRangeFilter value={range} onChange={setRange} />
+        {pages.data?.length > 1 && (
+          <Select className="w-full sm:w-64" value={f.pageId} onChange={set('pageId')} aria-label="Facebook Page">
+            <option value="">All Pages ({pages.data.length})</option>
+            {pages.data.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </Select>
+        )}
+      </div>
       <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
         <Select value={f.campaignId} onChange={set('campaignId')} aria-label="Campaign"><option value="">All campaigns</option>{o?.campaigns.map((c) => <option key={c.id} value={c.id}>{c.name || c.id}</option>)}</Select>
         <Select value={f.adSetId} onChange={set('adSetId')} aria-label="Ad set"><option value="">All ad sets</option>{adSets.map((c) => <option key={c.id} value={c.id}>{c.name || c.id}</option>)}</Select>

@@ -1,9 +1,9 @@
 'use client';
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Globe2, X, Users2, FileText, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Globe2, X, Users2, FileText, ShieldAlert, ChevronRight } from 'lucide-react';
 import { api } from '@/lib/api';
 import { cn, toQuery } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
@@ -63,6 +63,79 @@ function ChannelHeader({ channel, tab, tabs, standalone = false, eyebrow = null 
   );
 }
 
+/** Page avatar: Facebook's public Page picture, falling back to the first letter when it can't load. */
+function PageAvatar({ page, className }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <span className={cn('flex items-center justify-center rounded-full bg-blue-100 font-semibold text-blue-700', className)}>{page.name?.[0]?.toUpperCase() || 'P'}</span>;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={page.picture} alt="" className={cn('rounded-full object-cover ring-1 ring-slate-200', className)} onError={() => setFailed(true)} referrerPolicy="no-referrer" />;
+}
+
+const Stat = ({ label, value, tone = 'text-slate-900' }) => (
+  <div className="rounded-lg bg-slate-50 px-2.5 py-1.5"><p className="text-[11px] uppercase tracking-wide text-slate-500">{label}</p><p className={cn('text-[16px] font-semibold tabular-nums', tone)}>{value}</p></div>
+);
+
+/**
+ * Landing view of Meta Leads: one large card per Facebook Page (Eldeco Group, Premium Properties, My Property Fact…).
+ * Leads are shown only after a card is opened (?pageId=…); "All Pages" (?pages=all) lists every Meta lead.
+ */
+function MetaPageGrid({ pages, hrefFor }) {
+  const total = pages.reduce((a, p) => a + p.total, 0);
+  const today = pages.reduce((a, p) => a + p.today, 0);
+  const box = 'group flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 transition hover:border-blue-400 hover:shadow-md';
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {pages.map((p) => (
+        <Link key={p.id} href={hrefFor(p.id)} className={box}>
+          <div className="flex items-center gap-3">
+            <PageAvatar page={p} className="h-14 w-14 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[15px] font-semibold text-slate-900">{p.name}</p>
+              <p className="text-[12px] text-slate-500">{p.category || 'Facebook Page'}</p>
+              {!p.active && <p className="text-[11.5px] text-amber-700">Page switched off: new leads paused</p>}
+            </div>
+            <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-blue-600" />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <Stat label="Leads" value={p.total} />
+            <Stat label="Today" value={p.today} tone="text-emerald-700" />
+            <Stat label="New" value={p.newLeads} tone="text-blue-700" />
+          </div>
+          <p className="text-[12px] font-medium text-blue-700 group-hover:underline">View leads →</p>
+        </Link>
+      ))}
+      <Link href={hrefFor('all')} className={cn(box, 'border-dashed')}>
+        <div className="flex items-center gap-3">
+          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100"><MetaLogo className="h-7 w-7" tile={false} badge={false} /></span>
+          <div className="min-w-0 flex-1"><p className="text-[15px] font-semibold text-slate-900">All Pages</p><p className="text-[12px] text-slate-500">Every Meta lead together</p></div>
+          <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-blue-600" />
+        </div>
+        <div className="grid grid-cols-3 gap-2"><Stat label="Leads" value={total} /><Stat label="Today" value={today} tone="text-emerald-700" /><Stat label="Pages" value={pages.length} /></div>
+        <p className="text-[12px] font-medium text-blue-700 group-hover:underline">View all leads →</p>
+      </Link>
+    </div>
+  );
+}
+
+/** Header shown above the leads of one opened Page, with a way back to the Page cards. */
+function MetaPageBar({ page, backHref }) {
+  return (
+    <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/50 px-3 py-2.5">
+      <div className="flex min-w-0 items-center gap-3">
+        {page ? <PageAvatar page={page} className="h-10 w-10 shrink-0" />
+          : <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white"><MetaLogo className="h-6 w-6" tile={false} badge={false} /></span>}
+        <div className="min-w-0">
+          <p className="truncate text-[14px] font-semibold text-slate-900">{page ? page.name : 'All Pages'}</p>
+          <p className="text-[12px] text-slate-600">{page ? `${page.total} leads · ${page.today} today` : 'Every Meta lead from all Pages'}</p>
+        </div>
+      </div>
+      <Link href={backHref} className="inline-flex shrink-0 items-center gap-1 rounded-md border bg-white px-2.5 py-1.5 text-[12.5px] font-medium text-slate-700 hover:bg-slate-50">
+        <ArrowLeft className="h-3.5 w-3.5" />All Pages
+      </Link>
+    </div>
+  );
+}
+
 /** Meta channel view. Used inside MPF Leads (?channel=meta) and standalone at /crm/meta (sidebar). */
 export function MetaChannel({ standalone = false }) {
   const params = useSearchParams();
@@ -77,6 +150,14 @@ export function MetaChannel({ standalone = false }) {
     staleTime: 60_000,
   });
   const form = formId ? forms?.find((f) => f.formId === formId) : null;
+  const pageId = params.get('pageId');
+  const { data: metaPages } = useQuery({ queryKey: ['meta', 'page-cards'], queryFn: () => api('/crm/meta/pages'), staleTime: 60_000 });
+  const showAll = params.get('pages') === 'all';
+  const junkQ = tab === 'junk' ? 'only' : undefined;
+  const pageHref = (id) => `${pathname}${toQuery({ channel: 'meta', junk: junkQ, ...(id === 'all' ? { pages: 'all' } : { pageId: id || undefined }) })}`;
+  const openPage = pageId ? metaPages?.find((p) => p.id === pageId) : null;
+  // Landing: Page cards only. Leads appear once a card (or "All Pages") is opened, or when arriving with a form filter.
+  const landing = Boolean(metaPages?.length) && !pageId && !showAll && !formId;
   const tabs = [
     { key: 'leads', label: 'Leads', icon: Users2, href: `${pathname}?channel=meta`, count: pipe?.counts?.mpf?.total },
     { key: 'junk', label: 'Junk & test', icon: ShieldAlert, href: `${pathname}?channel=meta&junk=only`, count: junkCount },
@@ -85,8 +166,9 @@ export function MetaChannel({ standalone = false }) {
   return (
     <>
       <ChannelHeader channel="meta" tab={tab} tabs={tabs} standalone={standalone} />
-      {tab === 'forms' ? <Card className="overflow-hidden"><MetaLeadFormsList /></Card> : (
+      {tab === 'forms' ? <Card className="overflow-hidden"><MetaLeadFormsList /></Card> : landing ? <MetaPageGrid pages={metaPages} hrefFor={pageHref} /> : (
         <>
+          {(pageId || showAll) && <MetaPageBar page={openPage} backHref={pageHref(null)} />}
           {formId && (
             <div className="mb-3 flex items-center justify-between gap-2 rounded-lg border border-blue-200 bg-blue-50/60 px-3 py-2 text-[13px] text-blue-950">
               <span className="flex min-w-0 items-center gap-2"><FileText className="h-4 w-4 shrink-0" /><span className="truncate">Form: <b>{form?.name || formId}</b></span></span>
@@ -99,7 +181,7 @@ export function MetaChannel({ standalone = false }) {
               <span>Meta leads flagged automatically: test leads (Meta&apos;s testing tool), repeat submissions within 24 hours, fake numbers, spam and internal entries. Each row shows the reason. They are kept here and never counted in the main numbers.</span>
             </p>
           )}
-          <LeadsWorkspace key={`mpf-meta-${tab}-${formId || ''}`} pipelineKey="mpf" channel="meta" />
+          <LeadsWorkspace key={`mpf-meta-${tab}-${formId || ''}-${pageId || ''}`} pipelineKey="mpf" channel="meta" />
         </>
       )}
     </>

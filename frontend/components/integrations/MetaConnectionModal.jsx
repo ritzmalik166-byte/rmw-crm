@@ -29,12 +29,12 @@ function Kv({ label, children }) {
 function RoutingForm({ status }) {
   const qc = useQueryClient();
   const c = status.connection;
-  const websites = useQuery({ queryKey: ['admin', 'websites'], queryFn: () => api('/admin/websites'), staleTime: 60_000 });
-  const teams = useQuery({ queryKey: ['admin', 'teams'], queryFn: () => api('/admin/teams'), staleTime: 60_000 });
+  const websites = useQuery({ queryKey: ['admin', 'websites'], queryFn: () => api('/manage/websites'), staleTime: 60_000 });
+  const teams = useQuery({ queryKey: ['admin', 'teams'], queryFn: () => api('/manage/teams'), staleTime: 60_000 });
   const [websiteId, setWebsiteId] = useState(c.website?.id ? String(c.website.id) : '');
   const [teamId, setTeamId] = useState(c.assignmentTeam?.id ? String(c.assignmentTeam.id) : '');
   const save = useMutation({
-    mutationFn: () => api('/super-admin/integrations/meta/settings', { method: 'PATCH', body: { websiteId: Number(websiteId), assignmentTeamId: teamId ? Number(teamId) : null } }),
+    mutationFn: () => api('/manage/integrations/meta/settings', { method: 'PATCH', body: { websiteId: Number(websiteId), assignmentTeamId: teamId ? Number(teamId) : null } }),
     onSuccess: () => { toast.success('Lead routing saved'); qc.invalidateQueries({ queryKey: ['meta'] }); },
     onError: (e) => toast.error(apiMessage(e)),
   });
@@ -61,9 +61,9 @@ function RoutingForm({ status }) {
 function Deliveries({ canManage }) {
   const qc = useQueryClient();
   const [f, setF] = useState({ status: '', page: 1 });
-  const events = useQuery({ queryKey: ['meta', 'events', f], queryFn: () => api(`/admin/integrations/meta/events${toQuery({ ...f, limit: 15 })}`), placeholderData: keepPreviousData });
+  const events = useQuery({ queryKey: ['meta', 'events', f], queryFn: () => api(`/manage/integrations/meta/events${toQuery({ ...f, limit: 15 })}`), placeholderData: keepPreviousData });
   const retry = useMutation({
-    mutationFn: (id) => api(`/super-admin/integrations/meta/events/${id}/retry`, { method: 'POST' }),
+    mutationFn: (id) => api(`/manage/integrations/meta/events/${id}/retry`, { method: 'POST' }),
     onSuccess: () => { toast.success('Retry queued'); qc.invalidateQueries({ queryKey: ['meta'] }); },
     onError: (e) => toast.error(apiMessage(e)),
   });
@@ -97,7 +97,7 @@ function Deliveries({ canManage }) {
 }
 
 function ActivityLog() {
-  const logs = useQuery({ queryKey: ['meta', 'logs'], queryFn: () => api('/admin/integrations/meta/logs?limit=100'), refetchInterval: 15_000 });
+  const logs = useQuery({ queryKey: ['meta', 'logs'], queryFn: () => api('/manage/integrations/meta/logs?limit=100'), refetchInterval: 15_000 });
   if (logs.isLoading) return <TableSkeleton rows={6} cols={3} />;
   if (!logs.data?.length) return <EmptyState title="No activity yet" />;
   return (
