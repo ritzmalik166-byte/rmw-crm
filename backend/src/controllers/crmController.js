@@ -60,7 +60,7 @@ export const crmController = {
     const r = req.query.from || req.query.to || req.query.range === 'today' ? dashboardRange(req.query) : null;
     const channel = ['meta', 'website', 'client'].includes(req.query.channel) ? req.query.channel : null;
     assertChannel(req, channel);
-    ok(res, { ...(await leadService.pipelineCounts(req, r, channel)), range: r });
+    ok(res, { ...(await leadService.pipelineCounts(req, r, channel, channel === 'meta' && /^\d{1,32}$/.test(String(req.query.pageId || '')) ? String(req.query.pageId) : null)), range: r });
   },
   async lookups(req, res) {
     const [statuses, sources, users] = await Promise.all([leadService.statuses(), leadService.sources(), leadService.assignableUsers(req)]);

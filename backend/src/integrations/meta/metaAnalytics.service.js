@@ -132,7 +132,7 @@ export const metaAnalytics = {
     if (f.websiteId) { websiteScope(req, f.websiteId); where.push('l.website_id = ?'); params.push(Number(f.websiteId)); }
     const inRange = from && to ? `SUM(${RECEIVED} BETWEEN ? AND ?)` : 'NULL';
     const [counts, forms] = await Promise.all([
-      query(`SELECT l.form_id, MAX(l.form_name) name, COUNT(*) total, SUM(s.code = 'NEW') new_leads, SUM(l.assigned_user_id IS NULL) unassigned,
+      query(`SELECT l.form_id, MAX(l.form_name) name, MAX(l.page_id) page_id, COUNT(*) total, SUM(s.code = 'NEW') new_leads, SUM(l.assigned_user_id IS NULL) unassigned,
                SUM(s.is_conversion) converted, MAX(${RECEIVED}) last_lead_at, ${inRange} in_range ${FROM}
              WHERE ${where.join(' AND ')} GROUP BY l.form_id`, [...(from && to ? [from, to] : []), ...params]),
       query("SELECT f.form_id, f.name, f.status, f.page_id, a.name page_name FROM meta_forms f LEFT JOIN meta_assets a ON a.asset_type = 'PAGE' AND a.external_id = f.page_id AND a.connection_id = f.connection_id"),
@@ -141,11 +141,11 @@ export const metaAnalytics = {
     const rows = counts.map((c) => {
       const m = byId.get(c.form_id);
       byId.delete(c.form_id);
-      return { formId: c.form_id, name: m?.name || c.name || `Form ${c.form_id}`, status: m?.status || null, pageName: m?.page_name || null,
+      return { formId: c.form_id, name: m?.name || c.name || `Form ${c.form_id}`, status: m?.status || null, pageId: m?.page_id || c.page_id || null, pageName: m?.page_name || null,
         total: n(c.total), newLeads: n(c.new_leads), unassigned: n(c.unassigned), converted: n(c.converted), inRange: c.in_range == null ? null : n(c.in_range), lastLeadAt: c.last_lead_at };
     });
     for (const m of byId.values()) {
-      rows.push({ formId: m.form_id, name: m.name || `Form ${m.form_id}`, status: m.status, pageName: m.page_name, total: 0, newLeads: 0, unassigned: 0, converted: 0, inRange: from && to ? 0 : null, lastLeadAt: null });
+      rows.push({ formId: m.form_id, name: m.name || `Form ${m.form_id}`, status: m.status, pageId: m.page_id, pageName: m.page_name, total: 0, newLeads: 0, unassigned: 0, converted: 0, inRange: from && to ? 0 : null, lastLeadAt: null });
     }
     return rows.sort((a, b) => b.total - a.total || String(a.name).localeCompare(String(b.name)));
   },

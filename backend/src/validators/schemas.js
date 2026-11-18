@@ -55,7 +55,7 @@ export const leads = {
     to: optStr(40).refine((v) => !v || !Number.isNaN(Date.parse(v)), 'Invalid date'),
     duplicates: bool.optional(),
     junk: z.enum(['hide', 'only', 'all']).optional(),
-    pipeline: z.enum(['mpf', 'ct', 'rmw', 'career', 'general']).optional(),
+    pipeline: z.enum(['mpf', 'ct', 'ctmpl', 'rmw', 'career', 'general']).optional(),
     formType: optStr(80),
     clientName: optStr(150),
     interest: optStr(100),

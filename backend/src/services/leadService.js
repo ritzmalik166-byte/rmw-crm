@@ -37,6 +37,7 @@ const siteIs = (code) => `l.website_id = (SELECT id FROM websites WHERE code = '
 export const PIPELINES = {
   mpf: { sql: siteIs('MPF'), params: [] },
   ct: { sql: siteIs('CT'), params: [] },
+  ctmpl: { sql: siteIs('CTMPL'), params: [] },
   rmw: { sql: `${siteIs('RMW')} AND NOT ${IS_CAREER}`, params: [] },
   career: { sql: IS_CAREER, params: [] },
   general: { sql: `NOT ${IS_CAREER}`, params: [] },
@@ -85,7 +86,7 @@ function buildFilters(req, f) {
     const s = f.search.trim();
     const digits = s.replace(/\D/g, '');
     if (digits.length >= 6) { where.push('l.phone_normalized LIKE ?'); params.push(`%${normalizePhone(digits)}%`); }
-    else { where.push('(l.name LIKE ? OR l.email LIKE ? OR l.external_lead_id LIKE ? OR l.interest LIKE ?)'); const q = `%${s}%`; params.push(q, q, q, q); }
+    else { where.push('(l.name LIKE ? OR l.email LIKE ? OR l.external_lead_id LIKE ? OR l.interest LIKE ? OR l.form_name LIKE ? OR l.campaign_name LIKE ?)'); const q = `%${s}%`; params.push(q, q, q, q, q, q); }
   }
   return { where: where.join(' AND '), params };
 }
@@ -358,10 +359,11 @@ export const leadService = {
   },
 
   /** Per-pipeline counts for navigation and the dashboard (respects website access and visibility). */
-  async pipelineCounts(req, r, channel = null) {
-    // Optional channel split (MPF page: Website / App vs Meta).
+  async pipelineCounts(req, r, channel = null, pageId = null) {
+    // Optional channel split (MPF page: Website / App vs Meta), and one Facebook Page inside Meta.
     const c = channelSql(channel);
-    const ch = c.sql ? { sql: ` AND ${c.sql}`, params: c.params } : c;
+    const ch = c.sql ? { sql: ` AND ${c.sql}`, params: [...c.params] } : { sql: '', params: [] };
+    if (pageId) { ch.sql += ' AND l.page_id = ?'; ch.params.push(String(pageId)); }
     const vis = leadVisibilitySql(req);
     const out = {};
     for (const [key, p] of Object.entries(PIPELINES)) {
