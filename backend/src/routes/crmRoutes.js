@@ -26,6 +26,7 @@ r.post('/duplicates/:id/resolve', requirePermission('lead.merge'), validate(s.du
 
 r.get('/client-sources', requirePermission('lead.view'), h(c.clientSources));
 r.get('/meta/forms', requirePermission('lead.view'), h(c.metaForms));
+r.get('/meta/pages', requirePermission('lead.view'), h(c.metaPages));
 
 r.get('/followups', validate(s.followupQuery, 'query'), h(c.listFollowups));
 r.patch('/followups/:id', validate(s.followupUpdate), h(c.updateFollowup));

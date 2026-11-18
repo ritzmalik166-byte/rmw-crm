@@ -12,6 +12,7 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/authRoutes.js';
 import crmRoutes from './routes/crmRoutes.js';
 import { adminRouter, superAdminRouter } from './routes/adminRoutes.js';
+import { integrationManageRouter } from './routes/integrationManageRoutes.js';
 import integrationRoutes from './routes/integrationRoutes.js';
 import { metaPublicRouter } from './integrations/meta/meta.routes.js';
 import { leadCapturePublicRouter } from './routes/leadCaptureRoutes.js';
@@ -50,6 +51,7 @@ export function createApp() {
   app.use('/api/crm', crmRoutes);
   app.use('/api/admin', adminRouter);
   app.use('/api/super-admin', superAdminRouter);
+  app.use('/api/manage', integrationManageRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

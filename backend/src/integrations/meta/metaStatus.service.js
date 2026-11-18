@@ -28,7 +28,10 @@ export async function metaStatus({ checkToken = true } = {}) {
   const pub = await repo.currentPublic();
   const assets = await repo.selectedAssets(conn.id);
   const asset = (t) => assets.find((a) => a.asset_type === t) || null;
-  const page = asset('PAGE');
+  const activePages = assets.filter((a) => a.asset_type === 'PAGE');
+  const page = activePages[0] || null;
+  const [pageCounts] = await query("SELECT COUNT(*) total FROM meta_assets WHERE connection_id = ? AND asset_type = 'PAGE'", [conn.id]);
+  const allSubscribed = activePages.length > 0 && activePages.every((p) => p.webhook_subscribed_at);
   const [forms] = await query('SELECT COUNT(*) c FROM meta_forms WHERE connection_id = ?', [conn.id]);
   const [events] = await query(
     `SELECT SUM(status = 'FAILED') failed, SUM(status IN ('RECEIVED','PROCESSING')) pending,
@@ -48,6 +51,8 @@ export async function metaStatus({ checkToken = true } = {}) {
       assignmentTeam: pub.assignment_team_id ? { id: pub.assignment_team_id, name: pub.assignment_team_name } : null,
       business: asset('BUSINESS') && { id: asset('BUSINESS').external_id, name: asset('BUSINESS').name },
       page: page && { id: page.external_id, name: page.name, webhookSubscribed: Boolean(page.webhook_subscribed_at), subscribedAt: page.webhook_subscribed_at },
+      pages: activePages.map((p) => ({ id: p.external_id, name: p.name, webhookSubscribed: Boolean(p.webhook_subscribed_at) })),
+      pagesAvailable: Number(pageCounts?.total || 0),
       instagram: asset('INSTAGRAM') && { id: asset('INSTAGRAM').external_id, name: asset('INSTAGRAM').name },
       adAccount: asset('AD_ACCOUNT') && { id: asset('AD_ACCOUNT').external_id, name: asset('AD_ACCOUNT').name },
       formsCount: Number(forms?.c || 0),
@@ -55,7 +60,7 @@ export async function metaStatus({ checkToken = true } = {}) {
     health: {
       token: { valid: tokenValid, expiresAt: pub.token_expires_at, checkedAt: pub.token_checked_at, missingScopes: missingScopes(scopes) },
       api: { ok: token ? !token.apiError : null, error: token?.apiError || null },
-      webhook: { subscribed: Boolean(page?.webhook_subscribed_at), configured: base.webhookConfigured, lastReceivedAt: pub.last_webhook_at },
+      webhook: { subscribed: allSubscribed, configured: base.webhookConfigured, lastReceivedAt: pub.last_webhook_at },
       lastLeadAt: pub.last_lead_at,
       events: { failed: Number(events?.failed || 0), pending: Number(events?.pending || 0), last24h: Number(events?.last24h || 0) },
       leads: { total: Number(leads?.total || 0), last24h: Number(leads?.last24h || 0) },

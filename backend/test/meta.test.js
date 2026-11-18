@@ -75,8 +75,10 @@ describe('lead normalisation', () => {
     assert.deepEqual(c.attributionOverride, { source: 'facebook', medium: 'paid_social', campaign: 'Noida 3BHK Campaign', term: 'Noida High Intent', content: '3BHK Creative 02' });
     assert.equal(c.externalCreatedAt.toISOString(), '2026-11-16T08:45:00.000Z');
     assert.equal(c.receivedActivity.type, 'META_LEAD_RECEIVED');
-    assert.equal(c.notify.title, 'New Meta Lead Received');
-    assert.match(c.notify.body, /Rahul Sharma · 3 BHK - Noida · Campaign: Noida 3BHK Campaign/);
+    assert.equal(c.notify.title, 'New Meta lead');
+    assert.match(c.notify.body, /Rahul Sharma · 3 BHK - Noida · Form: Noida Enquiry Form · Campaign: Noida 3BHK Campaign/);
+    const named = normalizeMetaLead(LEAD, { pageId: '555', pageName: 'Eldeco Group', formName: 'Noida Enquiry Form' });
+    assert.equal(named.notify.title, 'New Meta lead · Eldeco Group');
   });
 
   test('missing phone', () => {

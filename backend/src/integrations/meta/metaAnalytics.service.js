@@ -7,6 +7,8 @@ import { query } from '../../config/db.js';
 import { leadVisibilitySql, websiteScope } from '../../middleware/scope.js';
 import { parseBound } from '../../utils/dateRange.js';
 import { LEAD_SOURCE_TYPES } from '../../config/leadSources.js';
+import { metaConnectionRepo } from './metaConnection.repo.js';
+import { graph } from './metaApi.service.js';
 
 export const FUNNEL_STAGES = [
   { key: 'leads', label: 'Meta leads', rank: 0 },
@@ -48,6 +50,7 @@ function filters(req, f) {
   const where = [vis.sql, 'l.source_type = ?', 'l.merged_into_lead_id IS NULL', `${RECEIVED} BETWEEN ? AND ?`];
   const params = [...vis.params, LEAD_SOURCE_TYPES.META, from, to];
   if (f.websiteId) { websiteScope(req, f.websiteId); where.push('l.website_id = ?'); params.push(Number(f.websiteId)); }
+  if (f.pageId) { where.push('l.page_id = ?'); params.push(f.pageId); }
   if (f.campaignId) { where.push('l.campaign_id = ?'); params.push(f.campaignId); }
   if (f.adSetId) { where.push('l.ad_set_id = ?'); params.push(f.adSetId); }
   if (f.adId) { where.push('l.ad_id = ?'); params.push(f.adId); }
@@ -145,6 +148,54 @@ export const metaAnalytics = {
       rows.push({ formId: m.form_id, name: m.name || `Form ${m.form_id}`, status: m.status, pageName: m.page_name, total: 0, newLeads: 0, unassigned: 0, converted: 0, inRange: from && to ? 0 : null, lastLeadAt: null });
     }
     return rows.sort((a, b) => b.total - a.total || String(a.name).localeCompare(String(b.name)));
+  },
+
+  /**
+   * One card per Facebook Page for the Meta Leads screen: active Pages plus any Page that already has leads the caller
+   * can see. Counts respect lead visibility; junk excluded. The picture is Facebook's public Page picture URL.
+   */
+  async pageCards(req) {
+    const vis = leadVisibilitySql(req);
+    const [pages, counts] = await Promise.all([
+      query(`SELECT a.external_id id, MAX(a.name) name, MAX(a.is_selected) active, MAX(a.meta) meta FROM meta_assets a
+             JOIN meta_connections c ON c.id = a.connection_id AND c.status <> 'DISCONNECTED'
+             WHERE a.asset_type = 'PAGE' GROUP BY a.external_id`),
+      query(`SELECT l.page_id, COUNT(*) total, SUM(s.code = 'NEW') new_leads,
+               SUM(${RECEIVED} >= CONVERT_TZ(DATE(CONVERT_TZ(NOW(), '+00:00', ${IST})), ${IST}, '+00:00')) today, MAX(${RECEIVED}) last_lead_at
+             ${FROM} WHERE ${vis.sql} AND l.source_type = ? AND l.merged_into_lead_id IS NULL AND l.junk_reason IS NULL AND l.page_id IS NOT NULL
+             GROUP BY l.page_id`, [...vis.params, LEAD_SOURCE_TYPES.META]),
+    ]);
+    const byPage = new Map(counts.map((c) => [String(c.page_id), c]));
+    // Pages that have leads but are not stored (e.g. not ticked at the last Meta login): add a card for them too,
+    // with the name looked up from Meta once and saved as a switched-off Page.
+    const known = new Set(pages.map((p) => String(p.id)));
+    const missing = [...byPage.keys()].filter((id) => !known.has(id) && /^\d{1,32}$/.test(id));
+    if (missing.length) {
+      const conn = await metaConnectionRepo.current();
+      const token = conn && conn.status !== 'DISCONNECTED' ? metaConnectionRepo.userToken(conn) : null;
+      for (const id of missing) {
+        let name = null;
+        if (token) name = (await graph(id, { token, params: { fields: 'name' } }).catch(() => null))?.name || null;
+        if (conn && name) {
+          await query(`INSERT IGNORE INTO meta_assets (connection_id, asset_type, external_id, name, is_selected) VALUES (?, 'PAGE', ?, ?, 0)`,
+            [conn.id, id, name.slice(0, 255)]);
+        }
+        pages.push({ id, name, active: 0, meta: null });
+      }
+    }
+    // Every Page the connection knows (on or off, with or without leads) gets its own card.
+    return pages
+      .map((p) => {
+        const c = byPage.get(String(p.id)) || {};
+        let meta = {};
+        try { meta = typeof p.meta === 'string' ? JSON.parse(p.meta) : p.meta || {}; } catch { meta = {}; }
+        return {
+          id: String(p.id), name: p.name || `Page ${p.id}`, active: Boolean(Number(p.active)), category: meta.category || null,
+          picture: `https://graph.facebook.com/${p.id}/picture?type=large`,
+          total: n(c.total), newLeads: n(c.new_leads), today: n(c.today), lastLeadAt: c.last_lead_at || null,
+        };
+      })
+      .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
   },
 
   /** Values for the filter dropdowns (only what exists in the caller's visible Meta leads). */

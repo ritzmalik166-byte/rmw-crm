@@ -22,8 +22,10 @@ const schemas = {
     assignmentTeamId: id.optional().nullable(),
   }),
   settings: z.object({ websiteId: id.optional(), assignmentTeamId: id.optional().nullable() }),
+  page: z.object({ active: z.boolean().optional(), websiteId: id.optional().nullable(), assignmentTeamId: id.optional().nullable() })
+    .refine((v) => v.active !== undefined || v.websiteId !== undefined || v.assignmentTeamId !== undefined, 'Nothing to update'),
   analyticsQuery: z.object({
-    from: z.string().max(40).optional(), to: z.string().max(40).optional(), websiteId: id.optional(),
+    from: z.string().max(40).optional(), to: z.string().max(40).optional(), websiteId: id.optional(), pageId: metaId.optional(),
     campaignId: metaId.optional(), adSetId: metaId.optional(), adId: metaId.optional(), formId: metaId.optional(),
     statusId: id.optional(), platform: z.enum(['facebook', 'instagram']).optional(),
     assignedUserId: z.union([z.literal('unassigned'), id]).optional(),
@@ -47,6 +49,7 @@ metaAdminRouter.get('/integrations/providers', can('integration.view'), h(c.prov
 metaAdminRouter.get('/integrations/meta/status', can('integration.view'), h(c.status));
 metaAdminRouter.get('/integrations/meta/logs', can('integration.view'), h(c.logs));
 metaAdminRouter.get('/integrations/meta/events', can('integration.view'), validate(schemas.eventsQuery, 'query'), h(c.events));
+metaAdminRouter.get('/marketing/meta/pages', can('analytics.view'), h(c.activePages));
 metaAdminRouter.get('/marketing/meta/analytics', can('analytics.view'), validate(schemas.analyticsQuery, 'query'), h(c.analytics));
 
 /** Management, mounted under /api/super-admin (authenticated + area.super_admin + CSRF origin check). */
@@ -55,6 +58,9 @@ const m = can('integration.manage');
 metaSuperAdminRouter.post('/integrations/meta/connect', m, h(c.connect));
 metaSuperAdminRouter.get('/integrations/meta/assets', m, h(c.assets));
 metaSuperAdminRouter.get('/integrations/meta/assets/forms', m, h(c.forms));
+metaSuperAdminRouter.get('/integrations/meta/pages', m, h(c.pages));
+metaSuperAdminRouter.post('/integrations/meta/pages/refresh', m, h(c.refreshPages));
+metaSuperAdminRouter.patch('/integrations/meta/pages/:pageId', m, validate(schemas.page), h(c.updatePage));
 metaSuperAdminRouter.put('/integrations/meta/selection', m, validate(schemas.select), h(c.select));
 metaSuperAdminRouter.patch('/integrations/meta/settings', m, validate(schemas.settings), h(c.settings));
 metaSuperAdminRouter.post('/integrations/meta/sync', m, h(c.sync));

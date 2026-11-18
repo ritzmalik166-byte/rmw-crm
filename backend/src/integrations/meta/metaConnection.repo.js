@@ -74,7 +74,9 @@ export const metaConnectionRepo = {
   /** The selected Page for a page id, with its decrypted token (server use only). */
   async pageWithToken(pageId) {
     const row = await one(
-      `SELECT a.*, c.id AS conn_id, c.status AS conn_status, c.website_id, c.assignment_team_id FROM meta_assets a
+      `SELECT a.*, c.id AS conn_id, c.status AS conn_status,
+         COALESCE(a.website_id, c.website_id) AS website_id, COALESCE(a.assignment_team_id, c.assignment_team_id) AS assignment_team_id
+       FROM meta_assets a
        JOIN meta_connections c ON c.id = a.connection_id
        WHERE a.asset_type = 'PAGE' AND a.external_id = ? AND a.is_selected = 1 ORDER BY c.id DESC LIMIT 1`, [String(pageId)],
     );
@@ -85,4 +87,9 @@ export const metaConnectionRepo = {
   },
 
   encryptToken: (t) => encrypt(t),
+
+  pageTokenFromRow(row) {
+    if (!row?.access_token_enc) return null;
+    try { return decrypt(row.access_token_enc); } catch { return null; }
+  },
 };

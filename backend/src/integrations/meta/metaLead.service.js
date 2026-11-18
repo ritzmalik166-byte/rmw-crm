@@ -127,9 +127,11 @@ export function normalizeMetaLead(lead, ctx = {}) {
     },
     extra: { requirement, budget, platform },
     receivedActivity: { type: 'META_LEAD_RECEIVED', meta: { platform, campaign: campaignName, form: clean(ctx.formName), ad: clean(lead.ad_name) } },
+    // e.g. title "New Meta lead · Eldeco Group (Instagram)", body "Anil Kumar · 3 BHK - Noida · Form: … · Campaign: …"
     notify: {
-      title: 'New Meta Lead Received',
-      body: [name || 'Unnamed', [requirement, location].filter(Boolean).join(' - '), campaignName && `Campaign: ${campaignName}`].filter(Boolean).join(' · ').slice(0, 1000),
+      title: `New Meta lead${ctx.pageName ? ` · ${ctx.pageName}` : ''}${platform === 'instagram' ? ' (Instagram)' : ''}`.slice(0, 190),
+      body: [name || 'Unnamed', [requirement, location].filter(Boolean).join(' - '), clean(ctx.formName) && `Form: ${clean(ctx.formName)}`,
+        campaignName && `Campaign: ${campaignName}`].filter(Boolean).join(' · ').slice(0, 1000),
     },
   };
 }
@@ -174,6 +176,7 @@ export async function importMetaLead(page, lead, { silent = false } = {}) {
   const ig = await one("SELECT external_id FROM meta_assets WHERE connection_id = ? AND asset_type = 'INSTAGRAM' AND parent_external_id = ? AND is_selected = 1", [page.conn_id, page.external_id]);
   const canonical = normalizeMetaLead(lead, {
     pageId: page.external_id,
+    pageName: page.name || null,
     formName: await formName(page.conn_id, page.external_id, lead.form_id, page.token),
     instagramAccountId: ig?.external_id || null,
   });

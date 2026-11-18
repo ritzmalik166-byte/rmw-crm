@@ -63,6 +63,7 @@ function buildFilters(req, f) {
   if (f.source) { where.push('a.source = ?'); params.push(f.source); }
   if (f.sourceType) { where.push('l.source_type = ?'); params.push(f.sourceType); }
   if (f.formId) { where.push('l.form_id = ?'); params.push(f.formId); }
+  if (f.pageId) { where.push('l.page_id = ?'); params.push(f.pageId); }
   const ch = channelSql(f.channel);
   if (ch.sql) { where.push(ch.sql); params.push(...ch.params); }
   if (f.clientName) { where.push('l.form_name = ?'); params.push(f.clientName); }

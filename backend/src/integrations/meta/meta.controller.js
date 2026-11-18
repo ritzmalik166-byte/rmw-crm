@@ -34,7 +34,8 @@ export const metaController = {
     const r = await metaAuth.handleCallback(req);
     const qs = new URLSearchParams({ meta: r.ok ? 'connected' : 'error', reason: r.reason });
     res.setHeader('Cache-Control', 'no-store');
-    res.redirect(302, `${appUrl()}/super-admin/integrations?${qs}`);
+    // /integrations forwards to the Integrations screen the user can open (Super Admin panel or CRM home).
+    res.redirect(302, `${appUrl()}/integrations?${qs}`);
   },
 
   /* ── Admin (integration.view / analytics.view) ───────── */
@@ -47,6 +48,7 @@ export const metaController = {
     const { total, rows } = await metaWebhook.listEvents({ status: q.status || null, limit: q.limit, offset: (q.page - 1) * q.limit });
     ok(res, { rows, meta: pageMeta(q.page, q.limit, total) });
   },
+  async activePages(_req, res) { ok(res, await metaAssets.activePages()); },
   async analytics(req, res) { ok(res, await metaAnalytics.overview(req, req.validQuery)); },
 
   /* ── Super Admin (integration.manage) ─────────────────── */
@@ -57,6 +59,9 @@ export const metaController = {
   },
   async assets(_req, res) { ok(res, await metaAssets.listAvailable()); },
   async forms(req, res) { ok(res, await metaAssets.listForms(String(req.query.pageId || ''))); },
+  async pages(_req, res) { ok(res, await metaAssets.listPages()); },
+  async refreshPages(req, res) { ok(res, await metaAssets.refreshPages(req), 'Pages refreshed'); },
+  async updatePage(req, res) { ok(res, await metaAssets.updatePage(req, String(req.params.pageId || ''), req.body), 'Page saved'); },
   async select(req, res) { ok(res, await metaAssets.select(req, req.body), 'Meta connection saved'); },
   async settings(req, res) { await metaAssets.updateSettings(req, req.body); ok(res, null, 'Settings saved'); },
   async sync(req, res) {

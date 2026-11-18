@@ -69,6 +69,7 @@ export const crmController = {
 
   async clientSources(req, res) { assertChannel(req, 'client'); ok(res, await leadService.clientSources(req)); },
   async metaForms(req, res) { assertChannel(req, 'meta'); ok(res, await metaAnalytics.leadForms(req, req.query)); },
+  async metaPages(req, res) { assertChannel(req, 'meta'); ok(res, await metaAnalytics.pageCards(req)); },
 
   async notifications(req, res) {
     const q = req.validQuery;

@@ -149,9 +149,14 @@ export const metaAuth = {
       });
       const missing = REQUIRED_SCOPES.filter((s) => !info.scopes.includes(s));
 
-      // Reconnect: keep the existing selection and refresh its Page tokens from the new user token.
+      // One login, every Page: import all Pages this account manages. Pages already switched on keep their state and
+      // get fresh tokens + webhook subscriptions; new Pages appear switched off in Integrations > Meta > Pages.
       const { metaAssets } = await import('./metaAsset.service.js');
-      const refreshed = await metaAssets.refreshPageTokens(connId, token).catch(() => false);
+      const pagesResult = await metaAssets.syncPages(connId, token).catch(async (e) => {
+        await integrationLog(PROVIDER, 'warn', 'PAGES_SYNC_FAILED', `Could not import Pages: ${e.metaMessage || e.message}`, { connectionId: connId });
+        return { total: 0, active: 0 };
+      });
+      const refreshed = pagesResult.active > 0;
       await repo.setStatus(connId, refreshed && !missing.length ? 'ACTIVE' : 'PENDING_SETUP');
       await audit('INTEGRATION_CHANGED', { actorId: stateRow.user_id, entityType: 'meta_connection', entityId: connId, req, meta: { action: 'meta_connect', missingScopes: missing } });
       await integrationLog(PROVIDER, 'info', 'OAUTH_CONNECTED', `Connected as ${me.name || me.id}`, { connectionId: connId, missingScopes: missing, reconnect: refreshed });
