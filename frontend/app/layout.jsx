@@ -3,6 +3,7 @@ import { QueryProvider } from '@/providers/QueryProvider';
 import { AuthProvider } from '@/providers/AuthProvider';
 import { MaintenanceGate } from '@/components/MaintenanceGate';
 import { AppToaster, ServiceWorkerRegister } from '@/components/layout/AppChrome';
+import { ConfirmHost } from '@/components/ui/confirm';
 import { PREFS_BOOT_SCRIPT } from '@/lib/preferences';
 import './globals.css';
 
@@ -39,6 +40,7 @@ export default function RootLayout({ children }) {
         </QueryProvider>
         <MaintenanceGate />
         <AppToaster />
+        <ConfirmHost />
         <ServiceWorkerRegister />
       </body>
     </html>

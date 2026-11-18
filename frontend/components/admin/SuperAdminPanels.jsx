@@ -16,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { EmptyState, ErrorState, PageHeader, Pagination, TableSkeleton, Skeleton, StatCard } from '@/components/ui/feedback';
 
+import { confirmAction } from '@/components/ui/confirm';
 const parsePerms = (p) => (typeof p === 'string' ? JSON.parse(p || '[]') : p || []);
 
 /* ---------------- Roles ---------------- */
@@ -177,8 +178,8 @@ export function SessionsTable() {
                   <TableCell className="whitespace-nowrap text-sm">{timeAgo(s.last_activity_at)}</TableCell>
                   <TableCell><Badge variant="outline">{s.auth_method.replace('_', ' + ').toLowerCase()}</Badge></TableCell>
                   <TableCell className="whitespace-nowrap text-right">
-                    <Button size="sm" variant="outline" onClick={() => confirm(`Terminate this session for ${s.full_name}?`) && kill.mutate(s.id)}><LogOut />Terminate</Button>
-                    <Button size="sm" variant="ghost" className="ml-1" onClick={() => confirm(`Terminate ALL sessions for ${s.full_name}?`) && killAll.mutate(s.user_id)}>All</Button>
+                    <Button size="sm" variant="outline" onClick={() => confirmAction({ title: `Terminate this session for ${s.full_name}?`, description: 'That device is signed out immediately.', confirmText: 'Terminate session', tone: 'danger', icon: 'logout' }, () => kill.mutate(s.id))}><LogOut />Terminate</Button>
+                    <Button size="sm" variant="ghost" className="ml-1" onClick={() => confirmAction({ title: `Terminate all sessions for ${s.full_name}?`, description: 'They will be signed out on every device immediately.', confirmText: 'Terminate all', tone: 'danger', icon: 'logout' }, () => killAll.mutate(s.user_id))}>All</Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -292,7 +293,7 @@ export function BroadcastForm() {
           <Field label="Audience"><Select value={f.roleCode} onChange={(e) => setF({ ...f, roleCode: e.target.value })}><option value="">All active users</option>{roles?.map((r) => <option key={r.id} value={r.code}>{r.name}s only</option>)}</Select></Field>
           <Field label="Title"><Input value={f.title} maxLength={200} onChange={(e) => setF({ ...f, title: e.target.value })} /></Field>
           <Field label="Message"><Textarea value={f.body} maxLength={1000} onChange={(e) => setF({ ...f, body: e.target.value })} /></Field>
-          <Button disabled={!f.title.trim()} loading={m.isPending} onClick={() => confirm('Send this notification now?') && m.mutate()}>Send notification</Button>
+          <Button disabled={!f.title.trim()} loading={m.isPending} onClick={() => confirmAction({ title: 'Send this notification now?', description: 'It is delivered immediately to every selected recipient.', confirmText: 'Send now', icon: 'send' }, () => m.mutate())}>Send notification</Button>
         </CardContent>
       </Card>
     </>

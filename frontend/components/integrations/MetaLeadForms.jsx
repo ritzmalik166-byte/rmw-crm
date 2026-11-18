@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/feedback';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { MetaMark } from '@/components/integrations/MetaLogo';
 
+import { confirmAction } from '@/components/ui/confirm';
 /**
  * "Client Meta lead forms" section of the Integrations page. For clients who will NOT share Page access: they register
  * a form (the Campaign Detail + Fields Level Mapping sheet), and their own middleware pushes each lead to the form's URL.
@@ -483,8 +484,8 @@ export function MetaLeadForms({ canManage }) {
                           <Button size="icon" variant="ghost" title="Field mapping" onClick={() => setDialog({ type: 'map', row: r })}><Columns3 /></Button>
                           <Button size="icon" variant="ghost" title="Import CSV" onClick={() => setDialog({ type: 'import', row: r })}><Upload /></Button>
                           <Button size="icon" variant="ghost" title="Edit" onClick={() => setDialog({ type: 'edit', row: r })}><Pencil /></Button>
-                          <Button size="icon" variant="ghost" title="New URL" onClick={() => { if (window.confirm(`Generate a new push URL for "${r.form_name}"? The current URL stops working immediately.`)) rotate.mutate(r.id); }}><KeyRound /></Button>
-                          <Button size="icon" variant="ghost" title="Remove" className="text-red-600 hover:bg-red-50" onClick={() => { if (window.confirm(`Remove "${r.form_name}"? Its URL stops accepting leads. Existing leads stay.`)) remove.mutate(r.id); }}><Trash2 /></Button>
+                          <Button size="icon" variant="ghost" title="New URL" onClick={() => confirmAction({ title: `Generate a new push URL for “${r.form_name}”?`, description: 'The current URL stops working immediately. Update the client’s middleware.', confirmText: 'Generate new URL', tone: 'warning', icon: 'key' }, () => rotate.mutate(r.id))}><KeyRound /></Button>
+                          <Button size="icon" variant="ghost" title="Remove" className="text-red-600 hover:bg-red-50" onClick={() => confirmAction({ title: `Remove “${r.form_name}”?`, description: 'Its URL stops accepting leads. Leads already in the CRM stay.', confirmText: 'Remove form', tone: 'danger' }, () => remove.mutate(r.id))}><Trash2 /></Button>
                         </>
                       )}
                     </td>

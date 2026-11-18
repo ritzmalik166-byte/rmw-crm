@@ -12,6 +12,7 @@ import { Field } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/feedback';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
+import { confirmAction } from '@/components/ui/confirm';
 const KEY = ['lead-capture-keys'];
 
 async function copy(text, what) {
@@ -235,8 +236,8 @@ export function LeadCaptureKeys({ canManage }) {
                     {canManage && (
                       <>
                         <Button size="icon" variant="ghost" title="Edit" onClick={() => setDialog({ type: 'edit', row: r })}><Pencil /></Button>
-                        <Button size="icon" variant="ghost" title="New key" onClick={() => { if (window.confirm(`Generate a new key for "${r.name}"? The current key stops working immediately.`)) rotate.mutate(r.id); }}><KeyRound /></Button>
-                        <Button size="icon" variant="ghost" title="Delete" className="text-red-600 hover:bg-red-50" onClick={() => { if (window.confirm(`Delete the key for "${r.name}"? Its forms stop sending leads. Existing leads stay.`)) remove.mutate(r.id); }}><Trash2 /></Button>
+                        <Button size="icon" variant="ghost" title="New key" onClick={() => confirmAction({ title: `Generate a new key for “${r.name}”?`, description: 'The current key stops working immediately. Update every form that uses it.', confirmText: 'Generate new key', tone: 'warning', icon: 'key' }, () => rotate.mutate(r.id))}><KeyRound /></Button>
+                        <Button size="icon" variant="ghost" title="Delete" className="text-red-600 hover:bg-red-50" onClick={() => confirmAction({ title: `Delete the key for “${r.name}”?`, description: 'Its forms stop sending leads. Leads already in the CRM stay.', confirmText: 'Delete key', tone: 'danger' }, () => remove.mutate(r.id))}><Trash2 /></Button>
                       </>
                     )}
                   </td>

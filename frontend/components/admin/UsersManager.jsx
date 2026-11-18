@@ -19,6 +19,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { EmptyState, ErrorState, PageHeader, Pagination, TableSkeleton } from '@/components/ui/feedback';
 import { useOrg, MultiCheck } from './common';
 
+import { confirmAction } from '@/components/ui/confirm';
 function generatePassword() {
   const sets = ['ABCDEFGHJKLMNPQRSTUVWXYZ', 'abcdefghijkmnpqrstuvwxyz', '23456789', '@#$%&*!'];
   const all = sets.join('');
@@ -263,12 +264,12 @@ export function UsersManager({ superAdmin = false }) {
                         <DropdownMenuTrigger asChild><Button variant="ghost" size="sm">Actions</Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           {can('user.edit') && <DropdownMenuItem onClick={() => setDialog({ type: 'edit', id: u.id })}><Pencil />Edit</DropdownMenuItem>}
-                          {can('user.disable') && u.status === 'ACTIVE' && <DropdownMenuItem onClick={() => confirm(`Disable ${u.full_name}? They will be signed out everywhere.`) && setStatus.mutate({ id: u.id, status: 'DISABLED' })}><Ban />Disable</DropdownMenuItem>}
-                          {can('user.disable') && u.status === 'ACTIVE' && <DropdownMenuItem onClick={() => confirm(`Suspend ${u.full_name}?`) && setStatus.mutate({ id: u.id, status: 'SUSPENDED' })}><Ban />Suspend</DropdownMenuItem>}
+                          {can('user.disable') && u.status === 'ACTIVE' && <DropdownMenuItem onClick={() => confirmAction({ title: `Disable ${u.full_name}?`, description: 'They will be signed out everywhere and cannot sign in until re-enabled.', confirmText: 'Disable user', tone: 'danger', icon: 'security' }, () => setStatus.mutate({ id: u.id, status: 'DISABLED' }))}><Ban />Disable</DropdownMenuItem>}
+                          {can('user.disable') && u.status === 'ACTIVE' && <DropdownMenuItem onClick={() => confirmAction({ title: `Suspend ${u.full_name}?`, description: 'They lose access until an admin restores the account.', confirmText: 'Suspend user', tone: 'warning', icon: 'security' }, () => setStatus.mutate({ id: u.id, status: 'SUSPENDED' }))}><Ban />Suspend</DropdownMenuItem>}
                           {can('user.disable') && ['DISABLED', 'SUSPENDED'].includes(u.status) && <DropdownMenuItem onClick={() => setStatus.mutate({ id: u.id, status: 'ACTIVE' })}><CheckCircle2 />Re-enable</DropdownMenuItem>}
                           {can('user.block') && u.status !== 'BLOCKED' && <DropdownMenuItem className="text-destructive" onClick={() => setBlocking(u)}><ShieldOff />Block account</DropdownMenuItem>}
-                          {can('user.block') && u.status === 'BLOCKED' && <DropdownMenuItem onClick={() => confirm(`Unblock ${u.full_name}? They can sign in again (with a new-device OTP).`) && setStatus.mutate({ id: u.id, status: 'ACTIVE' })}><ShieldCheck />Unblock account</DropdownMenuItem>}
-                          {superAdmin && can('session.revoke_any') && <DropdownMenuItem onClick={() => confirm(`Terminate all sessions for ${u.full_name}?`) && killSessions.mutate(u.id)}><LogOut />Terminate all sessions</DropdownMenuItem>}
+                          {can('user.block') && u.status === 'BLOCKED' && <DropdownMenuItem onClick={() => confirmAction({ title: `Unblock ${u.full_name}?`, description: 'They can sign in again (with a new-device OTP).', confirmText: 'Unblock account', icon: 'security' }, () => setStatus.mutate({ id: u.id, status: 'ACTIVE' }))}><ShieldCheck />Unblock account</DropdownMenuItem>}
+                          {superAdmin && can('session.revoke_any') && <DropdownMenuItem onClick={() => confirmAction({ title: `Terminate all sessions for ${u.full_name}?`, description: 'They will be signed out on every device immediately and must sign in again.', confirmText: 'Terminate sessions', tone: 'danger', icon: 'logout' }, () => killSessions.mutate(u.id))}><LogOut />Terminate all sessions</DropdownMenuItem>}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}

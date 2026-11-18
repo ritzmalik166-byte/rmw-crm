@@ -27,6 +27,7 @@ import { whatsappHref, WhatsAppIcon } from '@/components/leads/LeadsWorkspace';
 import { LeadAttribution } from '@/components/marketing/LeadAttribution';
 import { LEAD_SOURCE_TYPES } from '@/lib/leadSources';
 
+import { confirmAction } from '@/components/ui/confirm';
 const parse = (v, fallback) => (typeof v === 'string' ? (() => { try { return JSON.parse(v || 'null') ?? fallback; } catch { return fallback; } })() : v ?? fallback);
 
 function copy(text, label = 'Copied') {
@@ -395,7 +396,7 @@ export default function LeadDetailPage({ params }) {
                   <div className="flex flex-wrap gap-2">
                     <Button size="sm" variant="outline" asChild><Link href={`/crm/leads/${d.candidate_id}`}>View</Link></Button>
                     <Button size="sm" variant="outline" onClick={() => resolveDup.mutate({ dupId: d.id, action: 'KEEP_SEPARATE' })}>Keep separate</Button>
-                    <Button size="sm" onClick={() => confirm('Merge the other lead into this one? Both records and their external IDs are kept; the other lead is marked as merged.') && resolveDup.mutate({ dupId: d.id, action: 'MERGE', primaryLeadId: lead.id })}><GitMerge />Merge into this</Button>
+                    <Button size="sm" onClick={() => confirmAction({ title: 'Merge into this lead?', description: 'Both records and their external IDs are kept; the other lead is marked as merged into this one.', confirmText: 'Merge leads', icon: 'merge' }, () => resolveDup.mutate({ dupId: d.id, action: 'MERGE', primaryLeadId: lead.id }))}><GitMerge />Merge into this</Button>
                   </div>
                 )}
               </div>

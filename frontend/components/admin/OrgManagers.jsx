@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { EmptyState, ErrorState, PageHeader, Skeleton, TableSkeleton } from '@/components/ui/feedback';
 import { useOrg, MultiCheck } from './common';
 
+import { confirmAction } from '@/components/ui/confirm';
 function useSave(key, okMsg) {
   const qc = useQueryClient();
   return (fn, after) => ({
@@ -51,7 +52,7 @@ export function DepartmentsManager() {
                   <TableCell>{d.team_count}</TableCell><TableCell>{d.user_count}</TableCell>
                   <TableCell className="text-right">{manage && <>
                     <Button size="sm" variant="ghost" onClick={() => setEdit(d)} aria-label="Edit"><Pencil /></Button>
-                    <Button size="sm" variant="ghost" onClick={() => confirm(`Delete ${d.name}?`) && del.mutate(d.id)} aria-label="Delete"><Trash2 /></Button>
+                    <Button size="sm" variant="ghost" onClick={() => confirmAction({ title: `Delete department “${d.name}”?`, description: 'This cannot be undone. Users and teams in it are not deleted.', confirmText: 'Delete department', tone: 'danger' }, () => del.mutate(d.id))} aria-label="Delete"><Trash2 /></Button>
                   </>}</TableCell>
                 </TableRow>
               ))}
@@ -135,7 +136,7 @@ export function TeamsManager() {
                   <TableCell className="whitespace-nowrap text-right">{manage && <>
                     <Button size="sm" variant="outline" onClick={() => setMembers(t)}><Users />Members</Button>
                     <Button size="sm" variant="ghost" onClick={() => setEdit(t)} aria-label="Edit"><Pencil /></Button>
-                    <Button size="sm" variant="ghost" onClick={() => confirm(`Delete ${t.name}?`) && del.mutate(t.id)} aria-label="Delete"><Trash2 /></Button>
+                    <Button size="sm" variant="ghost" onClick={() => confirmAction({ title: `Delete team “${t.name}”?`, description: 'This cannot be undone. Members keep their accounts; lead routing to this team stops.', confirmText: 'Delete team', tone: 'danger' }, () => del.mutate(t.id))} aria-label="Delete"><Trash2 /></Button>
                   </>}</TableCell>
                 </TableRow>
               ))}

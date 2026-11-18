@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { ErrorState, PageHeader, Skeleton } from '@/components/ui/feedback';
 
+import { confirmAction } from '@/components/ui/confirm';
 const METHOD = { PASSWORD: 'Password (trusted device)', PASSWORD_OTP: 'Password + OTP', OTP: 'Mobile OTP' };
 
 export default function SecurityPage() {
@@ -32,7 +33,7 @@ export default function SecurityPage() {
       <Card className="max-w-3xl">
         <CardHeader className="flex-row items-start justify-between space-y-0">
           <div><CardTitle>Active sessions</CardTitle><CardDescription className="mt-1">Signing out a device also removes its trusted status.</CardDescription></div>
-          {others.length > 0 && <Button variant="outline" size="sm" onClick={() => confirm('Sign out of all other devices?') && logoutAll.mutate()} loading={logoutAll.isPending}><LogOut />Log out all other devices</Button>}
+          {others.length > 0 && <Button variant="outline" size="sm" onClick={() => confirmAction({ title: 'Log out all other devices?', description: 'Every other browser and phone signed in to your account will be signed out. This device stays signed in.', confirmText: 'Log out others', tone: 'warning', icon: 'logout' }, () => logoutAll.mutate())} loading={logoutAll.isPending}><LogOut />Log out all other devices</Button>}
         </CardHeader>
         <CardContent>
           {isLoading ? <div className="space-y-3"><Skeleton className="h-16" /><Skeleton className="h-16" /></div> : isError ? <ErrorState error={error} onRetry={refetch} /> : (
