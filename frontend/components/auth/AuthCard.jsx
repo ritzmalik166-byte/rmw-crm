@@ -6,7 +6,7 @@ export function AuthCard({ title, description, children, footer, wide = false })
           <img src="/rmw-logo.png" alt="Ritz Media World" className="h-8 w-8 rounded-sm bg-white object-contain p-0.5" />
           <span className="leading-tight">
             <span className="block text-[13px] font-semibold">RMW CRM</span>
-            <span className="block text-[10px] text-white/70">Ritz Media World · Lead Management</span>
+            <span className="block text-[10px] text-white/70">Ritz Media World · Lead Management</span>  
           </span>
         </div>
         <div className="h-[3px] bg-[hsl(var(--saffron))]" />
