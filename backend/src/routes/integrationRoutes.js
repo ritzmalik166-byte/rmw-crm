@@ -7,6 +7,6 @@ import { asyncHandler as h } from '../utils/http.js';
 const r = Router();
 r.use(limiters.integration);
 r.post('/leads', h(c.receive));
-r.post('/:website(mpf|rmw|ct)/leads', h(c.receive));
-r.post('/:website(mpf|rmw|ct)/leads/batch', h(c.receiveBatch));
+r.post('/:website(mpf|rmw|ct|ctmpl)/leads', h(c.receive));
+r.post('/:website(mpf|rmw|ct|ctmpl)/leads/batch', h(c.receiveBatch));
 export default r;
