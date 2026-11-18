@@ -27,6 +27,7 @@ const LIST_SELECT = `l.id, l.external_lead_id, l.name, l.phone, l.email, l.locat
   l.external_created_at, COALESCE(JSON_UNQUOTE(JSON_EXTRACT(a.extra, '$.resume')), JSON_UNQUOTE(JSON_EXTRACT(l.raw_payload, '$.resume')), JSON_UNQUOTE(JSON_EXTRACT(l.raw_payload, '$.resumePath'))) AS resume, COALESCE(l.external_created_at, l.created_at) AS received_at, l.is_duplicate_suspect, l.junk_reason, l.assigned_user_id, l.source_type, w.id AS website_id, w.code AS website_code,
   s.id AS status_id, s.code AS status_code, s.name AS status_name, s.color AS status_color,
   u.full_name AS assigned_user_name, a.source, a.medium, a.campaign, a.utm_source, a.utm_campaign,
+  l.page_id, (SELECT ma.name FROM meta_assets ma WHERE ma.asset_type = 'PAGE' AND ma.external_id = l.page_id ORDER BY ma.id DESC LIMIT 1) AS page_name,
   (SELECT MIN(f.due_at) FROM lead_followups f WHERE f.lead_id = l.id AND f.status IN ('UPCOMING','OVERDUE')) AS next_followup_at`;
 
 const LIST_FROM = `FROM leads l JOIN websites w ON w.id = l.website_id JOIN lead_statuses s ON s.id = l.status_id

@@ -50,7 +50,9 @@ export const analyticsService = {
       one(`SELECT SUM(status IN ('UPCOMING','OVERDUE') AND due_at < UTC_DATE() + INTERVAL 1 DAY AND due_at >= UTC_DATE()) today,
              SUM(status = 'OVERDUE' OR (status = 'UPCOMING' AND due_at < NOW(3))) overdue, SUM(status = 'UPCOMING') upcoming
            FROM lead_followups WHERE user_id = ?`, [uid]),
-      query(`SELECT l.id, l.external_lead_id, l.name, l.interest, w.code website_code, s.name status_name, s.color status_color, l.created_at, l.external_created_at, l.phone, l.assigned_user_id
+      query(`SELECT l.id, l.external_lead_id, l.name, l.interest, w.code website_code, s.name status_name, s.color status_color, l.created_at, l.external_created_at, l.phone, l.assigned_user_id,
+               l.source_type, l.form_name, l.page_id, (SELECT ma.name FROM meta_assets ma WHERE ma.asset_type = 'PAGE' AND ma.external_id = l.page_id ORDER BY ma.id DESC LIMIT 1) AS page_name,
+               (SELECT at.source FROM lead_attributions at WHERE at.lead_id = l.id LIMIT 1) AS source
              FROM leads l JOIN websites w ON w.id = l.website_id JOIN lead_statuses s ON s.id = l.status_id
              WHERE l.assigned_user_id = ? AND l.merged_into_lead_id IS NULL AND (LOWER(COALESCE(l.form_type, '')) <> 'career' AND COALESCE(l.junk_reason, '') <> 'career') AND l.junk_reason IS NULL AND COALESCE(l.external_created_at, l.created_at) BETWEEN ? AND ? ORDER BY COALESCE(l.external_created_at, l.created_at) DESC LIMIT 20`, [uid, r.from, r.to]),
     ]);
