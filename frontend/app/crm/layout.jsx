@@ -12,6 +12,7 @@ const NAV = [
     { href: '/crm/pipeline/mpf', label: 'MPF Leads', logo: '/mpf-mark.png', badgeKey: 'mpf' },
     { href: '/crm/pipeline/rmw', label: 'RMW Leads', logo: '/rmw-mark.png', badgeKey: 'rmw' },
     { href: '/crm/pipeline/ct', label: 'CT Leads', logo: '/ct-mark.png', badgeKey: 'ct' },
+    { href: '/crm/pipeline/ctmpl', label: 'CTMPL Leads', logo: '/ctmpl-mark.png', badgeKey: 'ctmpl' },
   ] },
   // One item per lead connector; its badgeKey must match lib/newLeadBadges CONNECTOR_KEYS.
   { title: 'Lead channels', items: [

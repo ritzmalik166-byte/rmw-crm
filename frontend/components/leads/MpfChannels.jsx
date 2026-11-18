@@ -79,14 +79,39 @@ const Stat = ({ label, value, tone = 'text-slate-900' }) => (
  * Landing view of Meta Leads: one large card per Facebook Page (Eldeco Group, Premium Properties, My Property Fact…).
  * Leads are shown only after a card is opened (?pageId=…); "All Pages" (?pages=all) lists every Meta lead.
  */
-function MetaPageGrid({ pages, hrefFor }) {
+const SEEN_KEY = 'rmw.metaPageSeen';
+const readSeen = () => { try { return JSON.parse(localStorage.getItem(SEEN_KEY) || '{}') || {}; } catch { return {}; } };
+const writeSeen = (m) => { try { localStorage.setItem(SEEN_KEY, JSON.stringify(m)); } catch { /* ignore */ } };
+
+/** Per-Page "new since you last opened it" counts, remembered in this browser. First sight of a Page = nothing unseen. */
+function useUnseenLeads(pages, openPageId) {
+  const [seen, setSeen] = useState({});
+  useEffect(() => {
+    if (!pages?.length) return;
+    const m = readSeen();
+    let changed = false;
+    for (const p of pages) {
+      if (m[p.id] == null || p.id === openPageId) { if (m[p.id] !== p.total) { m[p.id] = p.total; changed = true; } }
+    }
+    if (changed) writeSeen(m);
+    setSeen(m);
+  }, [pages, openPageId]);
+  return (p) => Math.max(0, p.total - (seen[p.id] ?? p.total));
+}
+
+function MetaPageGrid({ pages, hrefFor, unseen }) {
   const total = pages.reduce((a, p) => a + p.total, 0);
   const today = pages.reduce((a, p) => a + p.today, 0);
   const box = 'group flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 transition hover:border-blue-400 hover:shadow-md';
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {pages.map((p) => (
-        <Link key={p.id} href={hrefFor(p.id)} className={box}>
+        <Link key={p.id} href={hrefFor(p.id)} className={cn(box, 'relative', unseen(p) > 0 && 'border-red-300 ring-1 ring-red-200')}>
+          {unseen(p) > 0 && (
+            <span className="absolute -right-2 -top-2 flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 text-[11.5px] font-semibold text-white shadow">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />{unseen(p)} new
+            </span>
+          )}
           <div className="flex items-center gap-3">
             <PageAvatar page={p} className="h-14 w-14 shrink-0" />
             <div className="min-w-0 flex-1">
@@ -136,6 +161,38 @@ function MetaPageBar({ page, backHref }) {
   );
 }
 
+/** Lead form name filter for the opened Page: picks ?formId=, keeps the Page and other filters. */
+function MetaFormFilter({ forms, formId }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const [q, setQ] = useState('');
+  if (!forms.length) return null;
+  const set = (id) => {
+    const next = new URLSearchParams(params.toString());
+    if (id) next.set('formId', id); else next.delete('formId');
+    next.delete('page');
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+  };
+  const term = q.trim().toLowerCase();
+  const list = forms.filter((f) => !term || f.name?.toLowerCase().includes(term) || f.formId === formId);
+  const current = forms.find((f) => f.formId === formId);
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+      <FileText className="h-4 w-4 shrink-0 text-indigo-600" />
+      <span className="text-[12.5px] font-medium text-slate-700">Lead form</span>
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search form name…" aria-label="Search lead forms"
+        className="h-9 w-48 rounded-md border border-slate-200 px-2.5 text-[13px] outline-none focus:border-blue-400" />
+      <select value={formId || ''} onChange={(e) => set(e.target.value)} aria-label="Filter by lead form"
+        className="h-9 min-w-0 max-w-full flex-1 rounded-md border border-slate-200 bg-white px-2 text-[13px] outline-none focus:border-blue-400 sm:max-w-md">
+        <option value="">All forms ({forms.length})</option>
+        {list.map((f) => <option key={f.formId} value={f.formId}>{f.name} · {f.total} leads</option>)}
+      </select>
+      {current && <button type="button" onClick={() => set('')} className="inline-flex items-center gap-1 text-[12px] font-medium text-blue-700 hover:underline"><X className="h-3.5 w-3.5" />Clear</button>}
+    </div>
+  );
+}
+
 /** Meta channel view. Used inside MPF Leads (?channel=meta) and standalone at /crm/meta (sidebar). */
 export function MetaChannel({ standalone = false }) {
   const params = useSearchParams();
@@ -151,7 +208,8 @@ export function MetaChannel({ standalone = false }) {
   });
   const form = formId ? forms?.find((f) => f.formId === formId) : null;
   const pageId = params.get('pageId');
-  const { data: metaPages } = useQuery({ queryKey: ['meta', 'page-cards'], queryFn: () => api('/crm/meta/pages'), staleTime: 60_000 });
+  const { data: metaPages } = useQuery({ queryKey: ['meta', 'page-cards'], queryFn: () => api('/crm/meta/pages'), staleTime: 15_000, refetchInterval: 30_000, refetchOnWindowFocus: true });
+  const unseen = useUnseenLeads(metaPages, params.get('pageId'));
   const showAll = params.get('pages') === 'all';
   const junkQ = tab === 'junk' ? 'only' : undefined;
   const pageHref = (id) => `${pathname}${toQuery({ channel: 'meta', junk: junkQ, ...(id === 'all' ? { pages: 'all' } : { pageId: id || undefined }) })}`;
@@ -159,17 +217,18 @@ export function MetaChannel({ standalone = false }) {
   // Landing: Page cards only. Leads appear once a card (or "All Pages") is opened, or when arriving with a form filter.
   const landing = Boolean(metaPages?.length) && !pageId && !showAll && !formId;
   const tabs = [
-    { key: 'leads', label: 'Leads', icon: Users2, href: `${pathname}?channel=meta`, count: pipe?.counts?.mpf?.total },
+    { key: 'leads', label: 'Leads', icon: Users2, href: `${pathname}?channel=meta`, count: openPage ? openPage.total : pipe?.counts?.mpf?.total },
     { key: 'junk', label: 'Junk & test', icon: ShieldAlert, href: `${pathname}?channel=meta&junk=only`, count: junkCount },
     { key: 'forms', label: 'Lead forms', icon: FileText, href: `${pathname}?channel=meta&tab=forms`, count: forms?.length },
   ];
   return (
     <>
       <ChannelHeader channel="meta" tab={tab} tabs={tabs} standalone={standalone} />
-      {tab === 'forms' ? <Card className="overflow-hidden"><MetaLeadFormsList /></Card> : landing ? <MetaPageGrid pages={metaPages} hrefFor={pageHref} /> : (
+      {tab === 'forms' ? <Card className="overflow-hidden"><MetaLeadFormsList /></Card> : landing ? <MetaPageGrid pages={metaPages} hrefFor={pageHref} unseen={unseen} /> : (
         <>
           {(pageId || showAll) && <MetaPageBar page={openPage} backHref={pageHref(null)} />}
-          {formId && (
+          {(pageId || showAll) && <MetaFormFilter forms={(forms || []).filter((f) => showAll || f.pageId === pageId)} formId={formId} />}
+          {formId && !pageId && !showAll && (
             <div className="mb-3 flex items-center justify-between gap-2 rounded-lg border border-blue-200 bg-blue-50/60 px-3 py-2 text-[13px] text-blue-950">
               <span className="flex min-w-0 items-center gap-2"><FileText className="h-4 w-4 shrink-0" /><span className="truncate">Form: <b>{form?.name || formId}</b></span></span>
               <Link href={`${pathname}?channel=meta`} className="inline-flex shrink-0 items-center gap-1 text-[12px] font-medium hover:underline"><X className="h-3.5 w-3.5" />All Meta leads</Link>

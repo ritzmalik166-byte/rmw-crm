@@ -89,8 +89,8 @@ export function SuperAdminDashboard() {
         <StatCard label="Pending account requests" value={pending.data?.meta?.total ?? '—'} icon={UserPlus} tone={pending.data?.meta?.total ? 'warning' : undefined} />
         <StatCard label="Unassigned" value={a.totals.unassigned} icon={UserX} tone={a.totals.unassigned ? 'warning' : undefined} />
       </div>
-      <div className="mt-4 grid gap-4 sm:grid-cols-3">
-        {['MPF', 'RMW', 'CT'].map((c) => <StatCard key={c} label={`${c} leads`} logo={WEBSITE_LOGOS[c]} value={site(c).toLocaleString('en-IN')} />)}
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {['MPF', 'RMW', 'CT', 'CTMPL'].map((c) => <StatCard key={c} label={`${c} leads`} logo={WEBSITE_LOGOS[c]} value={site(c).toLocaleString('en-IN')} />)}
       </div>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-3">

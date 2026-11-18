@@ -25,8 +25,8 @@ function StatusBadge({ name, color }) {
   return <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset', STATUS_COLORS[color] || STATUS_COLORS.slate)}>{name}</span>;
 }
 
-const WEBSITE_STYLES = { MPF: 'bg-teal-50 text-teal-700 ring-teal-200', RMW: 'bg-rose-50 text-rose-700 ring-rose-200', CT: 'bg-purple-50 text-purple-700 ring-purple-200' };
-const WEBSITE_LOGOS = { MPF: '/mpf-mark.png', RMW: '/rmw-mark.png', CT: '/ct-mark.png' };
+const WEBSITE_STYLES = { MPF: 'bg-teal-50 text-teal-700 ring-teal-200', RMW: 'bg-rose-50 text-rose-700 ring-rose-200', CT: 'bg-purple-50 text-purple-700 ring-purple-200', CTMPL: 'bg-emerald-50 text-emerald-700 ring-emerald-200' };
+const WEBSITE_LOGOS = { MPF: '/mpf-mark.png', RMW: '/rmw-mark.png', CT: '/ct-mark.png', CTMPL: '/ctmpl-mark.png' };
 function WebsiteLogo({ code, className }) {
   const src = WEBSITE_LOGOS[String(code || '').toUpperCase()];
   return src ? <img src={src} alt="" aria-hidden className={cn('h-4 w-4 shrink-0 object-contain', className)} /> : null;

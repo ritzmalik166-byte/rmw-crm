@@ -300,7 +300,7 @@ export default function LeadDetailPage({ params }) {
   const openDups = lead.duplicates?.filter((d) => d.status === 'OPEN') || [];
   const isCareer = String(lead.form_type || '').toLowerCase() === 'career' || lead.junk_reason === 'career';
   const pipeKey = isCareer ? 'career' : String(lead.website_code || '').toLowerCase();
-  const backHref = ['mpf', 'rmw', 'ct', 'career'].includes(pipeKey) ? `/crm/pipeline/${pipeKey}` : '/crm/leads';
+  const backHref = ['mpf', 'rmw', 'ct', 'ctmpl', 'career'].includes(pipeKey) ? `/crm/pipeline/${pipeKey}` : '/crm/leads';
   const backLabel = isCareer ? 'Career Leads' : lead.website_code ? `${lead.website_code} Leads` : 'Leads';
   const receivedAt = lead.external_created_at || lead.created_at;
   const overdue = lead.next_followup_at && new Date(lead.next_followup_at) < new Date();

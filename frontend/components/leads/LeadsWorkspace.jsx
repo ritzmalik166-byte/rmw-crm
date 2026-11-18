@@ -125,7 +125,7 @@ function LeadCard({ lead: l, pipelineKey, editable, canTransfer, me, onTransfer,
               {showWebsite && <WebsiteBadge code={l.website_code} />}
               <span className="ml-auto shrink-0 text-[11px] text-slate-400">{timeAgo(l.received_at || l.created_at)}</span>
             </div>
-            <p className="truncate text-[12.5px] text-slate-600">{(l.source_type === 'LANDING_PAGE' || l.source_type === 'META_FORM') && l.form_name ? <b className="font-semibold text-indigo-600">{l.form_name} · </b> : null}{l.interest || l.form_type || l.external_lead_id}</p>
+            <p className="truncate text-[12.5px] text-slate-600">{['LANDING_PAGE', 'META_FORM', 'META'].includes(l.source_type) && l.form_name ? <b className="font-semibold text-indigo-600">{l.form_name} · </b> : null}{l.interest || l.form_type || l.external_lead_id}</p>
             {(l.location || l.source) && (
               <p className="truncate text-[11.5px] text-slate-400">{[l.location, l.source && `${l.source}${l.medium && l.medium !== 'none' ? ` / ${l.medium}` : ''}`].filter(Boolean).join(' · ')}</p>
             )}
@@ -174,7 +174,8 @@ export function LeadsWorkspace({ pipelineKey = 'all', channel = null, title = nu
   const params = useSearchParams();
   const { can, me } = useAuth();
   const { data: lk } = useLookups();
-  const { data: pipe } = useQuery({ queryKey: ['leads', 'pipelines', channel], queryFn: () => api(`/crm/pipelines${toQuery({ channel })}`), staleTime: 60_000 });
+  const urlPageId = channel === 'meta' ? params.get('pageId') || undefined : undefined;
+  const { data: pipe } = useQuery({ queryKey: ['leads', 'pipelines', channel, urlPageId], queryFn: () => api(`/crm/pipelines${toQuery({ channel, pageId: urlPageId })}`), staleTime: 60_000 });
   const filters = useMemo(() => Object.fromEntries(FILTER_KEYS.map((k) => [k, params.get(k) || ''])), [params]);
   const [search, setSearch] = useState(filters.search);
   const debounced = useDebounced(search);
@@ -267,7 +268,7 @@ export function LeadsWorkspace({ pipelineKey = 'all', channel = null, title = nu
             </div>
             <div className="relative order-1 basis-full sm:order-none sm:min-w-[220px] sm:flex-1 sm:basis-auto">
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input className="pl-8" placeholder="Search name, phone, email, lead ID…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search leads" />
+              <Input className="pl-8" placeholder={channel === 'meta' ? 'Search name, phone, email, form name, campaign…' : 'Search name, phone, email, lead ID…'} value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search leads" />
             </div>
             {has('status') && (
               <Select className="order-3 min-w-0 basis-[calc(50%-4px)] sm:order-none sm:w-36 sm:basis-auto" value={filters.statusId} onChange={(e) => setFilter({ statusId: e.target.value })} aria-label="Status">
@@ -368,7 +369,7 @@ export function LeadsWorkspace({ pipelineKey = 'all', channel = null, title = nu
                       </TableCell>
                       {p.showWebsite && <TableCell><WebsiteBadge code={l.website_code} /></TableCell>}
                       <TableCell className="max-w-[200px]">
-                        {(l.source_type === 'LANDING_PAGE' || l.source_type === 'META_FORM') && l.form_name && <div className="truncate text-[11px] font-semibold uppercase tracking-wide text-indigo-600" title={l.form_name}>{l.form_name}</div>}
+                        {['LANDING_PAGE', 'META_FORM', 'META'].includes(l.source_type) && l.form_name && <div className="truncate text-[11px] font-semibold uppercase tracking-wide text-indigo-600" title={l.form_name}>{l.form_name}</div>}
                         <div className="truncate" title={l.interest || ''}>{l.interest || <span className="text-slate-400">—</span>}</div>
                         {l.location && <div className="truncate text-[11px] text-slate-500">{l.location}</div>}
                       </TableCell>
