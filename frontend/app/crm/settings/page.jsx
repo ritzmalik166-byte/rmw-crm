@@ -17,7 +17,7 @@ import { PageHeader } from '@/components/ui/feedback';
 import { AvatarUploader } from '@/components/ui/avatar';
 
 const TYPE_LABELS = {
-  NEW_LEAD: 'New lead on my websites', LEAD_ASSIGNED: 'Lead assigned to me', LEAD_REASSIGNED: 'Lead reassigned to me',
+  NEW_LEAD: 'New lead on my websites', LEAD_ASSIGNED: 'Lead assigned to me', LEAD_REASSIGNED: 'Lead reassigned to me', ASSIGNMENT_REMINDER: 'Unacknowledged assignment reminders', ASSIGNMENT_ACKNOWLEDGED: 'My assignment was acknowledged',
   FOLLOWUP_DUE: 'Follow-up due soon', FOLLOWUP_OVERDUE: 'Follow-up overdue', SYSTEM: 'System alerts', ACCOUNT_REQUEST: 'New account requests',
 };
 
@@ -213,7 +213,7 @@ function NotificationPrefs() {
       <CardContent className="space-y-4">
         <PushToggle />
         {prefs && (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto"><table className="w-full min-w-[320px] text-sm">
             <thead><tr className="text-xs uppercase text-muted-foreground"><th className="py-2 text-left font-medium">Event</th><th className="w-20 font-medium">In-app</th><th className="w-20 font-medium">Push</th><th className="w-20 font-medium">Email</th></tr></thead>
             <tbody className="divide-y">
               {prefs.map((p) => (
@@ -223,7 +223,7 @@ function NotificationPrefs() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
         <Button onClick={() => m.mutate()} loading={m.isPending} disabled={!prefs}>Save preferences</Button>
       </CardContent>

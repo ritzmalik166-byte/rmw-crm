@@ -8,7 +8,7 @@ const NAV = [
     { href: '/crm/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   ] },
   { title: 'Lead pipelines', items: [
-    { href: '/crm/leads', label: 'All leads', icon: Users2, exact: true },
+    { href: '/crm/leads', label: 'All Leads', icon: Users2, exact: true },
     { href: '/crm/pipeline/mpf', label: 'MPF Leads', logo: '/mpf-mark.png', badgeKey: 'mpf' },
     { href: '/crm/pipeline/rmw', label: 'RMW Leads', logo: '/rmw-mark.png', badgeKey: 'rmw' },
     { href: '/crm/pipeline/ct', label: 'CT Leads', logo: '/ct-mark.png', badgeKey: 'ct' },
@@ -20,11 +20,11 @@ const NAV = [
     { href: '/crm/client-leads', label: 'Client Leads', icon: Handshake, perm: 'lead.channel.client', badgeKey: 'client' },
   ] },
   { title: 'Recruitment', items: [
-    { href: '/crm/pipeline/career', label: 'Career applications', icon: Briefcase, badgeKey: 'career', perm: 'career.view' },
+    { href: '/crm/pipeline/career', label: 'Career Applications', icon: Briefcase, badgeKey: 'career', perm: 'career.view' },
   ] },
   { title: 'Work', items: [
     { href: '/crm/followups', label: 'Follow-ups', icon: CalendarClock },
-    { href: '/crm/notifications', label: 'Notifications', icon: Bell },
+    { href: '/crm/notifications', label: 'Notifications', icon: Bell, countKey: 'notifications' },
   ] },
   { title: 'Account', items: [
     { href: '/crm/integrations', label: 'Integrations', icon: Plug, perm: 'integration.manage' },

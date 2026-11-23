@@ -1,8 +1,13 @@
+import { readFileSync } from 'node:fs';
+
 const API_ORIGIN = process.env.API_ORIGIN || 'http://localhost:4000';
+// Shown in the sidebar footer ("RMW CRM · v1.0.0"); bump "version" in package.json to change it.
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  env: { NEXT_PUBLIC_APP_VERSION: version },
   poweredByHeader: false,
   async rewrites() {
     return [{ source: '/api/:path*', destination: `${API_ORIGIN}/api/:path*` }];

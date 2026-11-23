@@ -29,13 +29,17 @@ export const Switch = React.forwardRef(({ className, ...props }, ref) => (
 ));
 Switch.displayName = 'Switch';
 
-export const Tabs = TabsPrimitive.Root;
+// min-w-0 + max-w-full keep the tab row inside its parent, so a long TabsList scrolls instead of overflowing the page.
+export const Tabs = React.forwardRef(({ className, ...props }, ref) => (
+  <TabsPrimitive.Root ref={ref} className={cn('min-w-0 max-w-full', className)} {...props} />
+));
+Tabs.displayName = 'Tabs';
 export const TabsList = React.forwardRef(({ className, ...props }, ref) => (
-  <TabsPrimitive.List ref={ref} className={cn('inline-flex h-10 max-w-full items-center justify-start gap-0.5 overflow-x-auto rounded-xl border border-slate-200/80 bg-white p-1 text-slate-500 shadow-[0_1px_2px_rgba(16,24,40,0.04)]', className)} {...props} />
+  <TabsPrimitive.List ref={ref} className={cn('inline-flex h-10 max-w-full items-center justify-start gap-0.5 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-xl border border-slate-200/80 bg-white p-1 text-slate-500 shadow-[0_1px_2px_rgba(16,24,40,0.04)]', className)} {...props} />
 ));
 TabsList.displayName = 'TabsList';
 export const TabsTrigger = React.forwardRef(({ className, ...props }, ref) => (
-  <TabsPrimitive.Trigger ref={ref} className={cn('group inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg px-3 text-[13px] font-medium transition-all hover:bg-slate-50 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-[hsl(213_70%_96%)] data-[state=active]:text-[hsl(var(--primary))] data-[state=active]:shadow-[inset_0_0_0_1px_hsl(213_60%_86%)]', className)} {...props} />
+  <TabsPrimitive.Trigger ref={ref} className={cn('group inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-lg px-3 text-[13px] font-medium transition-all hover:bg-slate-50 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-[hsl(213_70%_96%)] data-[state=active]:text-[hsl(var(--primary))] data-[state=active]:shadow-[inset_0_0_0_1px_hsl(213_60%_86%)]', className)} {...props} />
 ));
 TabsTrigger.displayName = 'TabsTrigger';
 export const TabsContent = React.forwardRef(({ className, ...props }, ref) => (
@@ -47,7 +51,7 @@ export const DropdownMenu = DropdownMenuPrimitive.Root;
 export const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 export const DropdownMenuContent = React.forwardRef(({ className, sideOffset = 4, ...props }, ref) => (
   <DropdownMenuPrimitive.Portal>
-    <DropdownMenuPrimitive.Content ref={ref} sideOffset={sideOffset} className={cn('z-50 min-w-[10rem] overflow-hidden rounded-xl border border-white/70 bg-white/90 p-1 text-popover-foreground shadow-[0_12px_32px_-8px_rgb(16_24_40/0.22),0_2px_6px_rgb(16_24_40/0.06)] backdrop-blur-xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95', className)} {...props} />
+    <DropdownMenuPrimitive.Content ref={ref} sideOffset={sideOffset} className={cn('z-50 min-w-[10rem] overflow-hidden rounded-xl border border-slate-200/80 bg-white p-1 text-popover-foreground shadow-[0_16px_40px_-12px_rgb(16_24_40/0.22),0_2px_6px_rgb(16_24_40/0.06)] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-1 data-[state=open]:duration-200', className)} {...props} />
   </DropdownMenuPrimitive.Portal>
 ));
 DropdownMenuContent.displayName = 'DropdownMenuContent';

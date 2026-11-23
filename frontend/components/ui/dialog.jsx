@@ -32,7 +32,7 @@ const DialogContent = React.forwardRef(({ className, children, ...props }, ref) 
         // Phones: bottom sheet that slides up. sm+: centred dialog.
         'fixed inset-x-0 bottom-0 z-50 grid max-h-[92dvh] w-full gap-4 overflow-y-auto rounded-t-3xl border border-white/70 bg-white/95 p-5 backdrop-blur-xl pb-[calc(env(safe-area-inset-bottom)+20px)] pt-7 shadow-2xl',
         'data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom data-[state=open]:duration-300',
-        'sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[90vh] sm:w-[calc(100%-2rem)] sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:p-6 sm:shadow-[0_24px_64px_-16px_rgb(16_24_40/0.35)] sm:data-[state=open]:slide-in-from-bottom-0 sm:data-[state=open]:zoom-in-95',
+        'sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[90vh] sm:w-[calc(100%-2rem)] sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:p-6 sm:shadow-[0_24px_64px_-16px_rgb(16_24_40/0.35)] sm:data-[state=open]:slide-in-from-bottom-2 sm:data-[state=open]:fade-in-0 sm:data-[state=open]:duration-300',
         responsiveWidth(className),
       )}
       {...props}

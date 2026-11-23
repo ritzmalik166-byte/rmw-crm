@@ -2,46 +2,53 @@
 @tailwind components;
 @tailwind utilities;
 
-/* RMW CRM design system: structured "portal" look. Navy primary, neutral surfaces,
-   hairline borders, minimal shadow, compact density. */
+/* RMW CRM design system: deep-navy sidebar, clean white surfaces on a cool off-white page,
+   one bright blue for actions, hairline borders, soft shadows. Motion is calm: colour,
+   opacity and position fades on one easing curve; nothing scales, pops or bounces. */
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 215 30% 15%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 215 30% 15%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 215 30% 15%;
-    --primary: 213 62% 26%;            /* navy #194173 */
+    --popover-foreground: 222 47% 11%;
+    --primary: 221 83% 53%;            /* action blue #2563eb */
     --primary-foreground: 0 0% 100%;
-    --secondary: 214 25% 95%;
-    --secondary-foreground: 215 30% 18%;
-    --muted: 214 25% 96%;
-    --muted-foreground: 215 14% 42%;
-    --accent: 213 45% 95%;
-    --accent-foreground: 213 62% 22%;
-    --destructive: 0 68% 46%;
+    --secondary: 220 20% 96%;
+    --secondary-foreground: 222 47% 14%;
+    --muted: 220 20% 96%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 221 90% 96%;
+    --accent-foreground: 221 83% 40%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 216 24% 89%;
-    --input: 216 20% 82%;
-    --ring: 213 62% 36%;
+    --border: 220 16% 90%;
+    --input: 220 14% 84%;
+    --ring: 221 83% 60%;
     --radius: 0.625rem;
-    --page: 218 33% 97%;               /* app background (cool off-white) */
-    --saffron: 28 92% 52%;             /* thin accent line only */
+    --page: 220 33% 98%;               /* app background (cool off-white) */
+    --sidebar: 223 64% 12%;            /* deep navy sidebar */
+    --saffron: 28 92% 52%;             /* legacy accent, kept for older screens */
+    --ease: cubic-bezier(.22, .61, .36, 1);  /* the one easing curve used for every transition */
   }
   * { @apply border-border; }
   html { font-size: 14px; }
   body {
     @apply text-foreground antialiased; font-size: 13px;
-    /* Soft colour mesh behind every page: gives glass surfaces something to catch. */
-    background:
-      radial-gradient(900px 420px at 105% -8%, hsl(213 85% 90% / .75), transparent 62%),
-      radial-gradient(700px 360px at -10% 30%, hsl(28 95% 90% / .35), transparent 60%),
-      radial-gradient(800px 500px at 50% 115%, hsl(190 80% 92% / .45), transparent 60%),
-      linear-gradient(180deg, hsl(218 40% 98%), hsl(var(--page)));
-    background-attachment: fixed;
+    /* Calm, near-flat page: a faint cool wash at the top, nothing that competes with content. */
+    background: linear-gradient(180deg, hsl(220 40% 97%), hsl(var(--page)) 420px);
+    background-color: hsl(var(--page));
+    font-feature-settings: 'cv11', 'ss01';
   }
-  h1, h2, h3 { letter-spacing: -0.005em; }
+  h1, h2, h3 { letter-spacing: -0.015em; }
+  /* Every interactive element changes colour/shadow smoothly on one curve. :where() keeps this at
+     zero specificity, so a component's own transition utility always wins. */
+  :where(a, button, [role="tab"], [role="menuitem"], input, select, textarea) {
+    transition-property: color, background-color, border-color, box-shadow, opacity, fill, stroke;
+    transition-duration: 200ms;
+    transition-timing-function: var(--ease);
+  }
 
   /* ── App feel on phones & tablets ─────────────────────────────── */
   html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
@@ -63,24 +70,40 @@
 }
 
 @layer components {
-  /* Glossy surface: frosted white, hairline border, layered soft shadow, 1px top sheen. */
+  /* Surface: solid white card, hairline border, soft two-layer shadow. (Class name kept so every
+     existing screen picks up the new look.) */
   .gloss {
-    @apply border border-white/70 bg-white/80 backdrop-blur-md;
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / .9), 0 1px 2px rgb(16 24 40 / .04), 0 4px 14px -4px rgb(16 24 40 / .08), 0 12px 32px -12px rgb(25 65 115 / .10);
+    @apply border border-slate-200/80 bg-white;
+    box-shadow: 0 1px 2px rgb(16 24 40 / .04), 0 2px 8px -2px rgb(16 24 40 / .05);
   }
-  .gloss-hover { @apply transition-[transform,box-shadow] duration-200; }
-  .gloss-hover:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgb(255 255 255 / .9), 0 2px 4px rgb(16 24 40 / .05), 0 10px 24px -6px rgb(25 65 115 / .16); }
+  /* Hover: border and shadow deepen; nothing moves. */
+  .gloss-hover { transition: box-shadow .25s var(--ease), border-color .25s var(--ease); }
+  .gloss-hover:hover { border-color: rgb(203 213 225); box-shadow: 0 1px 2px rgb(16 24 40 / .05), 0 8px 24px -8px rgb(16 24 40 / .14); }
   .panel { @apply gloss rounded-2xl; }
-  .panel-head { @apply flex items-center justify-between gap-2 rounded-t-2xl border-b border-slate-100/80 bg-gradient-to-b from-white to-slate-50/60 px-4 py-2.5; }
-  .panel-title { @apply flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-slate-700 before:h-3.5 before:w-[3px] before:rounded-full before:bg-[hsl(var(--saffron))] before:content-['']; }
+  .panel-head { @apply flex items-center justify-between gap-2 rounded-t-2xl border-b border-slate-100 bg-white px-5 py-3.5; }
+  .panel-title { @apply flex items-center gap-2 text-[14.5px] font-semibold tracking-tight text-slate-900; }
   /* Table polish shared by every list */
-  thead { @apply bg-gradient-to-b from-slate-50 to-slate-100/70; }
-  tbody tr { @apply transition-colors; }
-  ::selection { background: hsl(213 80% 88%); }
+  thead { @apply bg-slate-50/80; }
+  th { @apply text-slate-500; }
+  tbody tr { transition: background-color .2s var(--ease); }
+  ::selection { background: hsl(221 90% 88%); }
   /* Page content fades in softly on navigation. */
-  main > * { animation: crm-rise .28s cubic-bezier(.2,.7,.2,1) both; }
-  @keyframes crm-rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-  @media (prefers-reduced-motion: reduce) { main > * { animation: none; } }
+  /* "backwards" (not "both"): once finished, the animation stops applying, so sections do not stay as separate stacking layers (which would hide dropdowns under later sections). */
+  main > * { animation: crm-rise .42s var(--ease) backwards; }
+  main > *:nth-child(2) { animation-delay: 40ms; }
+  main > *:nth-child(3) { animation-delay: 80ms; }
+  @keyframes crm-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  /* Generic soft entrance for panels/cards that mount later (e.g. after data loads). */
+  .crm-fade { animation: crm-rise .42s var(--ease) backwards; }
+  /* Sparklines draw themselves in once (dash length is set inline as --len). */
+  @keyframes crm-draw { from { stroke-dashoffset: var(--len); } }
+  /* Data refreshing in place: content dims slightly instead of flashing a skeleton. */
+  .crm-refreshing { opacity: .55; transition: opacity .3s var(--ease); }
+  .crm-settled { opacity: 1; transition: opacity .3s var(--ease); }
+  @media (prefers-reduced-motion: reduce) {
+    main > *, .crm-fade { animation: none; }
+    :where(a, button, [role="tab"], [role="menuitem"], input, select, textarea) { transition-duration: 0ms; }
+  }
   /* Shimmering sheen for the brand header. */
   .header-sheen { position: relative; isolation: isolate; }
   .header-sheen::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
@@ -106,15 +129,79 @@
 }
 
 /* ── Personal Appearance settings (lib/preferences.js) ───────────────────────── */
-/* Lead count bar stays under the header while scrolling (header: 59px phones, 51px desktop). */
+/* Lead count bar stays under the header while scrolling (header: 57px phones, 73px desktop). */
 html[data-sticky-summary='on'] .crm-sticky-summary {
-  position: sticky; top: calc(59px + env(safe-area-inset-top)); z-index: 20;
+  position: sticky; top: calc(57px + env(safe-area-inset-top)); z-index: 15;
   box-shadow: 0 10px 24px -14px rgb(15 23 42 / 0.35);
 }
 .crm-sticky-summary { backdrop-filter: blur(10px); }
 .crm-sticky-summary > div { background: linear-gradient(180deg, rgb(255 255 255 / .96), rgb(248 250 252 / .92)); }
-@media (min-width: 1024px) { html[data-sticky-summary='on'] .crm-sticky-summary { top: 51px; } }
+@media (min-width: 1024px) { html[data-sticky-summary='on'] .crm-sticky-summary { top: 73px; } }
 /* Compact density: tighter tables and cards. */
 html[data-density='compact'] td { padding-top: 0.3rem !important; padding-bottom: 0.3rem !important; }
 html[data-density='compact'] th { padding-top: 0.35rem !important; padding-bottom: 0.35rem !important; }
 html[data-density='compact'] main { padding-top: 0.75rem; }
+
+/* ── Activity loader (components/layout/ActivityLoader.jsx) ─────────────────── */
+.crm-beam {
+  background: hsl(var(--primary));
+  animation: crm-beam 1.2s ease-in-out infinite;
+}
+@keyframes crm-beam { 0% { transform: translateX(-110%); } 100% { transform: translateX(320%); } }
+.crm-orbit { background: conic-gradient(from 0deg, transparent 0 55%, rgb(56 189 248 / .9) 80%, #a78bfa 100%); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px)); mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px)); animation: crm-spin .9s linear infinite; }
+.crm-orbit-dot { animation: crm-spin .9s linear infinite; }
+@keyframes crm-spin { to { transform: rotate(360deg); } }
+.crm-pop { animation: crm-pop .35s cubic-bezier(.34,1.56,.64,1); }
+@keyframes crm-pop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.crm-ellipsis::after { content: ''; display: inline-block; width: 1.2em; text-align: left; animation: crm-dots 1.2s steps(4, end) infinite; }
+@keyframes crm-dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75%, 100% { content: '...'; } }
+@media (prefers-reduced-motion: reduce) { .crm-beam, .crm-orbit, .crm-orbit-dot { animation-duration: 3s; } }
+
+/* Never let the page scroll sideways on phones/tablets. `clip` (not `hidden`) keeps position: sticky working;
+   wide tables still scroll inside their own overflow-x-auto boxes. */
+html, body { max-width: 100%; overflow-x: clip; }
+main { min-width: 0; }
+img, video, svg, canvas { max-width: 100%; }
+pre, code { overflow-wrap: anywhere; }
+
+/* Tablets (iPad portrait/landscape below the desktop sidebar): solid brand strip across the top, like an app bar. */
+@media (min-width: 768px) and (max-width: 1023.98px) {
+  .crm-topbar {
+    background: hsl(var(--sidebar)) !important;
+    border-color: transparent !important;
+    box-shadow: 0 6px 20px -12px rgb(2 6 23 / 0.5) !important;
+    backdrop-filter: none !important;
+  }
+  .crm-topbar > div { height: 4.25rem; }
+  .crm-topbar .text-slate-900 { color: #fff; }
+  .crm-topbar .text-slate-500,
+  .crm-topbar .text-slate-600 { color: rgb(255 255 255 / 0.72); }
+  .crm-topbar button:hover { background-color: rgb(255 255 255 / 0.1); color: #fff; box-shadow: none; }
+  .crm-topbar .ring-white { --tw-ring-color: hsl(var(--sidebar)); }
+}
+
+/* ── Version 1.0 look (until the user installs 2.0, see components/layout/VersionUpdate.jsx) ── */
+html[data-ui='v1'] {
+  --foreground: 215 30% 15% !important; --card-foreground: 215 30% 15% !important; --popover-foreground: 215 30% 15% !important;
+  --primary: 213 62% 26% !important; --ring: 213 62% 36% !important;
+  --accent: 213 45% 95% !important; --accent-foreground: 213 62% 22% !important;
+  --secondary: 214 25% 95%; --muted: 214 25% 96%; --muted-foreground: 215 14% 42%;
+  --border: 216 24% 89%; --input: 216 20% 82%; --page: 218 33% 97%;
+  --sidebar: 213 68% 20%;
+}
+html[data-ui='v1'] body {
+  background:
+    radial-gradient(900px 420px at 105% -8%, hsl(213 85% 90% / .75), transparent 62%),
+    radial-gradient(700px 360px at -10% 30%, hsl(28 95% 90% / .35), transparent 60%),
+    radial-gradient(800px 500px at 50% 115%, hsl(190 80% 92% / .45), transparent 60%),
+    linear-gradient(180deg, hsl(218 40% 98%), hsl(218 33% 97%));
+  background-attachment: fixed;
+}
+html[data-ui='v1'] .gloss {
+  border-color: rgb(255 255 255 / .7); background: rgb(255 255 255 / .8); backdrop-filter: blur(12px);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .9), 0 1px 2px rgb(16 24 40 / .04), 0 4px 14px -4px rgb(16 24 40 / .08), 0 12px 32px -12px rgb(25 65 115 / .10);
+}
+html[data-ui='v1'] .panel-head { background: linear-gradient(180deg, #fff, rgb(248 250 252 / .6)); padding: .625rem 1rem; }
+html[data-ui='v1'] .panel-title { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: rgb(51 65 85); }
+html[data-ui='v1'] .panel-title::before { content: ''; height: .875rem; width: 3px; border-radius: 9999px; background: hsl(var(--saffron)); }
+html[data-ui='v1'] thead { background: linear-gradient(180deg, rgb(248 250 252), rgb(241 245 249 / .7)); }

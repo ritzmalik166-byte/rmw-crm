@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { CalendarDays } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -32,38 +32,85 @@ export function rangeLabel(r) {
 
 export const todayRange = () => ({ preset: 'today', ...RANGE_PRESETS.today.get() });
 
-/** Segmented presets + a custom from/to picker. `value` = { preset, from, to }. */
+/**
+ * The period just before `r`, same length: Today → Yesterday, Last 7 days → the 7 days before, and so on.
+ * Used for "vs previous period" comparisons. `label` reads naturally after "vs".
+ */
+export function previousRange(r) {
+  const day = (s) => new Date(`${s}T00:00:00`);
+  const len = Math.round((day(r.to) - day(r.from)) / 86_400_000) + 1;
+  const to = day(r.from); to.setDate(to.getDate() - 1);
+  const from = new Date(to); from.setDate(from.getDate() - (len - 1));
+  const label = r.preset === 'today' ? 'yesterday' : r.preset === 'yesterday' ? 'day before' : len === 1 ? 'previous day' : `previous ${len} days`;
+  return { from: ymd(from), to: ymd(to), label };
+}
+
+/**
+ * Segmented presets + a custom from/to picker. `value` = { preset, from, to }.
+ * The highlighted pill glides between options (position and width ease on one curve) instead of jumping.
+ */
 export function DateRangeFilter({ value, onChange, className }) {
   const [draft, setDraft] = useState({ from: value.from, to: value.to });
   const [customOpen, setCustomOpen] = useState(value.preset === 'custom');
   const valid = draft.from && draft.to && draft.from <= draft.to && draft.from >= FILTER_MIN_DATE && draft.to <= filterMaxDate();
+  const activeKey = customOpen || value.preset === 'custom' ? 'custom' : value.preset;
+
+  const groupRef = useRef(null);
+  const btnRefs = useRef({});
+  const [pill, setPill] = useState(null);
+  useLayoutEffect(() => {
+    const place = () => {
+      const el = btnRefs.current[activeKey];
+      if (el) setPill({ left: el.offsetLeft, top: el.offsetTop, width: el.offsetWidth, height: el.offsetHeight });
+    };
+    place();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(place) : null;
+    if (ro && groupRef.current) ro.observe(groupRef.current);
+    return () => ro?.disconnect();
+  }, [activeKey, value.from, value.to]);
+
+  const optionCls = (active) => cn('relative z-[1] inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[12.5px] font-medium transition-colors duration-300',
+    active ? 'text-white' : 'text-slate-600 hover:text-slate-900');
 
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)}>
-      <div className="inline-flex flex-wrap rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+      <div ref={groupRef} role="tablist" aria-label="Date range" className="relative inline-flex flex-wrap rounded-full border border-slate-200 bg-white p-1 shadow-[0_1px_2px_rgb(16_24_40/0.04)]">
+        {pill && (
+          <span
+            aria-hidden
+            className="absolute rounded-full bg-primary shadow-[0_4px_12px_-4px_hsl(var(--primary)/0.55)] transition-[left,top,width,height] duration-[380ms] ease-[cubic-bezier(.22,.61,.36,1)]"
+            style={pill}
+          />
+        )}
         {Object.entries(RANGE_PRESETS).map(([k, p]) => (
           <button
             key={k}
+            ref={(el) => { btnRefs.current[k] = el; }}
             type="button"
+            role="tab"
+            aria-selected={activeKey === k}
             onClick={() => { setCustomOpen(false); onChange({ preset: k, ...p.get() }); }}
-            className={cn('rounded-lg px-2.5 py-1 text-[12px] font-medium transition', value.preset === k ? 'bg-[hsl(213_70%_96%)] text-[hsl(var(--primary))] shadow-[inset_0_0_0_1px_hsl(213_60%_86%)]' : 'text-slate-600 hover:bg-slate-50')}
+            className={optionCls(activeKey === k)}
           >{p.label}</button>
         ))}
         <button
+          ref={(el) => { btnRefs.current.custom = el; }}
           type="button"
+          role="tab"
+          aria-selected={activeKey === 'custom'}
           onClick={() => setCustomOpen((o) => !o)}
-          className={cn('inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[12px] font-medium transition', value.preset === 'custom' || customOpen ? 'bg-[hsl(213_70%_96%)] text-[hsl(var(--primary))] shadow-[inset_0_0_0_1px_hsl(213_60%_86%)]' : 'text-slate-600 hover:bg-slate-50')}
-        ><CalendarDays className="h-3.5 w-3.5" />{value.preset === 'custom' ? rangeLabel(value) : 'Custom'}</button>
+          className={optionCls(activeKey === 'custom')}
+        ><CalendarDays className="h-3.5 w-3.5" aria-hidden />{value.preset === 'custom' ? rangeLabel(value) : 'Custom'}</button>
       </div>
       {customOpen && (
         <form
-          className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1 shadow-sm"
+          className="crm-fade flex flex-wrap items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1 shadow-[0_1px_2px_rgb(16_24_40/0.04)]"
           onSubmit={(e) => { e.preventDefault(); if (valid) onChange({ preset: 'custom', ...draft }); }}
         >
-          <input type="date" value={draft.from} min={FILTER_MIN_DATE} max={draft.to || filterMaxDate()} onChange={(e) => setDraft((d) => ({ ...d, from: e.target.value }))} className="h-7 rounded-md border border-slate-200 px-2 text-[12px]" aria-label="From date" />
+          <input type="date" value={draft.from} min={FILTER_MIN_DATE} max={draft.to || filterMaxDate()} onChange={(e) => setDraft((d) => ({ ...d, from: e.target.value }))} className="h-7 rounded-full border border-slate-200 px-3 text-[12px]" aria-label="From date" />
           <span className="text-[12px] text-slate-400">to</span>
-          <input type="date" value={draft.to} min={draft.from || FILTER_MIN_DATE} max={filterMaxDate()} onChange={(e) => setDraft((d) => ({ ...d, to: e.target.value }))} className="h-7 rounded-md border border-slate-200 px-2 text-[12px]" aria-label="To date" />
-          <button type="submit" disabled={!valid} className="h-7 rounded-md bg-[hsl(var(--primary))] px-3 text-[12px] font-semibold text-white disabled:opacity-40">Apply</button>
+          <input type="date" value={draft.to} min={draft.from || FILTER_MIN_DATE} max={filterMaxDate()} onChange={(e) => setDraft((d) => ({ ...d, to: e.target.value }))} className="h-7 rounded-full border border-slate-200 px-3 text-[12px]" aria-label="To date" />
+          <button type="submit" disabled={!valid} className="h-7 rounded-full bg-primary px-4 text-[12px] font-semibold text-white hover:bg-[hsl(var(--primary)/0.9)] disabled:opacity-40">Apply</button>
         </form>
       )}
     </div>

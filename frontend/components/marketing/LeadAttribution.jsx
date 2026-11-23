@@ -12,7 +12,7 @@ const STANDARD = new Set(['full_name', 'first_name', 'last_name', 'email', 'work
 
 function Row({ label, value, mono }) {
   return (
-    <div className="grid grid-cols-[110px_1fr] items-baseline gap-3 py-2 text-[13px]">
+    <div className="grid grid-cols-[110px_minmax(0,1fr)] items-baseline gap-3 py-2 text-[13px]">
       <dt className="text-slate-500">{label}</dt>
       <dd className={cn('min-w-0 break-words text-slate-800', mono && 'font-mono text-xs')}>{value || <span className="text-slate-400">—</span>}</dd>
     </div>
