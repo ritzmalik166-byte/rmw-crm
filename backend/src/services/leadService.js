@@ -232,19 +232,51 @@ export const leadService = {
     emitToWebsite(lead.website_id, evtName, payload);
     if (target) {
       emitToUser(target.id, evtName, payload);
+      const byOther = target.id !== req.auth.user.id;
+      const remark = reason && reason !== 'bulk' ? reason : null;
       await notificationService.notify(target.id, {
         type: isReassign ? 'LEAD_REASSIGNED' : 'LEAD_ASSIGNED', title: isReassign ? 'A lead was reassigned to you' : 'New lead assigned to you',
-        body: `${lead.name || 'Unnamed'} · ${lead.external_lead_id}`, link: `/crm/leads/${id}`,
+        body: `${lead.name || 'Unnamed'} · ${lead.external_lead_id}${remark ? `\nRemark: ${remark}` : ''}`, link: `/crm/leads/${id}`,
+        data: { leadId: id, needsAck: byOther, remark, by: req.auth.user.full_name || null },
       });
     }
     if (isReassign && lead.assigned_user_id && lead.assigned_user_id !== userId) emitToUser(lead.assigned_user_id, EVENTS.LEAD_REASSIGNED, payload);
   },
 
-  async bulk(req, { ids, action, userId, statusId }) {
+  /** The current owner confirms they've seen an assignment. Tells whoever assigned it. */
+  async acknowledge(req, id) {
+    const me = req.auth.user.id;
+    const lead = await loadVisibleLead(req, id);
+    if (lead.assigned_user_id !== me) throw badRequest('Only the assigned person can acknowledge this lead');
+    const a = await one('SELECT id, assigned_by FROM lead_assignments WHERE lead_id = ? AND assigned_user_id = ? AND acknowledged_at IS NULL ORDER BY id DESC LIMIT 1', [id, me]);
+    if (!a) return { acknowledged: true };
+    await query('UPDATE lead_assignments SET acknowledged_at = NOW(3) WHERE lead_id = ? AND assigned_user_id = ? AND acknowledged_at IS NULL', [id, me]);
+    await activity(id, me, 'ASSIGNMENT_ACKNOWLEDGED', { assignmentId: a.id });
+    if (a.assigned_by && a.assigned_by !== me) {
+      emitToUser(a.assigned_by, EVENTS.ASSIGNMENT_ACKNOWLEDGED, { leadId: id, by: me });
+      await notificationService.notify(a.assigned_by, {
+        type: 'ASSIGNMENT_ACKNOWLEDGED', title: `${req.auth.user.full_name || 'Assignee'} acknowledged a lead`,
+        body: `${lead.name || 'Unnamed'} · ${lead.external_lead_id}`, link: `/crm/leads/${id}`, data: { leadId: id },
+      });
+    }
+    return { acknowledged: true };
+  },
+
+  /** Assignments by someone else that the signed-in user hasn't acknowledged yet (reminder popup on load). */
+  async pendingAcks(req) {
+    return query(`SELECT la.id, la.lead_id, la.reason AS remark, la.created_at, la.reminded_at, l.name, l.external_lead_id, bu.full_name AS assigned_by_name
+      FROM lead_assignments la JOIN leads l ON l.id = la.lead_id AND l.assigned_user_id = la.assigned_user_id
+      LEFT JOIN users bu ON bu.id = la.assigned_by
+      WHERE la.assigned_user_id = ? AND la.acknowledged_at IS NULL AND la.assigned_by IS NOT NULL AND la.assigned_by <> la.assigned_user_id
+        AND la.created_at > NOW(3) - INTERVAL 7 DAY
+      ORDER BY la.id DESC LIMIT 20`, [req.auth.user.id]);
+  },
+
+  async bulk(req, { ids, action, userId, statusId, reason }) {
     const results = { updated: 0, failed: [] };
     for (const id of ids) {
       try {
-        if (action === 'assign') await leadService.assign(req, id, { userId, reason: 'bulk' });
+        if (action === 'assign') await leadService.assign(req, id, { userId, reason: reason || 'bulk' });
         else if (action === 'status') await leadService.update(req, id, { statusId });
         results.updated += 1;
       } catch (err) {
@@ -357,6 +389,32 @@ export const leadService = {
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
     return [cols.join(','), ...rows.map((r) => cols.map((c) => esc(r[c])).join(','))].join('\n');
+  },
+
+  /**
+   * Leads received per IST day over the last `days` days (today included), for dashboard sparklines.
+   * One grouped query; same visibility, merge and junk rules as pipelineCounts, business pipelines only (no career).
+   * Missing days are filled with zeros so the series always has `days` points.
+   */
+  async dailyTrend(req, channel = null, days = 7) {
+    const c = channelSql(channel);
+    const vis = leadVisibilitySql(req);
+    const start = new Date(startOfTodayIst().getTime() - (days - 1) * 86_400_000);
+    const rows = await query(
+      `SELECT DATE_FORMAT(CONVERT_TZ(${RECEIVED}, '+00:00', '+05:30'), '%Y-%m-%d') day, COUNT(*) total,
+         SUM(s.code = 'NEW') new_leads, SUM(l.assigned_user_id IS NULL) unassigned, SUM(s.is_conversion) converted
+       FROM leads l JOIN lead_statuses s ON s.id = l.status_id
+       WHERE ${vis.sql} AND l.merged_into_lead_id IS NULL AND l.junk_reason IS NULL AND ${PIPELINES.general.sql}
+         ${c.sql ? `AND ${c.sql}` : ''} AND ${RECEIVED} >= ?
+       GROUP BY 1 ORDER BY 1`,
+      [...vis.params, ...PIPELINES.general.params, ...c.params, start],
+    );
+    const byDay = new Map(rows.map((row) => [row.day, row]));
+    return Array.from({ length: days }, (_, i) => {
+      const day = new Date(start.getTime() + 330 * 60_000 + i * 86_400_000).toISOString().slice(0, 10);
+      const row = byDay.get(day) || {};
+      return { day, total: Number(row.total || 0), new_leads: Number(row.new_leads || 0), unassigned: Number(row.unassigned || 0), converted: Number(row.converted || 0) };
+    });
   },
 
   /** Per-pipeline counts for navigation and the dashboard (respects website access and visibility). */

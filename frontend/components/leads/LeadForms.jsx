@@ -17,7 +17,7 @@ export function AssignDialog({ open, onOpenChange, leadIds, websiteId, onDone, c
   const m = useMutation({
     mutationFn: () => (leadIds.length === 1
       ? api(`/crm/leads/${leadIds[0]}/assign`, { method: 'POST', body: { userId: userId ? Number(userId) : null, reason: reason || null } })
-      : api('/crm/leads/bulk', { method: 'POST', body: { ids: leadIds, action: 'assign', userId: userId ? Number(userId) : null } })),
+      : api('/crm/leads/bulk', { method: 'POST', body: { ids: leadIds, action: 'assign', userId: userId ? Number(userId) : null, reason: reason || null } })),
     onSuccess: (r) => {
       if (r?.failed?.length) toast.warning(`${r.updated} updated, ${r.failed.length} failed`, { description: r.failed[0].message });
       else toast.success(currentOwner ? 'Lead transferred' : 'Assignment updated');
@@ -43,7 +43,11 @@ export function AssignDialog({ open, onOpenChange, leadIds, websiteId, onDone, c
             {lk?.users?.filter((u) => u.id !== currentOwner?.id).map((u) => <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>)}
           </Select>
         </Field>
-        {leadIds.length === 1 && <Field label="Reason (optional)"><Input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={255} /></Field>}
+        {userId && (
+          <Field label="Remark for the assignee (optional)" hint="Shown to them with the assignment. They'll be asked to acknowledge it; if they don't within 10 minutes, they get a reminder and you get notified.">
+            <Textarea value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} rows={3} placeholder="e.g. Hot lead, call before 5 pm. Interested in 3 BHK." />
+          </Field>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button loading={m.isPending} disabled={Boolean(currentOwner) && !userId} onClick={() => m.mutate()}>{currentOwner ? 'Transfer' : 'Save'}</Button>

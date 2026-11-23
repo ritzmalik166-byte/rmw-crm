@@ -1,4 +1,6 @@
 'use client';
+import { useUiVersion } from '@/lib/useUiVersion';
+import { MetaChannel as LegacyMetaChannel, MpfChannels as LegacyMpfChannels } from '@/components/legacy/MpfChannels';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -64,7 +66,7 @@ function ChannelHeader({ channel, tab, tabs, standalone = false, eyebrow = null 
 }
 
 /** Page avatar: Facebook's public Page picture, falling back to the first letter when it can't load. */
-function PageAvatar({ page, className }) {
+export function PageAvatar({ page, className }) {
   const [failed, setFailed] = useState(false);
   if (failed) return <span className={cn('flex items-center justify-center rounded-full bg-blue-100 font-semibold text-blue-700', className)}>{page.name?.[0]?.toUpperCase() || 'P'}</span>;
   // eslint-disable-next-line @next/next/no-img-element
@@ -142,22 +144,27 @@ function MetaPageGrid({ pages, hrefFor, unseen }) {
   );
 }
 
-/** Header shown above the leads of one opened Page, with a way back to the Page cards. */
-function MetaPageBar({ page, backHref }) {
+/** Identity of the opened Page (avatar, name, counts), shown at the left of the filter card. */
+function MetaPageIdentity({ page }) {
   return (
-    <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/50 px-3 py-2.5">
-      <div className="flex min-w-0 items-center gap-3">
-        {page ? <PageAvatar page={page} className="h-10 w-10 shrink-0" />
-          : <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white"><MetaLogo className="h-6 w-6" tile={false} badge={false} /></span>}
-        <div className="min-w-0">
-          <p className="truncate text-[14px] font-semibold text-slate-900">{page ? page.name : 'All Pages'}</p>
-          <p className="text-[12px] text-slate-600">{page ? `${page.total} leads · ${page.today} today` : 'Every Meta lead from all Pages'}</p>
-        </div>
+    <div className="flex min-w-0 items-center gap-2.5 md:w-[230px] md:shrink-0">
+      {page ? <PageAvatar page={page} className="h-9 w-9 shrink-0" />
+        : <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50"><MetaLogo className="h-5 w-5" tile={false} badge={false} /></span>}
+      <div className="min-w-0">
+        <p className="truncate text-[14px] font-semibold leading-tight text-slate-900" title={page ? page.name : 'All Pages'}>{page ? page.name : 'All Pages'}</p>
+        <p className="mt-0.5 text-[11.5px] text-slate-500">
+          {page ? <><b className="font-semibold tabular-nums text-slate-700">{page.total}</b> leads · <span className={page.today > 0 ? 'font-medium text-emerald-600' : ''}>{page.today} today</span></> : 'Every Meta lead'}
+        </p>
       </div>
-      <Link href={backHref} className="inline-flex shrink-0 items-center gap-1 rounded-md border bg-white px-2.5 py-1.5 text-[12.5px] font-medium text-slate-700 hover:bg-slate-50">
-        <ArrowLeft className="h-3.5 w-3.5" />All Pages
-      </Link>
     </div>
+  );
+}
+
+function AllPagesLink({ href }) {
+  return (
+    <Link href={href} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border bg-white px-3 text-[12.5px] font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900">
+      <ArrowLeft className="h-3.5 w-3.5" />All Pages
+    </Link>
   );
 }
 
@@ -176,7 +183,7 @@ const matchesWords = (name, words) => { const n = name.toLowerCase(); return wor
  * Lead form picker for the opened Page: type-ahead search with suggestions (counts, last lead, keyboard ↑ ↓ Enter Esc),
  * quick-pick chips for the busiest forms, and the selected form shown as a removable chip. Sets ?formId=.
  */
-function MetaFormFilter({ forms, formId }) {
+function MetaFormFilter({ forms, formId, page, backHref }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -192,7 +199,6 @@ function MetaFormFilter({ forms, formId }) {
     return () => document.removeEventListener('mousedown', close);
   }, [open]);
 
-  if (!forms.length) return null;
   const set = (id) => {
     const next = new URLSearchParams(params.toString());
     if (id) next.set('formId', id); else next.delete('formId');
@@ -213,10 +219,12 @@ function MetaFormFilter({ forms, formId }) {
   };
 
   return (
-    <div className="mb-3 rounded-xl border border-slate-200 bg-white p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-700"><FileText className="h-4 w-4 text-indigo-600" />Lead form</span>
-        <div ref={boxRef} className="relative min-w-[240px] flex-1">
+    <div className="relative z-[25] mb-3 rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-col gap-3 p-3 md:flex-row md:items-center">
+        <MetaPageIdentity page={page} />
+        <span className="hidden h-8 w-px bg-slate-200 md:block" aria-hidden />
+        {forms.length > 0 && (
+        <div ref={boxRef} className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); setHi(0); }} onFocus={() => setOpen(true)} onKeyDown={onKey}
             placeholder={`Search ${forms.length} forms by name… e.g. terra hni`} aria-label="Search lead forms" role="combobox"
@@ -250,6 +258,8 @@ function MetaFormFilter({ forms, formId }) {
             </div>
           )}
         </div>
+        )}
+        {!forms.length && <div className="flex-1" />}
         {current && (
           <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 py-1 pl-3 pr-1 text-[12.5px] text-indigo-900">
             <span className="truncate" title={current.name}>{current.name}</span>
@@ -257,16 +267,20 @@ function MetaFormFilter({ forms, formId }) {
             <button type="button" onClick={() => set('')} aria-label="Remove form filter" className="rounded-full p-0.5 hover:bg-indigo-100"><X className="h-3.5 w-3.5" /></button>
           </span>
         )}
+        <AllPagesLink href={backHref} />
       </div>
       {!current && top.length > 1 && (
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="text-[11.5px] text-slate-500">Top forms:</span>
-          {top.map((f) => (
-            <button key={f.formId} type="button" onClick={() => set(f.formId)} title={f.name}
-              className="inline-flex max-w-[260px] items-center gap-1.5 rounded-full border bg-white px-2.5 py-1 text-[12px] text-slate-700 transition hover:border-[hsl(var(--ring))] hover:text-slate-900">
-              <span className="truncate">{f.name}</span><span className="font-semibold tabular-nums text-slate-500">{f.total}</span>
-            </button>
-          ))}
+        <div className="rounded-b-xl border-t border-slate-100 bg-slate-50/60 px-3 py-2.5">
+          <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400"><FileText className="h-3.5 w-3.5" />Top forms</p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {top.map((f) => (
+              <button key={f.formId} type="button" onClick={() => set(f.formId)} title={f.name}
+                className="group flex min-w-0 items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-left transition hover:border-[hsl(var(--ring))] hover:shadow-sm">
+                <span className="truncate text-[12.5px] text-slate-700 group-hover:text-slate-900">{f.name}</span>
+                <span className="shrink-0 rounded-full bg-indigo-50 px-2 py-0.5 text-[11.5px] font-semibold tabular-nums text-indigo-700">{f.total}</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -274,7 +288,7 @@ function MetaFormFilter({ forms, formId }) {
 }
 
 /** Meta channel view. Used inside MPF Leads (?channel=meta) and standalone at /crm/meta (sidebar). */
-export function MetaChannel({ standalone = false }) {
+function MetaChannelV2({ standalone = false }) {
   const params = useSearchParams();
   const pathname = usePathname();
   const tab = params.get('tab') === 'forms' ? 'forms' : params.get('junk') === 'only' ? 'junk' : 'leads';
@@ -296,18 +310,19 @@ export function MetaChannel({ standalone = false }) {
   const openPage = pageId ? metaPages?.find((p) => p.id === pageId) : null;
   // Landing: Page cards only. Leads appear once a card (or "All Pages") is opened, or when arriving with a form filter.
   const landing = Boolean(metaPages?.length) && !pageId && !showAll && !formId;
+  // Forms of the opened Page only, so the tab count, search box and form list all agree.
+  const pageForms = (forms || []).filter((f) => !pageId || f.pageId === pageId);
   const tabs = [
-    { key: 'leads', label: 'Leads', icon: Users2, href: `${pathname}?channel=meta`, count: openPage ? openPage.total : pipe?.counts?.mpf?.total },
+    { key: 'leads', label: 'Leads', icon: Users2, href: `${pathname}?channel=meta${pageId ? `&pageId=${pageId}` : ''}`, count: openPage ? openPage.total : pipe?.counts?.mpf?.total },
     { key: 'junk', label: 'Junk & test', icon: ShieldAlert, href: `${pathname}?channel=meta&junk=only`, count: junkCount },
-    { key: 'forms', label: 'Lead forms', icon: FileText, href: `${pathname}?channel=meta&tab=forms`, count: forms?.length },
+    { key: 'forms', label: 'Lead forms', icon: FileText, href: `${pathname}?channel=meta&tab=forms${pageId ? `&pageId=${pageId}` : ''}`, count: forms ? pageForms.length : undefined },
   ];
   return (
     <>
       <ChannelHeader channel="meta" tab={tab} tabs={tabs} standalone={standalone} />
-      {tab === 'forms' ? <Card className="overflow-hidden"><MetaLeadFormsList /></Card> : landing ? <MetaPageGrid pages={metaPages} hrefFor={pageHref} unseen={unseen} /> : (
+      {tab === 'forms' ? <Card className="overflow-hidden"><MetaLeadFormsList pageId={pageId || undefined} /></Card> : landing ? <MetaPageGrid pages={metaPages} hrefFor={pageHref} unseen={unseen} /> : (
         <>
-          {(pageId || showAll) && <MetaPageBar page={openPage} backHref={pageHref(null)} />}
-          {(pageId || showAll) && <MetaFormFilter forms={(forms || []).filter((f) => showAll || f.pageId === pageId)} formId={formId} />}
+          {(pageId || showAll) && <MetaFormFilter forms={showAll ? (forms || []) : pageForms} formId={formId} page={openPage} backHref={pageHref(null)} />}
           {formId && !pageId && !showAll && (
             <div className="mb-3 flex items-center justify-between gap-2 rounded-lg border border-blue-200 bg-blue-50/60 px-3 py-2 text-[13px] text-blue-950">
               <span className="flex min-w-0 items-center gap-2"><FileText className="h-4 w-4 shrink-0" /><span className="truncate">Form: <b>{form?.name || formId}</b></span></span>
@@ -331,7 +346,7 @@ export function MetaChannel({ standalone = false }) {
  * MPF Leads: Website / App leads only. Meta leads live in their own section (/crm/meta, sidebar → Lead channels).
  * Old MPF links to the Meta channel (?channel=meta, ?formId=…, ?tab=forms) are forwarded there.
  */
-export function MpfChannels() {
+function MpfChannelsV2() {
   const params = useSearchParams();
   const router = useRouter();
   const isMetaLink = params.get('channel') === 'meta' || params.get('formId') || params.get('tab') === 'forms';
@@ -351,3 +366,6 @@ export function MpfChannels() {
     </>
   );
 }
+
+export function MetaChannel(props) { const v = useUiVersion(); if (v === null) return null; return v === 2 ? <MetaChannelV2 {...props} /> : <LegacyMetaChannel {...props} />; }
+export function MpfChannels(props) { const v = useUiVersion(); if (v === null) return null; return v === 2 ? <MpfChannelsV2 {...props} /> : <LegacyMpfChannels {...props} />; }

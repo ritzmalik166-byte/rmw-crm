@@ -1,6 +1,6 @@
 import { query, one } from '../config/db.js';
 
-const PUBLIC_COLS = 'u.id, u.full_name, u.email, u.mobile, u.avatar, u.status, u.department_id, u.last_login_at, u.created_at, u.updated_at';
+const PUBLIC_COLS = 'u.id, u.full_name, u.email, u.mobile, u.avatar, u.ui_version, u.ui_tour_done, u.status, u.department_id, u.last_login_at, u.created_at, u.updated_at';
 
 export const userRepo = {
   findById: (id, conn) => one(`SELECT ${PUBLIC_COLS} FROM users u WHERE u.id = ?`, [id], conn),

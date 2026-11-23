@@ -69,7 +69,7 @@ export const ROLES = [
       'user.view', 'user.edit', 'user.disable',
       'role.view', 'team.manage', 'department.manage',
       'analytics.view', 'analytics.export', 'integration.view',
-      'lead_config.manage', 'settings.view', 'audit.view',
+      'lead_config.manage', 'settings.view',
     ],
   },
   {
@@ -107,4 +107,4 @@ export const DEFAULT_SETTINGS = {
   'followups.reminder_minutes_before': 30,
 };
 
-export const NOTIFICATION_TYPES = ['NEW_LEAD', 'LEAD_ASSIGNED', 'LEAD_REASSIGNED', 'FOLLOWUP_DUE', 'FOLLOWUP_OVERDUE', 'SYSTEM', 'ACCOUNT_REQUEST'];
+export const NOTIFICATION_TYPES = ['NEW_LEAD', 'LEAD_ASSIGNED', 'LEAD_REASSIGNED', 'FOLLOWUP_DUE', 'FOLLOWUP_OVERDUE', 'ASSIGNMENT_REMINDER', 'ASSIGNMENT_ACKNOWLEDGED', 'SYSTEM', 'ACCOUNT_REQUEST'];

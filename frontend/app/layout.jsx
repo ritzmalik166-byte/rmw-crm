@@ -5,6 +5,7 @@ import { MaintenanceGate } from '@/components/MaintenanceGate';
 import { AppToaster, ServiceWorkerRegister } from '@/components/layout/AppChrome';
 import { ConfirmHost } from '@/components/ui/confirm';
 import { PREFS_BOOT_SCRIPT } from '@/lib/preferences';
+import { UI_BOOT_SCRIPT } from '@/lib/uiVersion';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
@@ -24,7 +25,7 @@ export const viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#194173',
+  themeColor: '#0b1734',
 };
 
 export default function RootLayout({ children }) {
@@ -33,6 +34,7 @@ export default function RootLayout({ children }) {
       <head>
         {/* Personal Appearance settings, applied before first paint. */}
         <script dangerouslySetInnerHTML={{ __html: PREFS_BOOT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: UI_BOOT_SCRIPT }} />
       </head>
       <body className="font-sans">
         <QueryProvider>

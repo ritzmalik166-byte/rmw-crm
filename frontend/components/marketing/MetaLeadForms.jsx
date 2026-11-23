@@ -23,10 +23,11 @@ export function useMetaLeadForms(params = {}) {
  * Meta lead forms with their lead counts. `compact` = dashboard panel (name, leads in range, total).
  * Clicking a form opens the MPF pipeline filtered to that form's leads.
  */
-export function MetaLeadFormsList({ params, compact = false, limit }) {
+export function MetaLeadFormsList({ params, compact = false, limit, pageId }) {
   const { data, isLoading } = useMetaLeadForms(params);
   if (isLoading) return <TableSkeleton rows={4} cols={compact ? 3 : 6} />;
-  const rows = limit ? (data || []).slice(0, limit) : data || [];
+  const all = pageId ? (data || []).filter((f) => f.pageId === pageId) : data || [];
+  const rows = limit ? all.slice(0, limit) : all;
   if (!rows.length) {
     return <EmptyState icon={FileText} title="No Meta lead forms yet" description="Forms appear after Meta is connected under Super Admin > Integrations." />;
   }

@@ -1,6 +1,9 @@
 'use client';
+import { useUiVersion } from '@/lib/useUiVersion';
+import { LegacyLeadDetail } from '@/components/legacy/LeadDetail';
 import { use, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
@@ -28,6 +31,7 @@ import { LeadAttribution } from '@/components/marketing/LeadAttribution';
 import { LEAD_SOURCE_TYPES } from '@/lib/leadSources';
 
 import { confirmAction } from '@/components/ui/confirm';
+import { AssignmentBanner } from '@/components/leads/AssignmentBanner';
 const parse = (v, fallback) => (typeof v === 'string' ? (() => { try { return JSON.parse(v || 'null') ?? fallback; } catch { return fallback; } })() : v ?? fallback);
 
 function copy(text, label = 'Copied') {
@@ -52,7 +56,7 @@ function CopyButton({ value, label }) {
 function Row({ label, value, mono, href }) {
   const isUrl = href ?? /^https?:\/\//i.test(String(value || ''));
   return (
-    <div className="grid grid-cols-[110px_1fr] items-baseline gap-3 py-2 text-[13px]">
+    <div className="grid grid-cols-[110px_minmax(0,1fr)] items-baseline gap-3 py-2 text-[13px]">
       <dt className="text-slate-500">{label}</dt>
       <dd className={cn('min-w-0 break-words text-slate-800', mono && 'font-mono text-xs')}>
         {!value ? <span className="text-slate-400">—</span>
@@ -112,6 +116,7 @@ const ACTIVITY = {
   LEAD_SYNCED: { label: 'Updated from source website', icon: RefreshCw, tone: 'bg-sky-50 text-sky-600 ring-sky-200' },
   LEAD_ASSIGNED: { label: 'Lead assigned', icon: UserPlus, tone: 'bg-indigo-50 text-indigo-600 ring-indigo-200' },
   LEAD_REASSIGNED: { label: 'Lead reassigned', icon: Users, tone: 'bg-indigo-50 text-indigo-600 ring-indigo-200' },
+  ASSIGNMENT_ACKNOWLEDGED: { label: 'Assignment acknowledged', icon: CheckCircle2, tone: 'bg-emerald-50 text-emerald-600 ring-emerald-200' },
   STATUS_CHANGED: { label: 'Status changed', icon: ArrowRightLeft, tone: 'bg-amber-50 text-amber-600 ring-amber-200' },
   LEAD_UPDATED: { label: 'Lead details updated', icon: Pencil, tone: 'bg-slate-100 text-slate-600 ring-slate-200' },
   NOTE_ADDED: { label: 'Note added', icon: MessageSquare, tone: 'bg-slate-100 text-slate-600 ring-slate-200' },
@@ -181,7 +186,7 @@ function StatTile({ icon: Icon, label, children, tone }) {
       <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', tone || 'bg-slate-100 text-slate-500')}><Icon className="h-4 w-4" /></span>
       <div className="min-w-0">
         <p className="kv-label">{label}</p>
-        <div className="truncate text-[13px] font-medium text-slate-800">{children}</div>
+        <div className="break-words text-[13px] font-medium leading-snug text-slate-800 [overflow-wrap:anywhere] lg:truncate">{children}</div>
       </div>
     </div>
   );
@@ -244,7 +249,7 @@ function FollowupForm({ leadId, onDone }) {
             className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[12px] text-slate-700 hover:border-[hsl(var(--primary))] hover:text-[hsl(var(--primary))]">{label}</button>
         ))}
       </div>
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3">
         <Field label="Date"><Input type="date" value={date} min={localDate(new Date())} onChange={(e) => setDate(e.target.value)} required /></Field>
         <Field label="Time"><Input type="time" value={time} onChange={(e) => setTime(e.target.value)} required /></Field>
         <Field label="Priority">
@@ -261,10 +266,20 @@ function FollowupForm({ leadId, onDone }) {
 
 const PRIORITY_TONE = { LOW: 'secondary', MEDIUM: 'info', HIGH: 'warning', URGENT: 'danger' };
 
-export default function LeadDetailPage({ params }) {
+function LeadDetailV2({ params }) {
   const { id } = use(params);
   const qc = useQueryClient();
   const { can, me } = useAuth();
+  const router = useRouter();
+  // Return to whichever page opened this lead (keeps its filters/scroll);
+  // fall back to the pipeline link when the lead was opened directly.
+  const goBack = (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    if (window.history.length > 1) {
+      e.preventDefault();
+      router.back();
+    }
+  };
   const user = me?.user;
   const { data: lk } = useLookups();
   const [dialog, setDialog] = useState(null);
@@ -302,7 +317,6 @@ export default function LeadDetailPage({ params }) {
   const isCareer = String(lead.form_type || '').toLowerCase() === 'career' || lead.junk_reason === 'career';
   const pipeKey = isCareer ? 'career' : String(lead.website_code || '').toLowerCase();
   const backHref = ['mpf', 'rmw', 'ct', 'ctmpl', 'career'].includes(pipeKey) ? `/crm/pipeline/${pipeKey}` : '/crm/leads';
-  const backLabel = isCareer ? 'Career Leads' : lead.website_code ? `${lead.website_code} Leads` : 'Leads';
   const receivedAt = lead.external_created_at || lead.created_at;
   const overdue = lead.next_followup_at && new Date(lead.next_followup_at) < new Date();
   const openFollowups = lead.followups.filter((f) => f.status !== 'COMPLETED' && f.status !== 'CANCELLED');
@@ -318,7 +332,7 @@ export default function LeadDetailPage({ params }) {
       <div className="panel overflow-hidden">
         <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-2 text-[12px] text-slate-500">
           <div className="flex min-w-0 items-center gap-1.5">
-            <Link href={backHref} className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-slate-100 hover:text-[hsl(var(--primary))]"><ArrowLeft className="h-3.5 w-3.5" />{backLabel}</Link>
+            <Link href={backHref} onClick={goBack} title="Back to previous page" className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-slate-100 hover:text-[hsl(var(--primary))]"><ArrowLeft className="h-3.5 w-3.5" />Back</Link>
             <span className="text-slate-300">/</span>
             <button type="button" onClick={() => copy(lead.external_lead_id, 'Lead ID copied')} className="truncate rounded-md px-1.5 py-0.5 font-mono hover:bg-slate-100" title="Copy lead ID">{lead.external_lead_id}</button>
           </div>
@@ -330,7 +344,7 @@ export default function LeadDetailPage({ params }) {
             <span className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-lg font-semibold text-white shadow-sm', AVATAR_TONE[lead.website_code] || 'from-slate-500 to-slate-700')}>{initials(lead.name)}</span>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-[20px] font-semibold leading-tight text-slate-900">{lead.name || 'Unnamed lead'}</h1>
+                <h1 className="break-words text-[18px] font-semibold leading-tight text-slate-900 sm:text-[20px]">{lead.name || 'Unnamed lead'}</h1>
                 <WebsiteBadge code={lead.website_code} />
                 <StatusBadge name={lead.status_name} color={lead.status_color} />
                 {openDups.length > 0 && <Badge variant="warning"><Copy className="mr-1 h-3 w-3" />{openDups.length} possible duplicate{openDups.length > 1 ? 's' : ''}</Badge>}
@@ -369,8 +383,10 @@ export default function LeadDetailPage({ params }) {
         )}
       </div>
 
+      <AssignmentBanner lead={lead} userId={user?.id} />
+
       {/* ── Key facts ──────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 [&>*]:min-w-0">
         <StatTile icon={User} label="Owner" tone={lead.assigned_user_name ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-600'}>
           {lead.assigned_user_name || <span className="text-amber-700">Unassigned</span>}
         </StatTile>
@@ -405,7 +421,7 @@ export default function LeadDetailPage({ params }) {
         </Card>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
         {/* ── Left column ───────────────────────────────────────── */}
         <div className="space-y-4 lg:col-span-1">
           <Card>
@@ -424,7 +440,7 @@ export default function LeadDetailPage({ params }) {
               {lead.message && (
                 <div className="relative mt-3 rounded-lg border-l-[3px] border-[hsl(var(--saffron))] bg-amber-50/40 py-2.5 pl-8 pr-3 text-[13px] leading-relaxed text-slate-700">
                   <Quote className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-amber-500" />
-                  <p className="whitespace-pre-wrap">{lead.message}</p>
+                  <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{lead.message}</p>
                 </div>
               )}
             </CardContent>
@@ -543,7 +559,7 @@ export default function LeadDetailPage({ params }) {
                               <span className="text-[13px] font-medium text-slate-800">{n.author || 'Unknown'}</span>
                               <time className="text-[11px] text-slate-400" title={formatDateTime(n.created_at)}>{timeAgo(n.created_at)}</time>
                             </div>
-                            <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-slate-700">{n.body}</p>
+                            <p className="whitespace-pre-wrap [overflow-wrap:anywhere] text-[13px] leading-relaxed text-slate-700">{n.body}</p>
                           </div>
                         </div>
                       ))}
@@ -573,7 +589,7 @@ export default function LeadDetailPage({ params }) {
                                   <Badge variant={f.status === 'OVERDUE' ? 'danger' : done ? 'success' : 'info'}>{titleCase(f.status)}</Badge>
                                   <Badge variant={PRIORITY_TONE[f.priority] || 'outline'}>{titleCase(f.priority)}</Badge>
                                 </div>
-                                {f.notes && <p className="mt-1 whitespace-pre-wrap text-[13px] text-slate-600">{f.notes}</p>}
+                                {f.notes && <p className="mt-1 whitespace-pre-wrap [overflow-wrap:anywhere] text-[13px] text-slate-600">{f.notes}</p>}
                                 <p className="mt-1 text-[11px] text-slate-400">Owner: {f.owner}</p>
                               </div>
                             </div>
@@ -631,3 +647,5 @@ function NoteComposer({ user, note, setNote, onSubmit, pending, compact }) {
     </form>
   );
 }
+
+export default function LeadDetailPage(props) { const v = useUiVersion(); if (v === null) return null; return v === 2 ? <LeadDetailV2 {...props} /> : <LegacyLeadDetail {...props} />; }

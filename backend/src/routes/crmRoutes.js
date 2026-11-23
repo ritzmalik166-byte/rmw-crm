@@ -11,6 +11,7 @@ r.use(authenticate, requireArea('crm'));
 r.get('/dashboard', h(c.dashboard));
 r.get('/lookups', h(c.lookups));
 r.get('/pipelines', requirePermission('lead.view'), h(c.pipelines));
+r.get('/trend', requirePermission('lead.view'), h(c.trend));
 
 r.get('/leads', requirePermission('lead.view'), validate(s.listQuery, 'query'), h(c.listLeads));
 r.get('/leads/export', requirePermission('lead.export'), validate(s.listQuery, 'query'), h(c.exportLeads));
@@ -19,6 +20,8 @@ r.post('/leads/bulk', requireAnyPermission('lead.assign', 'lead.reassign', 'lead
 r.get('/leads/:id', requirePermission('lead.view'), h(c.getLead));
 r.patch('/leads/:id', requirePermission('lead.edit'), validate(s.update), h(c.updateLead));
 r.delete('/leads/:id', requirePermission('lead.delete'), h(c.deleteLead));
+r.get('/assignments/pending', requirePermission('lead.view'), h(c.pendingAcks));
+r.post('/leads/:id/acknowledge', requirePermission('lead.view'), h(c.acknowledgeLead));
 r.post('/leads/:id/assign', requireAnyPermission('lead.assign', 'lead.reassign'), validate(s.assign), h(c.assignLead));
 r.post('/leads/:id/notes', requirePermission('lead.view'), validate(s.note), h(c.addNote));
 r.post('/leads/:id/followups', requirePermission('lead.view'), validate(s.followup), h(c.addFollowup));

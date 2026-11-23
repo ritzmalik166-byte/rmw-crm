@@ -1,4 +1,6 @@
 'use client';
+import { useUiVersion } from '@/lib/useUiVersion';
+import { LeadsWorkspace as LegacyLeadsWorkspace } from '@/components/legacy/LeadsWorkspace';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
@@ -15,7 +17,6 @@ import { Input, Select } from '@/components/ui/input';
 import { FILTER_MIN_DATE, filterMaxDate } from '@/components/ui/date-range';
 import { Checkbox, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/controls';
 import { StatusBadge, WebsiteBadge, Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState, ErrorState, Pagination, TableSkeleton } from '@/components/ui/feedback';
 import { AssignDialog, BulkStatusDialog, CreateLeadDialog } from '@/components/leads/LeadForms';
 import { LEAD_SOURCE_OPTIONS } from '@/lib/leadSources';
@@ -66,13 +67,13 @@ const VIEWS = [
 function PipelineTabs({ active, counts }) {
   const tabs = ['all', ...PIPELINE_ORDER];
   return (
-    <div className="flex overflow-x-auto border-b bg-white">
+    <div className="flex overflow-x-auto overflow-y-hidden border-b bg-white px-2 sm:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {tabs.map((k) => {
         const p = PIPELINES[k];
         const href = k === 'all' ? '/crm/leads' : `/crm/pipeline/${k}`;
         const c = k === 'all' ? null : counts?.[k];
         return (
-          <Link key={k} href={href} className={cn('-mb-px flex items-center gap-1.5 whitespace-nowrap border-b-2 px-4 py-2.5 text-[13px] font-medium',
+          <Link key={k} href={href} className={cn('-mb-px flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2.5 text-[13px] font-medium transition-colors sm:px-4',
             active === k ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : 'border-transparent text-slate-600 hover:text-slate-900')}>
             <PipelineLogo src={p.logo} />{p.short === 'All' ? 'All leads' : `${p.short} Leads`}
             {c && <span className={cn('rounded-sm px-1.5 text-[11px] tabular-nums', active === k ? 'bg-[hsl(213_70%_94%)]' : 'bg-slate-100')}>{c.total}</span>}
@@ -145,20 +146,168 @@ function LeadCard({ lead: l, pipelineKey, editable, canTransfer, me, onTransfer,
       </div>
       <div className="mt-2 grid grid-cols-3 gap-2 pl-[52px] [&>*]:h-10 [&>*]:min-h-0">
         {l.phone
-          ? <a href={`tel:${l.phone}`} className="flex h-9 items-center justify-center gap-1.5 rounded-lg bg-[hsl(213_70%_95%)] text-[12.5px] font-semibold text-[hsl(var(--primary))] active:scale-[0.97]"><Phone className="h-4 w-4" />Call</a>
-          : <span className="flex h-9 items-center justify-center rounded-lg bg-slate-50 text-[12px] text-slate-400">No phone</span>}
+          ? <a href={`tel:${l.phone}`} className="flex h-10 items-center justify-center gap-1.5 rounded-lg bg-[hsl(213_70%_95%)] text-[12.5px] font-semibold text-[hsl(var(--primary))]"><Phone className="h-4 w-4" />Call</a>
+          : <span className="flex h-10 items-center justify-center rounded-lg bg-slate-50 text-[12px] text-slate-400">No phone</span>}
         {wa
-          ? <a href={wa} target="_blank" rel="noopener noreferrer" className="flex h-9 items-center justify-center gap-1.5 rounded-lg bg-emerald-50 text-[12.5px] font-semibold text-emerald-700 active:scale-[0.97]"><WhatsAppIcon className="h-4 w-4" />WhatsApp</a>
+          ? <a href={wa} target="_blank" rel="noopener noreferrer" className="flex h-10 items-center justify-center gap-1.5 rounded-lg bg-emerald-50 text-[12.5px] font-semibold text-emerald-700"><WhatsAppIcon className="h-4 w-4" />WhatsApp</a>
           : l.email
-            ? <a href={`mailto:${l.email}`} className="flex h-9 items-center justify-center gap-1.5 rounded-lg bg-slate-100 text-[12.5px] font-semibold text-slate-700 active:scale-[0.97]"><Mail className="h-4 w-4" />Email</a>
+            ? <a href={`mailto:${l.email}`} className="flex h-10 items-center justify-center gap-1.5 rounded-lg bg-slate-100 text-[12.5px] font-semibold text-slate-700"><Mail className="h-4 w-4" />Email</a>
             : <span />}
         {canTransfer
-          ? <button onClick={() => onTransfer(l)} className="flex h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 text-[12.5px] font-semibold text-slate-700 active:scale-[0.97]">{l.assigned_user_id ? <><ArrowRightLeft className="h-4 w-4" />Transfer</> : <><UserPlus className="h-4 w-4" />Assign</>}</button>
+          ? <button onClick={() => onTransfer(l)} className="flex h-10 items-center justify-center gap-1.5 rounded-lg border border-slate-200 text-[12.5px] font-semibold text-slate-700">{l.assigned_user_id ? <><ArrowRightLeft className="h-4 w-4" />Transfer</> : <><UserPlus className="h-4 w-4" />Assign</>}</button>
           : l.resume_url
-            ? <a href={l.resume_url} target="_blank" rel="noopener noreferrer" className="flex h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 text-[12.5px] font-semibold text-slate-700"><FileText className="h-4 w-4" />Resume</a>
+            ? <a href={l.resume_url} target="_blank" rel="noopener noreferrer" className="flex h-10 items-center justify-center gap-1.5 rounded-lg border border-slate-200 text-[12.5px] font-semibold text-slate-700"><FileText className="h-4 w-4" />Resume</a>
             : <span />}
       </div>
     </li>
+  );
+}
+
+/** Initials chip for the owner column. */
+function OwnerChip({ name, you }) {
+  const initials = String(name || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+  return (
+    <span className="flex min-w-0 items-center gap-1.5">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[hsl(213_70%_92%)] to-[hsl(213_60%_86%)] text-[10px] font-semibold text-[hsl(var(--primary))] ring-1 ring-white">{initials}</span>
+      <span className={cn('truncate', you && 'font-medium text-slate-900')}>{you ? 'You' : name}</span>
+    </span>
+  );
+}
+
+/*
+ * Desktop spreadsheet grid. Row-number gutter, hairline gridlines, sticky header and a sticky lead column, so the
+ * sheet scrolls sideways inside its frame instead of pushing the page wider. Sticky cells need an opaque background
+ * that tracks the row state (zebra / hover / selected), hence the group-* classes.
+ */
+const CELL = 'border-b border-r border-slate-200/70 px-3 py-2 align-middle';
+const STICKY_BG = 'bg-white group-even:bg-[#f9fafc] group-hover:bg-[#f1f6fd] group-data-[state=selected]:bg-[#e9f1fc]';
+const HEAD = 'sticky top-0 z-[2] h-9 border-b border-r border-slate-200 bg-[#f4f6f9] px-3 text-left align-middle text-[10.5px] font-semibold uppercase tracking-[0.06em] text-slate-500 whitespace-nowrap';
+
+function LeadGrid({ rows, p, pipelineKey, channel, me, can, selected, allSelected, onToggle, onToggleAll, onTransfer, rowOffset }) {
+  const editable = can('lead.edit');
+  const cols = [
+    { key: 'lead', label: 'Lead', w: 240 },
+    { key: 'contact', label: 'Contact', w: 220 },
+    p.showWebsite && { key: 'site', label: 'Site', w: 88 },
+    { key: 'interest', label: channel === 'client' ? 'Client / project' : p.interestLabel, w: 250 },
+    p.showResume && { key: 'resume', label: 'Resume', w: 96 },
+    p.showSource && { key: 'source', label: 'Source / campaign', w: 200 },
+    { key: 'status', label: 'Status', w: 136 },
+    { key: 'owner', label: 'Owner', w: 170 },
+    { key: 'followup', label: 'Next follow-up', w: 150 },
+    { key: 'received', label: 'Received', w: 160 },
+  ].filter(Boolean);
+  const GUTTER = 68;
+  const minWidth = GUTTER + cols.reduce((s, c) => s + c.w, 0);
+
+  return (
+    <div className="hidden xl:block">
+      <div className="max-h-[calc(100dvh-230px)] min-h-[320px] overflow-auto overscroll-x-contain [scrollbar-width:thin]">
+        <table className="w-full table-fixed border-separate border-spacing-0 text-[12.5px] text-slate-700" style={{ minWidth }}>
+          <colgroup>
+            <col style={{ width: GUTTER }} />
+            {cols.map((c) => <col key={c.key} style={{ width: c.w }} />)}
+          </colgroup>
+          <thead>
+            <tr>
+              <th className={cn(HEAD, 'left-0 z-[4] px-2')}>
+                <label className="flex items-center gap-2">
+                  <Checkbox checked={allSelected} onCheckedChange={onToggleAll} aria-label="Select all" />
+                  <span className="text-[10px] text-slate-400">#</span>
+                </label>
+              </th>
+              {cols.map((c) => (
+                <th key={c.key} className={cn(HEAD, c.key === 'lead' && 'z-[3] shadow-[1px_0_0_rgb(203_213_225)]')} style={c.key === 'lead' ? { left: GUTTER } : undefined}>{c.label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((l, i) => {
+              const sel = selected.includes(l.id);
+              const canMove = l.assigned_user_id ? can('lead.reassign') : can('lead.assign');
+              const formName = ['LANDING_PAGE', 'META_FORM', 'META'].includes(l.source_type) && l.form_name;
+              return (
+                <tr key={l.id} data-state={sel ? 'selected' : undefined} className="group bg-white transition-colors even:bg-[#f9fafc] hover:bg-[#f1f6fd] data-[state=selected]:bg-[#e9f1fc]">
+                  {/* Gutter: checkbox + row number */}
+                  <td className={cn(CELL, STICKY_BG, 'sticky left-0 z-[1] px-2', sel && 'shadow-[inset_3px_0_0_hsl(var(--primary))]')}>
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <Checkbox checked={sel} onCheckedChange={() => onToggle(l.id)} aria-label={`Select ${l.name}`} />
+                      <span className="font-mono text-[10.5px] tabular-nums text-slate-400">{rowOffset + i + 1}</span>
+                    </label>
+                  </td>
+
+                  {/* Lead (sticky) */}
+                  <td className={cn(CELL, STICKY_BG, 'sticky z-[1] shadow-[1px_0_0_rgb(203_213_225)]')} style={{ left: GUTTER }}>
+                    <Link href={`/crm/leads/${l.id}`} className="block truncate text-[13px] font-semibold text-slate-900 hover:text-[hsl(var(--primary))] hover:underline" title={l.name || ''}>{l.name || 'Unnamed lead'}</Link>
+                    <div className="mt-0.5 flex min-w-0 items-center gap-1 text-[10.5px] text-slate-400">
+                      <span className="truncate font-mono" title={l.external_lead_id}>{l.external_lead_id}</span>
+                      {l.junk_reason && !(pipelineKey === 'career' && l.junk_reason === 'career') && <Badge variant="danger" className="shrink-0 px-1 py-0 text-[9.5px]">{JUNK_LABELS[l.junk_reason] || l.junk_reason}</Badge>}
+                      {!!l.is_duplicate_suspect && <Badge variant="warning" className="shrink-0 px-1 py-0 text-[9.5px]" title="Possible duplicate"><Copy className="mr-0.5 h-2.5 w-2.5" />Dup?</Badge>}
+                    </div>
+                    {l.form_type && pipelineKey !== 'career' && <div className="truncate text-[10.5px] text-slate-400">{l.form_type}</div>}
+                  </td>
+
+                  {/* Contact */}
+                  <td className={CELL}>
+                    {l.phone
+                      ? <a href={`tel:${l.phone}`} className="flex items-center gap-1.5 truncate font-medium tabular-nums text-slate-800 hover:text-[hsl(var(--primary))]"><Phone className="h-3 w-3 shrink-0 text-slate-400" />{l.phone}</a>
+                      : <span className="text-slate-300">—</span>}
+                    {l.email && <a href={`mailto:${l.email}`} className="mt-0.5 flex items-center gap-1.5 text-[11.5px] text-slate-500 hover:text-[hsl(var(--primary))]" title={l.email}><Mail className="h-3 w-3 shrink-0 text-slate-400" /><span className="truncate">{l.email}</span></a>}
+                  </td>
+
+                  {p.showWebsite && <td className={CELL}><WebsiteBadge code={l.website_code} /></td>}
+
+                  {/* Interest */}
+                  <td className={CELL}>
+                    {formName && <div className="truncate text-[10px] font-semibold uppercase tracking-wide text-indigo-600" title={l.form_name}>{l.form_name}</div>}
+                    <div className="truncate text-slate-800" title={l.interest || ''}>{l.interest || <span className="text-slate-300">—</span>}</div>
+                    {l.location && <div className="truncate text-[11px] text-slate-400" title={l.location}>{l.location}</div>}
+                  </td>
+
+                  {p.showResume && (
+                    <td className={CELL}>
+                      {l.resume_url
+                        ? <a href={l.resume_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[12px] font-medium text-[hsl(var(--primary))] hover:underline"><FileText className="h-3.5 w-3.5" />View</a>
+                        : <span className="text-slate-300">—</span>}
+                    </td>
+                  )}
+
+                  {p.showSource && (
+                    <td className={CELL}>
+                      <div className="truncate text-slate-800">{l.source || '—'}{l.medium && l.medium !== 'none' ? <span className="text-slate-400"> / {l.medium}</span> : ''}</div>
+                      {l.campaign && <div className="truncate text-[11px] text-slate-400" title={l.campaign}>{l.campaign}</div>}
+                    </td>
+                  )}
+
+                  <td className={CELL}><StatusCell lead={l} editable={editable} /></td>
+
+                  {/* Owner */}
+                  <td className={CELL}>
+                    <div className="flex items-center gap-1">
+                      {l.assigned_user_name
+                        ? <OwnerChip name={l.assigned_user_name} you={l.assigned_user_id === me?.user?.id} />
+                        : <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-200"><span className="h-1.5 w-1.5 rounded-full bg-amber-500" />Unassigned</span>}
+                      {canMove && (
+                        <button className="ml-auto shrink-0 rounded-md p-1 text-slate-400 opacity-60 transition hover:bg-white hover:text-[hsl(var(--primary))] hover:shadow-sm group-hover:opacity-100" onClick={() => onTransfer(l)} title={l.assigned_user_id ? 'Transfer lead' : 'Assign lead'} aria-label={`${l.assigned_user_id ? 'Transfer' : 'Assign'} ${l.name || 'lead'}`}>
+                          {l.assigned_user_id ? <ArrowRightLeft className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
+                        </button>
+                      )}
+                    </div>
+                  </td>
+
+                  <td className={cn(CELL, 'text-[12px]')}><FollowupCell at={l.next_followup_at} /></td>
+
+                  <td className={cn(CELL, 'border-r-0')} title={`Imported to CRM: ${formatDateTime(l.created_at)}`}>
+                    <div className="truncate tabular-nums text-slate-700">{formatDateTime(l.received_at || l.created_at)}</div>
+                    <div className="text-[11px] text-slate-400">{timeAgo(l.received_at || l.created_at)}</div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
@@ -166,7 +315,7 @@ function LeadCard({ lead: l, pipelineKey, editable, canTransfer, me, onTransfer,
  * `channel` ('meta' | 'website') embeds the workspace inside the MPF channel view: no pipeline tabs, channel title,
  * and the summary strip counts only that channel.
  */
-export function LeadsWorkspace({ pipelineKey = 'all', channel = null, title = null, description = null, icon = null }) {
+function LeadsWorkspaceV2({ pipelineKey = 'all', channel = null, title = null, description = null, icon = null }) {
   const p = PIPELINES[pipelineKey];
   const embedded = Boolean(channel);
   const router = useRouter();
@@ -174,6 +323,7 @@ export function LeadsWorkspace({ pipelineKey = 'all', channel = null, title = nu
   const params = useSearchParams();
   const { can, me } = useAuth();
   const { data: lk } = useLookups();
+  const qc = useQueryClient();
   const urlPageId = channel === 'meta' ? params.get('pageId') || undefined : undefined;
   const { data: pipe } = useQuery({ queryKey: ['leads', 'pipelines', channel, urlPageId], queryFn: () => api(`/crm/pipelines${toQuery({ channel, pageId: urlPageId })}`), staleTime: 60_000 });
   const filters = useMemo(() => Object.fromEntries(FILTER_KEYS.map((k) => [k, params.get(k) || ''])), [params]);
@@ -205,6 +355,8 @@ export function LeadsWorkspace({ pipelineKey = 'all', channel = null, title = nu
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['leads', query], queryFn: () => api(`/crm/leads${toQuery(query)}`), placeholderData: keepPreviousData,
+    // Keep the list live: new leads appear without a manual reload.
+    refetchInterval: 30_000, refetchOnWindowFocus: true,
   });
 
   const rows = data?.rows || [];
@@ -224,15 +376,19 @@ export function LeadsWorkspace({ pipelineKey = 'all', channel = null, title = nu
     } catch (e) { toast.error(apiMessage(e)); }
   };
 
+  const canAdd = can('lead.create') && pipelineKey !== 'career' && channel !== 'meta' && channel !== 'client';
+  // Reload the list and every count around it (summary strip, tabs, page cards).
+  const reloadAll = () => { qc.invalidateQueries({ queryKey: ['leads'] }); qc.invalidateQueries({ queryKey: ['meta'] }); refetch(); };
+
   const colCount = 7 + (p.showWebsite ? 1 : 0) + (p.showSource ? 1 : 0);
 
   return (
-    <div className={embedded ? '' : '-mx-4 -mt-4 sm:-mx-6 sm:-mt-6'}>
+    <div className={embedded ? 'min-w-0' : 'min-w-0 -mx-4 -mt-4 sm:-mx-6 sm:-mt-5 lg:-mx-7 lg:-mt-2'}>
       {!p.standalone && !embedded && <PipelineTabs active={pipelineKey} counts={pipe?.counts} />}
 
-      <div className={cn(!embedded && 'px-4 sm:px-6', embedded ? 'pt-0' : p.standalone ? 'pt-4' : 'pt-3')}>
+      <div className={cn(!embedded && 'px-4 sm:px-6 lg:px-7', embedded ? 'pt-0' : p.standalone ? 'pt-4' : 'pt-3')}>
         {/* Title row */}
-        <div className={cn('mb-2 flex items-center gap-2', embedded ? 'justify-end' : 'justify-between')}>
+        {(!embedded || canAdd) && <div className={cn('mb-2 flex items-center gap-2', embedded ? 'justify-end' : 'justify-between')}>
           {!embedded && (
             <div>
               <h1 className="flex items-center gap-2 text-[17px] font-semibold text-slate-900">{icon || <PipelineLogo src={p.logo} className="h-6 w-6" />}{title || p.title}</h1>
@@ -240,11 +396,9 @@ export function LeadsWorkspace({ pipelineKey = 'all', channel = null, title = nu
             </div>
           )}
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => refetch()} aria-label="Refresh"><RefreshCw className={isFetching ? 'animate-spin' : ''} /></Button>
-            {can('lead.export') && <Button variant="outline" size="sm" onClick={exportCsv}><Download />Export</Button>}
-            {can('lead.create') && pipelineKey !== 'career' && channel !== 'meta' && channel !== 'client' && <Button size="sm" className="hidden lg:inline-flex" onClick={() => setDialog('create')}><Plus />Add lead</Button>}
+            {canAdd && <Button size="sm" className="hidden lg:inline-flex" onClick={() => setDialog('create')}><Plus />Add lead</Button>}
           </div>
-        </div>
+        </div>}
 
         {/* Pipeline summary strip */}
         {stats && filters.junk !== 'only' && (
@@ -259,36 +413,42 @@ export function LeadsWorkspace({ pipelineKey = 'all', channel = null, title = nu
         )}
 
         {/* Toolbar */}
-        <div className="rounded-t-xl border bg-white">
-          <div className="flex flex-wrap items-center gap-2 border-b px-2.5 py-2">
-            <div className="order-2 flex max-w-full overflow-x-auto rounded-lg border bg-slate-50 p-0.5 sm:order-none [scrollbar-width:none]">
+        <div className="rounded-t-2xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgb(15_23_42/0.04)]">
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-200/80 px-2.5 py-2">
+            <div className="order-2 flex max-w-full shrink-0 overflow-x-auto rounded-lg border border-slate-200 bg-slate-50 p-0.5 sm:order-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {VIEWS.filter((v) => !v.perm || can(v.perm)).map((v) => (
-                <button key={v.key} onClick={() => setFilter({ view: v.key })} className={cn('whitespace-nowrap rounded-sm px-2.5 py-1 text-[12px] font-medium', filters.view === v.key ? 'bg-white text-[hsl(var(--primary))] shadow-sm ring-1 ring-slate-200' : 'text-slate-600 hover:text-slate-900')}>{v.label}</button>
+                <button key={v.key} onClick={() => setFilter({ view: v.key })} className={cn('whitespace-nowrap rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors', filters.view === v.key ? 'bg-white text-[hsl(var(--primary))] shadow-sm ring-1 ring-slate-200' : 'text-slate-600 hover:text-slate-900')}>{v.label}</button>
               ))}
             </div>
-            <div className="relative order-1 basis-full sm:order-none sm:min-w-[220px] sm:flex-1 sm:basis-auto">
+            <div className="relative order-1 basis-full sm:order-none sm:min-w-[200px] sm:flex-1 sm:basis-auto">
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input className="pl-8" placeholder={channel === 'meta' ? 'Search name, phone, email, form name, campaign…' : 'Search name, phone, email, lead ID…'} value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search leads" />
+              <Input className="pl-8" placeholder={channel === 'meta' ? 'Search name, phone, email, form, campaign…' : 'Search name, phone, email, lead ID…'} value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search leads" />
             </div>
+            <div className="order-3 grid w-full grid-cols-2 gap-2 sm:order-none sm:flex sm:w-auto sm:flex-wrap sm:items-center">
             {has('status') && (
-              <Select className="order-3 min-w-0 basis-[calc(50%-4px)] sm:order-none sm:w-36 sm:basis-auto" value={filters.statusId} onChange={(e) => setFilter({ statusId: e.target.value })} aria-label="Status">
+              <Select className="min-w-0 sm:w-36" value={filters.statusId} onChange={(e) => setFilter({ statusId: e.target.value })} aria-label="Status">
                 <option value="">Any status</option>{lk?.statuses?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </Select>
             )}
             {has('owner') && (
-              <Select className="order-3 min-w-0 basis-[calc(50%-4px)] sm:order-none sm:w-40 sm:basis-auto" value={filters.assignedUserId} onChange={(e) => setFilter({ assignedUserId: e.target.value })} aria-label="Owner">
+              <Select className="min-w-0 sm:w-40" value={filters.assignedUserId} onChange={(e) => setFilter({ assignedUserId: e.target.value })} aria-label="Owner">
                 <option value="">Any owner</option><option value="me">Me</option>
                 {can('lead.view_all') && <option value="unassigned">Unassigned</option>}
                 {can('lead.view_all') && lk?.users?.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
               </Select>
             )}
-            <Button className="order-4 basis-[calc(50%-4px)] sm:order-none sm:basis-auto" variant={moreFilters || activeFilters ? 'secondary' : 'outline'} size="sm" onClick={() => setMoreFilters((v) => !v)}>
-              <SlidersHorizontal />Filters{activeFilters ? ` (${activeFilters})` : ''}
-            </Button>
-            <Select className="order-4 min-w-0 basis-[calc(50%-4px)] sm:order-none sm:w-36 sm:basis-auto" value={`${filters.sort || 'created_at'}:${filters.dir || 'desc'}`} onChange={(e) => { const [sort, dir] = e.target.value.split(':'); setFilter({ sort, dir }); }} aria-label="Sort">
+            <Select className="min-w-0 sm:w-36" value={`${filters.sort || 'created_at'}:${filters.dir || 'desc'}`} onChange={(e) => { const [sort, dir] = e.target.value.split(':'); setFilter({ sort, dir }); }} aria-label="Sort">
               <option value="created_at:desc">Newest first</option><option value="created_at:asc">Oldest first</option>
               <option value="updated_at:desc">Recently updated</option><option value="name:asc">Name A–Z</option><option value="status:asc">By status</option>
             </Select>
+            <Button className="min-w-0" variant={moreFilters || activeFilters ? 'secondary' : 'outline'} size="sm" onClick={() => setMoreFilters((v) => !v)}>
+              <SlidersHorizontal />Filters{activeFilters ? ` (${activeFilters})` : ''}
+            </Button>
+            <Button className="min-w-0" variant="outline" size="sm" onClick={reloadAll} disabled={isFetching} title="Reload leads">
+              <RefreshCw className={isFetching ? 'animate-spin' : ''} /><span className="sm:sr-only xl:not-sr-only">Reload</span>
+            </Button>
+            {can('lead.export') && <Button className="min-w-0" variant="outline" size="sm" onClick={exportCsv} title="Export these leads as CSV"><Download />Export</Button>}
+            </div>
           </div>
 
           {moreFilters && (
@@ -322,7 +482,7 @@ export function LeadsWorkspace({ pipelineKey = 'all', channel = null, title = nu
         </div>
 
         {/* Table */}
-        <div className="overflow-hidden rounded-b-xl border border-t-0 bg-white">
+        <div className="overflow-hidden rounded-b-2xl border border-t-0 border-slate-200/90 bg-white shadow-[0_8px_24px_-16px_rgb(15_23_42/0.18)]">
           {isLoading ? <TableSkeleton cols={colCount} /> : isError ? <ErrorState error={error} onRetry={refetch} /> : rows.length === 0 ? (
             <EmptyState title="No leads match" description={activeFilters || filters.search || filters.view ? 'Try another view or remove some filters.' : 'Leads from this source will appear here automatically.'} />
           ) : (
@@ -333,80 +493,8 @@ export function LeadsWorkspace({ pipelineKey = 'all', channel = null, title = nu
                     canTransfer={l.assigned_user_id ? can('lead.reassign') : can('lead.assign')} onTransfer={setRowLead} />
                 ))}
               </ul>
-              <div className="hidden xl:block">
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="w-8"><Checkbox checked={allSelected} onCheckedChange={(v) => setSelected(v ? rows.map((r) => r.id) : [])} aria-label="Select all" /></TableHead>
-                    <TableHead>Lead</TableHead>
-                    <TableHead>Contact</TableHead>
-                    {p.showWebsite && <TableHead>Site</TableHead>}
-                    <TableHead>{channel === 'client' ? 'Client / project' : p.interestLabel}</TableHead>
-                    {p.showResume && <TableHead>Resume</TableHead>}
-                    {p.showSource && <TableHead>Source / campaign</TableHead>}
-                    <TableHead>Status</TableHead>
-                    <TableHead>Owner</TableHead>
-                    <TableHead>Next follow-up</TableHead>
-                    <TableHead>Received</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((l) => (
-                    <TableRow key={l.id} data-state={selected.includes(l.id) ? 'selected' : undefined}>
-                      <TableCell><Checkbox checked={selected.includes(l.id)} onCheckedChange={() => toggle(l.id)} aria-label={`Select ${l.name}`} /></TableCell>
-                      <TableCell className="min-w-[180px]">
-                        <Link href={`/crm/leads/${l.id}`} className="font-semibold text-[hsl(var(--primary))] hover:underline">{l.name || 'Unnamed lead'}</Link>
-                        <div className="flex flex-wrap items-center gap-1 text-[11px] text-slate-500">
-                          <span className="font-mono">{l.external_lead_id}</span>
-                          {l.form_type && pipelineKey !== 'career' && <span>· {l.form_type}</span>}
-                          {l.junk_reason && !(pipelineKey === 'career' && l.junk_reason === 'career') && <Badge variant="danger" className="px-1 py-0 text-[10px]">{JUNK_LABELS[l.junk_reason] || l.junk_reason}</Badge>}
-                          {!!l.is_duplicate_suspect && <Badge variant="warning" className="px-1 py-0 text-[10px]"><Copy className="mr-0.5 h-3 w-3" />Duplicate?</Badge>}
-                        </div>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-[12px]">
-                        {l.phone && <a href={`tel:${l.phone}`} className="flex items-center gap-1 text-slate-800 hover:underline"><Phone className="h-3 w-3 text-slate-400" />{l.phone}</a>}
-                        {l.email && <a href={`mailto:${l.email}`} className="flex max-w-[200px] items-center gap-1 truncate text-slate-500 hover:underline"><Mail className="h-3 w-3 shrink-0 text-slate-400" />{l.email}</a>}
-                      </TableCell>
-                      {p.showWebsite && <TableCell><WebsiteBadge code={l.website_code} /></TableCell>}
-                      <TableCell className="max-w-[200px]">
-                        {['LANDING_PAGE', 'META_FORM', 'META'].includes(l.source_type) && l.form_name && <div className="truncate text-[11px] font-semibold uppercase tracking-wide text-indigo-600" title={l.form_name}>{l.form_name}</div>}
-                        <div className="truncate" title={l.interest || ''}>{l.interest || <span className="text-slate-400">—</span>}</div>
-                        {l.location && <div className="truncate text-[11px] text-slate-500">{l.location}</div>}
-                      </TableCell>
-                      {p.showResume && (
-                        <TableCell className="whitespace-nowrap">
-                          {l.resume_url
-                            ? <a href={l.resume_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[12px] font-medium text-[hsl(var(--primary))] hover:underline"><FileText className="h-3.5 w-3.5" />View</a>
-                            : <span className="text-slate-400">—</span>}
-                        </TableCell>
-                      )}
-                      {p.showSource && (
-                        <TableCell className="max-w-[180px]">
-                          <div className="truncate">{l.source || '—'}{l.medium && l.medium !== 'none' ? <span className="text-slate-500"> / {l.medium}</span> : ''}</div>
-                          {l.campaign && <div className="truncate text-[11px] text-slate-500" title={l.campaign}>{l.campaign}</div>}
-                        </TableCell>
-                      )}
-                      <TableCell><StatusCell lead={l} editable={can('lead.edit')} /></TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          <span>{l.assigned_user_name ? (l.assigned_user_id === me?.user?.id ? <span className="font-medium">You</span> : l.assigned_user_name) : <span className="text-amber-700">Unassigned</span>}</span>
-                          {(l.assigned_user_id ? can('lead.reassign') : can('lead.assign')) && (
-                            <button className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-[hsl(var(--primary))]" onClick={() => setRowLead(l)} title={l.assigned_user_id ? 'Transfer lead' : 'Assign lead'} aria-label={`${l.assigned_user_id ? 'Transfer' : 'Assign'} ${l.name || 'lead'}`}>
-                              {l.assigned_user_id ? <ArrowRightLeft className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
-                            </button>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell><FollowupCell at={l.next_followup_at} /></TableCell>
-                      <TableCell className="whitespace-nowrap" title={`Imported to CRM: ${formatDateTime(l.created_at)}`}>
-                        <div>{formatDateTime(l.received_at || l.created_at)}</div>
-                        <div className="text-[11px] text-slate-500">{timeAgo(l.received_at || l.created_at)}</div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              </div>
+              <LeadGrid rows={rows} p={p} pipelineKey={pipelineKey} channel={channel} me={me} can={can} selected={selected} allSelected={allSelected}
+                onToggle={toggle} onToggleAll={(v) => setSelected(v ? rows.map((r) => r.id) : [])} onTransfer={setRowLead} rowOffset={((Number(filters.page) || 1) - 1) * 50} />
             </div>
           )}
           <Pagination meta={data?.meta} onPage={(page) => setFilter({ page: String(page) })} />
@@ -415,7 +503,7 @@ export function LeadsWorkspace({ pipelineKey = 'all', channel = null, title = nu
 
       {can('lead.create') && pipelineKey !== 'career' && (
         <button onClick={() => setDialog('create')} aria-label="Add lead"
-          className="fixed bottom-[calc(max(env(safe-area-inset-bottom),14px)+80px)] right-4 md:bottom-[calc(max(env(safe-area-inset-bottom),18px)+92px)] md:right-6 z-30 flex h-14 w-14 items-center justify-center rounded-2xl bg-[hsl(var(--primary))] text-white shadow-lg shadow-[hsl(var(--primary))]/30 active:scale-95 lg:hidden">
+          className="fixed bottom-[calc(max(env(safe-area-inset-bottom),14px)+80px)] right-4 md:bottom-[calc(max(env(safe-area-inset-bottom),18px)+92px)] md:right-6 z-30 flex h-14 w-14 items-center justify-center rounded-2xl bg-[hsl(var(--primary))] text-white shadow-lg shadow-[hsl(var(--primary))]/30 lg:hidden">
           <Plus className="h-6 w-6" />
         </button>
       )}
@@ -426,3 +514,5 @@ export function LeadsWorkspace({ pipelineKey = 'all', channel = null, title = nu
     </div>
   );
 }
+
+export function LeadsWorkspace(props) { const v = useUiVersion(); if (v === null) return null; return v === 2 ? <LeadsWorkspaceV2 {...props} /> : <LegacyLeadsWorkspace {...props} />; }

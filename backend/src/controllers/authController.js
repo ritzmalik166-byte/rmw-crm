@@ -46,6 +46,13 @@ export const authController = {
     ok(res, null, 'Profile updated');
   },
 
+  /** Saves the CRM look this user installed (and whether they finished the tour), so it follows them to any browser. */
+  async updateUi(req, res) {
+    const { version, tourDone } = req.body;
+    await query('UPDATE users SET ui_version = COALESCE(?, ui_version), ui_tour_done = COALESCE(?, ui_tour_done) WHERE id = ?', [version ?? null, tourDone == null ? null : (tourDone ? 1 : 0), req.auth.user.id]);
+    ok(res, null, 'Saved');
+  },
+
   async updateAvatar(req, res) {
     await userRepo.update(req.auth.user.id, { avatar: req.body.avatar });
     await audit('USER_UPDATED', { actorId: req.auth.user.id, entityType: 'user', entityId: req.auth.user.id, req, meta: { fields: ['avatar'], self: true, removed: !req.body.avatar } });

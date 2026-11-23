@@ -5,17 +5,19 @@ import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-[13px] font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0',
+  // Colour, border and shadow ease on one curve; buttons never move, scale or bounce.
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-[13px] font-medium transition-[color,background-color,border-color,box-shadow,opacity] duration-200 ease-[cubic-bezier(.22,.61,.36,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0',
   {
     variants: {
       variant: {
-        default: 'bg-[linear-gradient(180deg,hsl(var(--primary)/0.86),hsl(var(--primary)))] text-primary-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.22),0_1px_2px_rgb(16_24_40/0.12),0_4px_12px_-4px_hsl(var(--primary)/0.45)] hover:brightness-110 hover:shadow-[inset_0_1px_0_rgb(255_255_255/0.25),0_2px_4px_rgb(16_24_40/0.12),0_8px_18px_-6px_hsl(var(--primary)/0.55)] active:translate-y-px active:brightness-95',
-        destructive: 'bg-[linear-gradient(180deg,hsl(0_72%_54%),hsl(var(--destructive)))] text-destructive-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.2),0_4px_12px_-4px_hsl(0_70%_45%/0.45)] hover:brightness-110 active:translate-y-px',
-        outline: 'border border-slate-200/90 bg-[linear-gradient(180deg,#fff,hsl(214_30%_97%))] text-slate-700 shadow-[inset_0_1px_0_#fff,0_1px_2px_rgb(16_24_40/0.06)] hover:border-slate-300 hover:text-foreground hover:shadow-[inset_0_1px_0_#fff,0_3px_8px_-2px_rgb(16_24_40/0.12)] active:translate-y-px',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        ghost: 'hover:bg-[hsl(var(--accent))] hover:text-accent-foreground',
+        default: 'bg-primary text-primary-foreground shadow-[0_1px_2px_rgb(16_24_40/0.08),0_4px_12px_-4px_hsl(var(--primary)/0.45)] hover:bg-[hsl(var(--primary)/0.9)] hover:shadow-[0_1px_2px_rgb(16_24_40/0.08),0_6px_16px_-6px_hsl(var(--primary)/0.55)]',
+        destructive: 'bg-destructive text-destructive-foreground shadow-[0_1px_2px_rgb(16_24_40/0.08),0_4px_12px_-4px_hsl(var(--destructive)/0.4)] hover:bg-[hsl(var(--destructive)/0.9)]',
+        outline: 'border border-slate-200 bg-white text-slate-700 shadow-[0_1px_2px_rgb(16_24_40/0.05)] hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900',
+        secondary: 'bg-secondary text-secondary-foreground hover:bg-slate-200/70',
+        ghost: 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
         link: 'text-primary underline-offset-4 hover:underline',
       },
+      // Heights match the h-8 inputs so toolbars stay aligned.
       size: { default: 'h-8 px-3', sm: 'h-7 px-2.5 text-xs', lg: 'h-9 px-5', icon: 'h-8 w-8' },
     },
     defaultVariants: { variant: 'default', size: 'default' },

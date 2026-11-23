@@ -21,6 +21,7 @@ r.post('/reset-password', limiters.forgot, validate(s.reset), h(c.reset));
 r.use(authenticate);
 r.get('/me', h(c.me));
 r.patch('/me', validate(s.profile), h(c.updateProfile));
+r.put('/me/ui', validate(s.uiPrefs), h(c.updateUi));
 r.post('/change-password', validate(s.changePassword), h(c.changePassword));
 r.put('/me/avatar', validate(s.avatar), h(c.updateAvatar));
 r.post('/me/mobile/request', limiters.otpSend, validate(s.mobileChangeRequest), h(c.requestMobileChange));

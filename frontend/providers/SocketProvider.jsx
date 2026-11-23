@@ -38,6 +38,8 @@ export function SocketProvider({ children }) {
     socket.on('LEAD_ASSIGNED', (l) => invalidateLeads(l.id));
     socket.on('LEAD_REASSIGNED', (l) => invalidateLeads(l.id));
     socket.on('LEAD_STATUS_CHANGED', (l) => invalidateLeads(l.id));
+    socket.on('ASSIGNMENT_REMINDER', (r) => window.dispatchEvent(new CustomEvent('crm:ack-reminder', { detail: r })));
+    socket.on('ASSIGNMENT_ACKNOWLEDGED', (a) => invalidateLeads(a.leadId));
     socket.on('FOLLOWUP_UPDATED', (f) => {
       qc.invalidateQueries({ queryKey: ['followups'] });
       qc.invalidateQueries({ queryKey: ['dashboard'] });
@@ -46,6 +48,7 @@ export function SocketProvider({ children }) {
     socket.on('NEW_NOTIFICATION', (n) => {
       qc.invalidateQueries({ queryKey: ['notifications'] });
       if (n.type === 'NEW_LEAD') return; // already shown by the NEW_LEAD event for everyone on that website
+      if (n.type === 'ASSIGNMENT_REMINDER' && n.data?.needsAck) return; // shown as the reminder popup instead
       toast(n.title, { description: n.body || undefined, action: n.link ? { label: 'View', onClick: () => router.push(n.link) } : undefined });
     });
     socket.on('FORCE_LOGOUT', () => {

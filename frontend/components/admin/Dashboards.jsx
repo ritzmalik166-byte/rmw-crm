@@ -26,10 +26,10 @@ function ActivityList({ rows }) {
 function TeamPerf({ rows }) {
   if (!rows?.length) return <EmptyState title="No assigned leads yet" />;
   return (
-    <table className="w-full text-sm">
+    <div className="overflow-x-auto"><table className="w-full text-sm">
       <thead className="bg-muted/50 text-xs uppercase text-muted-foreground"><tr><th className="px-5 py-2 text-left font-medium">User</th><th className="px-3 py-2 text-right font-medium">Assigned</th><th className="px-3 py-2 text-right font-medium">Open</th><th className="px-5 py-2 text-right font-medium">Converted</th></tr></thead>
       <tbody className="divide-y">{rows.map((u) => <tr key={u.id}><td className="px-5 py-2">{u.full_name}</td><td className="px-3 py-2 text-right tabular-nums">{u.assigned}</td><td className="px-3 py-2 text-right tabular-nums">{u.open_leads}</td><td className="px-5 py-2 text-right tabular-nums">{u.converted}</td></tr>)}</tbody>
-    </table>
+    </table></div>
   );
 }
 
