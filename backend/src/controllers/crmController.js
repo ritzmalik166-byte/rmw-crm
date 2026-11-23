@@ -45,6 +45,8 @@ export const crmController = {
   async createLead(req, res) { ok(res, await leadService.create(req, req.body), 'Lead created', 201); },
   async updateLead(req, res) { await leadService.update(req, Number(req.params.id), req.body); ok(res, null, 'Lead updated'); },
   async deleteLead(req, res) { await leadService.remove(req, Number(req.params.id)); ok(res, null, 'Lead deleted'); },
+  async acknowledgeLead(req, res) { ok(res, await leadService.acknowledge(req, Number(req.params.id)), 'Acknowledged'); },
+  async pendingAcks(req, res) { ok(res, await leadService.pendingAcks(req)); },
   async assignLead(req, res) { await leadService.assign(req, Number(req.params.id), req.body); ok(res, null, 'Assignment updated'); },
   async bulk(req, res) { ok(res, await leadService.bulk(req, req.body)); },
   async addNote(req, res) { ok(res, await leadService.addNote(req, Number(req.params.id), req.body.body), 'Note added', 201); },
@@ -56,6 +58,13 @@ export const crmController = {
     ok(res, { rows, meta: pageMeta(q.page, q.limit, total) });
   },
   async resolveDuplicate(req, res) { await leadService.resolveDuplicate(req, Number(req.params.id), req.body); ok(res, null, 'Duplicate resolved'); },
+  /** Daily lead counts for dashboard sparklines: ?channel=meta|website|client&days=2..31 (default 7). */
+  async trend(req, res) {
+    const channel = ['meta', 'website', 'client'].includes(req.query.channel) ? req.query.channel : null;
+    assertChannel(req, channel);
+    const days = Math.min(31, Math.max(2, Number.parseInt(req.query.days, 10) || 7));
+    ok(res, { days: await leadService.dailyTrend(req, channel, days) });
+  },
   async pipelines(req, res) {
     const r = req.query.from || req.query.to || req.query.range === 'today' ? dashboardRange(req.query) : null;
     const channel = ['meta', 'website', 'client'].includes(req.query.channel) ? req.query.channel : null;

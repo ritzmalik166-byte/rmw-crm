@@ -34,6 +34,7 @@ export const auth = {
     .refine((d) => d.password === d.confirmPassword, { message: 'Passwords do not match', path: ['confirmPassword'] }),
   changePassword: z.object({ currentPassword: z.string().min(1), newPassword: passwordSchema }),
   profile: z.object({ fullName: str(150).min(2) }),
+  uiPrefs: z.object({ version: z.union([z.literal(1), z.literal(2)]).optional(), tourDone: z.boolean().optional() }),
   avatar: z.object({ avatar: avatarSchema }),
   mobileChangeRequest: z.object({ mobile: mobileSchema, currentPassword: z.string().min(1).max(128) }),
   emailChangeRequest: z.object({ email: emailSchema, currentPassword: z.string().min(1).max(128) }),
@@ -70,9 +71,9 @@ export const leads = {
     name: optStr(150), phone: optStr(40), email: z.string().trim().email().max(190).optional().nullable(), location: optStr(), interest: optStr(),
     message: optStr(20000), statusId: optId,
   }),
-  assign: z.object({ userId: id.nullable(), reason: optStr(255) }),
+  assign: z.object({ userId: id.nullable(), reason: optStr(500) }),
   bulk: z.object({
-    ids: z.array(id).min(1).max(200), action: z.enum(['assign', 'status']), userId: id.nullable().optional(), statusId: optId,
+    ids: z.array(id).min(1).max(200), action: z.enum(['assign', 'status']), userId: id.nullable().optional(), statusId: optId, reason: optStr(500),
   }),
   note: z.object({ body: str(5000).min(1, 'Note cannot be empty') }),
   followup: z.object({
@@ -121,7 +122,7 @@ export const admin = {
   settings: z.object({ settings: z.record(z.any()) }),
   integration: z.object({ isActive: z.boolean().optional(), requireSignature: z.boolean().optional() }),
   rotateKey: z.object({ requireSignature: z.boolean().default(false) }),
-  auditQuery: pagination.extend({ action: optStr(60), actorId: optId, entityType: optStr(50), entityId: optStr(64), from: optStr(40), to: optStr(40) }),
+  auditQuery: pagination.extend({ category: optStr(30), action: optStr(60), actorId: optId, entityType: optStr(50), entityId: optStr(64), from: optStr(40), to: optStr(40) }),
   analyticsQuery: z.object({ websiteId: optId, from: optStr(40), to: optStr(40) }),
   broadcast: z.object({ title: str(200).min(1), body: optStr(1000), roleCode: optStr(50) }),
 };

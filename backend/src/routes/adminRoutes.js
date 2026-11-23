@@ -42,7 +42,8 @@ a.patch('/lead-statuses/:id', can('lead_config.manage'), validate(s.statusUpdate
 a.get('/integrations', can('integration.view'), h(c.integrations));
 a.get('/integrations/events', can('integration.view'), validate(pagination, 'query'), h(c.integrationEvents));
 a.get('/analytics', can('analytics.view'), validate(s.analyticsQuery, 'query'), h(c.analytics));
-a.get('/audit-logs', can('audit.view'), validate(s.auditQuery, 'query'), h(c.audit));
+// Activity log is for Owner / Super Admin only (super-admin area), not Admin, even if a role still carries audit.view.
+a.get('/audit-logs', can('audit.view'), requireArea('super_admin'), validate(s.auditQuery, 'query'), h(c.audit));
 a.get('/settings', can('settings.view'), h(c.getSettings));
 
 /** /api/super-admin: Super Admin only (area.super_admin), plus per-route permissions. */
