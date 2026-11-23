@@ -1,20 +1,35 @@
 'use client';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useAuth } from './AuthProvider';
 import { markNew, badgeKeyFor } from '@/lib/newLeadBadges';
 
-const SocketContext = createContext({ connected: false });
+const SocketContext = createContext({ connected: false, socket: null });
+
+const HEARTBEAT_MS = 30_000;
+
+/** What this tab is showing, for the Owner's Live users page. */
+function presencePayload() {
+  return {
+    page: window.location.pathname + window.location.search,
+    title: document.title || null,
+    visible: document.visibilityState === 'visible',
+    platform: 'web',
+  };
+}
 
 /** Real-time updates: keeps lead lists, lead pages, follow-ups and notifications fresh without a page refresh. */
 export function SocketProvider({ children }) {
   const { me } = useAuth();
   const qc = useQueryClient();
   const router = useRouter();
+  const pathname = usePathname();
   const [connected, setConnected] = useState(false);
+  const [socketRef, setSocketRef] = useState(null);
+  const sockRef = useRef(null);
 
   useEffect(() => {
     if (!me?.user?.id) return undefined;
@@ -27,7 +42,13 @@ export function SocketProvider({ children }) {
       if (leadId) qc.invalidateQueries({ queryKey: ['lead', String(leadId)] });
     };
 
-    socket.on('connect', () => setConnected(true));
+    sockRef.current = socket;
+    setSocketRef(socket);
+    const reportPresence = () => { if (socket.connected) socket.emit('presence:update', presencePayload()); };
+    const heartbeat = setInterval(reportPresence, HEARTBEAT_MS);
+    document.addEventListener('visibilitychange', reportPresence);
+
+    socket.on('connect', () => { setConnected(true); reportPresence(); });
     socket.on('disconnect', () => setConnected(false));
     socket.on('NEW_LEAD', (l) => {
       markNew(badgeKeyFor(l));
@@ -57,10 +78,23 @@ export function SocketProvider({ children }) {
       router.replace('/login');
     });
 
-    return () => { socket.removeAllListeners(); socket.disconnect(); };
+    return () => {
+      clearInterval(heartbeat);
+      document.removeEventListener('visibilitychange', reportPresence);
+      sockRef.current = null;
+      setSocketRef(null);
+      socket.removeAllListeners();
+      socket.disconnect();
+    };
   }, [me?.user?.id, qc, router]);
 
-  return <SocketContext.Provider value={{ connected }}>{children}</SocketContext.Provider>;
+  // Route change: report the new page (small delay so document.title has updated).
+  useEffect(() => {
+    const t = setTimeout(() => { const s = sockRef.current; if (s?.connected) s.emit('presence:update', presencePayload()); }, 300);
+    return () => clearTimeout(t);
+  }, [pathname]);
+
+  return <SocketContext.Provider value={{ connected, socket: socketRef }}>{children}</SocketContext.Provider>;
 }
 
 export const useSocket = () => useContext(SocketContext);

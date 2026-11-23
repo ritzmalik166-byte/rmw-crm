@@ -1,6 +1,6 @@
 'use client';
 import {
-  LayoutDashboard, UserPlus, Users, ShieldCheck, KeyRound, Building2, UsersRound, Globe, Plug, Tags, Settings, MonitorSmartphone, ScrollText, Activity, BarChart3, Megaphone,
+  LayoutDashboard, UserPlus, Users, ShieldCheck, KeyRound, Building2, UsersRound, Globe, Plug, Tags, Settings, MonitorSmartphone, ScrollText, Activity, BarChart3, Megaphone, Radio,
 } from 'lucide-react';
 import { AreaShell } from '@/components/layout/AppShell';
 
@@ -9,6 +9,8 @@ const NAV = [
     { href: '/super-admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/super-admin/analytics', label: 'Analytics', icon: BarChart3 },
     { href: '/super-admin/system', label: 'System health', icon: Activity },
+    // user.block is held only by the Owner, so only the Owner sees this item (the API checks Owner too).
+    { href: '/super-admin/live-users', label: 'Live users', icon: Radio, perm: 'user.block' },
   ] },
   { title: 'Access', items: [
     { href: '/super-admin/user-requests', label: 'User requests', icon: UserPlus },
