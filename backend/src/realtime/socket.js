@@ -8,6 +8,7 @@ import { logger } from '../config/logger.js';
 import { sessionRepo } from '../repositories/authRepo.js';
 import { userRepo } from '../repositories/userRepo.js';
 import { sha256 } from '../utils/crypto.js';
+import { setPresenceNotifier, socketConnected, socketDisconnected, socketUpdate } from './presence.js';
 
 let io = null;
 let emitter = null;
@@ -33,7 +34,10 @@ export const EVENTS = {
   FORCE_LOGOUT: 'FORCE_LOGOUT',
   ASSIGNMENT_REMINDER: 'ASSIGNMENT_REMINDER',
   ASSIGNMENT_ACKNOWLEDGED: 'ASSIGNMENT_ACKNOWLEDGED',
+  PRESENCE_CHANGED: 'PRESENCE_CHANGED',
 };
+
+const OWNER_ROOM = 'owners';
 
 /**
  * Rooms:
@@ -67,11 +71,24 @@ export function initSocket(httpServer) {
     }
   });
 
+  // Presence changes go only to Owner sockets (the "Live users" page refetches on this event).
+  setPresenceNotifier((userId) => io?.to(OWNER_ROOM).emit(EVENTS.PRESENCE_CHANGED, { userId }));
+
   io.on('connection', (socket) => {
     const { userId, sessionId, ctx } = socket.data;
     socket.join(`user:${userId}`);
     socket.join(`session:${sessionId}`);
     if (ctx.permissions.has('lead.view_all')) ctx.websiteIds.forEach((w) => socket.join(`website:${w}:all`));
+    if (ctx.isOwner) socket.join(OWNER_ROOM);
+
+    socketConnected(socket.id, {
+      userId,
+      sessionId,
+      ip: socket.handshake.headers['x-forwarded-for']?.split(',')[0]?.trim() || socket.handshake.address,
+      userAgent: socket.handshake.headers['user-agent'],
+    });
+    socket.on('presence:update', (payload) => socketUpdate(socket.id, payload && typeof payload === 'object' ? payload : {}));
+    socket.on('disconnect', () => socketDisconnected(socket.id));
   });
 
   return io;

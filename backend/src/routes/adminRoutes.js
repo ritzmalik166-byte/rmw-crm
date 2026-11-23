@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { adminController as c } from '../controllers/adminController.js';
+import { presenceController as presence, requireOwner } from '../controllers/presenceController.js';
 import { authenticate, requireArea, requirePermission as can } from '../middleware/auth.js';
 import { validate } from '../validators/common.js';
 import { admin as s, pagination } from '../validators/schemas.js';
@@ -70,3 +71,4 @@ sa.delete('/sessions/:id', can('session.revoke_any'), h(c.terminateSession));
 sa.post('/users/:id/terminate-sessions', can('session.revoke_any'), h(c.terminateUserSessions));
 sa.post('/notifications/broadcast', can('notification.broadcast'), validate(s.broadcast), h(c.broadcast));
 sa.get('/system-health', can('settings.view'), h(c.systemHealth));
+sa.get('/presence', requireOwner, h(presence.list)); // Live users: Owner only
