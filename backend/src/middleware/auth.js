@@ -7,6 +7,7 @@ import { sha256 } from '../utils/crypto.js';
 import { unauthorized, forbidden } from '../utils/errors.js';
 import { audit } from '../services/auditService.js';
 import { describeRequestDevice, platformVersionFrom } from '../utils/device.js';
+import { recordAction } from '../realtime/presence.js';
 
 const TOUCH_INTERVAL_MS = 60_000;
 
@@ -32,6 +33,11 @@ export async function authenticate(req, res, next) {
 
     const [user, ctx] = await Promise.all([userRepo.findById(session.user_id), userRepo.loadAuthContext(session.user_id)]);
     req.auth = { user, session, ctx };
+
+    // Live users page: remember the latest successful write (or export) in plain words.
+    if (req.method !== 'GET' || req.originalUrl.includes('/export')) {
+      res.on('finish', () => { if (res.statusCode < 400) recordAction(session.user_id, req.method, req.originalUrl); });
+    }
 
     if (Date.now() - new Date(session.last_activity_at).getTime() > TOUCH_INTERVAL_MS) {
       sessionRepo.touch(session.id).catch(() => {});
