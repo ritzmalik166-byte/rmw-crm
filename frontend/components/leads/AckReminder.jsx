@@ -51,9 +51,9 @@ export function AckReminder() {
       {current && (
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><BellRing className="h-5 w-5 text-amber-500" />Please acknowledge this lead</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><BellRing className="h-5 w-5 text-amber-500" />{current.fresh ? (current.reassigned ? 'A lead was transferred to you' : 'New lead assigned to you') : 'Please acknowledge this lead'}</DialogTitle>
             <DialogDescription>
-              {current.by ? <><b>{current.by}</b> assigned</> : 'You were assigned'} <b>{current.name || 'a lead'}</b>{current.externalLeadId ? ` (${current.externalLeadId})` : ''} to you and is waiting for your confirmation.
+              {current.by ? <><b>{current.by}</b> assigned</> : 'You were assigned'} <b>{current.name || 'a lead'}</b>{current.externalLeadId ? ` (${current.externalLeadId})` : ''} to you{current.fresh ? '. Please acknowledge it so they know you have it.' : ' and is waiting for your confirmation.'}
             </DialogDescription>
           </DialogHeader>
           {current.remark && (
