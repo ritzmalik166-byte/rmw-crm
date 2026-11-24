@@ -288,6 +288,9 @@ function BottomTabs({ area, items, home, pathname, onNavigate, onMenu }) {
 function Shell({ area, nav, children }) {
   const { me, can } = useAuth();
   useLoginToast(me);
+  // Pipeline links (website: 'MPF' …) only for websites this user can access; Owner / Super Admin get all of them.
+  const myWebsites = new Set((me?.websites || []).map((w) => w.code));
+  const show = (i) => !i.hidden && (!i.perm || can(i.perm)) && (!i.website || myWebsites.has(i.website));
   const { connected } = useSocket();
   const pathname = usePathname();
   const router = useRouter();
@@ -381,13 +384,13 @@ function Shell({ area, nav, children }) {
   const renderSidebar = (rail) => (
     <nav className="flex h-full flex-col" aria-label="Sections">
       <div data-sidebar-scroll className={cn('flex-1 overflow-y-auto overscroll-contain pb-3 pt-1', rail ? 'px-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden' : 'px-3 [scrollbar-color:rgb(255_255_255/0.15)_transparent] [scrollbar-width:thin]')}>
-        {nav.filter((g) => g.items.some((i) => !i.hidden && (!i.perm || can(i.perm)))).map((group, gi) => (
+        {nav.filter((g) => g.items.some((i) => show(i))).map((group, gi) => (
           <div key={group.title || 'main'} className="mb-1">
             {group.title && (rail
               ? gi > 0 && <div className="mx-2 my-3 h-px bg-white/10" aria-hidden />
               : <p className="px-3 pb-1.5 pt-4 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-white/40">{group.title}</p>)}
             <ul className="space-y-0.5">
-              {group.items.filter((i) => !i.hidden && (!i.perm || can(i.perm))).map((item) => {
+              {group.items.filter((i) => show(i)).map((item) => {
                 const active = item.exact ? pathname === item.href : (pathname === item.href || (item.href !== home && pathname.startsWith(`${item.href}/`)));
                 const isNew = Boolean(item.badgeKey && badges[item.badgeKey]) && !active;
                 const count = item.countKey ? counts[item.countKey] : 0;
@@ -450,7 +453,7 @@ function Shell({ area, nav, children }) {
     </nav>
   );
 
-  const visibleItems = nav.flatMap((g) => g.items).filter((i) => !i.hidden && (!i.perm || can(i.perm)));
+  const visibleItems = nav.flatMap((g) => g.items).filter((i) => show(i));
   // Phones / tablets: a back arrow on every page except the bottom-tab roots.
   const TAB_ROOTS = [home, '/crm/dashboard', '/crm/lead-hub', '/crm/followups', '/crm/notifications'];
   const showBack = !TAB_ROOTS.includes(pathname);

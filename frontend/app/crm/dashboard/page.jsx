@@ -7,7 +7,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { ArrowRight, Users, Sparkles, CalendarCheck, CalendarDays, AlertTriangle, AlarmClock, Clock, TrendingUp, UserX, UserRound, Plus, Link2, Workflow, BarChart3, Briefcase, UsersRound, Activity, CheckCircle2, Target } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
-import { PIPELINES, PIPELINE_ORDER, PipelineLogo } from '@/lib/pipelines';
+import { PIPELINES, PIPELINE_ORDER, PipelineLogo, usePipelineOrder } from '@/lib/pipelines';
 import { cn, timeAgo, titleCase, formatDate, toQuery } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui/badge';
 import { EmptyState, ErrorState } from '@/components/ui/feedback';
@@ -220,6 +220,7 @@ function RegisterCell({ k, field, value }) {
 
 function CrmDashboardV2() {
   const { me, can } = useAuth();
+  const pipelineOrder = usePipelineOrder();
   const [range, setRange] = useState(todayRange);
   const rq = { from: range.from, to: range.to };
   const prev = previousRange(range);
@@ -277,7 +278,7 @@ function CrmDashboardV2() {
       <Panel title={<>Pipeline Register <span className="font-normal text-slate-400">·</span> {label}</>} icon={Workflow} action={<OpenLink href={`/crm/leads${toQuery(rq)}`}>Open all leads</OpenLink>} className={settle(pipeQ)}>
         {/* Phones & tablets: one card per pipeline (2-up on tablets). The full table needs ~1000px. */}
         <ul className="divide-y divide-slate-100 md:grid md:grid-cols-2 md:gap-3 md:divide-y-0 md:p-4 xl:hidden">
-          {PIPELINE_ORDER.map((k) => {
+          {pipelineOrder.map((k) => {
             const c = counts[k] || {};
             return (
               <li key={k}>
@@ -313,7 +314,7 @@ function CrmDashboardV2() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {PIPELINE_ORDER.map((k) => {
+              {pipelineOrder.map((k) => {
                 const c = counts[k] || {};
                 return (
                   <tr key={k} className="hover:bg-slate-50/70">

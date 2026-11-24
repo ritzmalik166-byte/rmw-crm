@@ -1,3 +1,5 @@
+import { useAuth } from '@/providers/AuthProvider';
+
 export const PIPELINES = {
   all: {
     key: 'all', apiPipeline: 'general', title: 'All Leads', short: 'All', description: 'All business enquiries across MPF, RMW, CT and CTMPL. Career applications are under Recruitment.',
@@ -26,6 +28,13 @@ export const PIPELINES = {
 };
 
 export const PIPELINE_ORDER = ['mpf', 'rmw', 'ct', 'ctmpl'];
+
+/** Pipelines this user may see: only the websites they were given access to (Owner / Super Admin get every website). */
+export function usePipelineOrder() {
+  const { me } = useAuth();
+  const allowed = new Set((me?.websites || []).map((w) => w.code));
+  return PIPELINE_ORDER.filter((k) => allowed.has(PIPELINES[k].website));
+}
 
 export function PipelineLogo({ src, className = 'h-4 w-4' }) {
   return src ? <img src={src} alt="" className={`${className} shrink-0 object-contain`} /> : null;
