@@ -53,6 +53,9 @@ const ALL = PERMISSIONS.map(([code]) => code);
 export const OWNER_ONLY_PERMISSIONS = ['user.block'];
 
 /** Integration permissions: only Owner and Super Admin ever hold them (enforced in userRepo.loadAuthContext). */
+/** The only permissions that can be granted to a single user on top of their role (Edit user → Lead access). */
+export const USER_GRANTABLE_PERMISSIONS = ['lead.channel.client', 'lead.channel.meta'];
+
 export const INTEGRATION_PERMISSIONS = ['integration.view', 'integration.manage'];
 
 export const ROLES = [

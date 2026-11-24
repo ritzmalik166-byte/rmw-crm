@@ -6,7 +6,8 @@ import { authService } from './auth/authService.js';
 import { emailService } from '../notifications/emailService.js';
 import { notificationService } from '../notifications/notificationService.js';
 import { forbidden, notFound, badRequest, conflict } from '../utils/errors.js';
-import { OWNER_ONLY_PERMISSIONS } from '../config/rbac.js';
+import { OWNER_ONLY_PERMISSIONS, USER_GRANTABLE_PERMISSIONS } from '../config/rbac.js';
+import { emitToUser, EVENTS } from '../realtime/socket.js';
 
 async function rolesByIds(ids) {
   if (!ids?.length) return [];
@@ -100,7 +101,11 @@ export const userAdminService = {
     const ctx = await userRepo.loadAuthContext(id);
     const roles = await query('SELECT r.id, r.code, r.name FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ?', [id]);
     const websites = await query('SELECT website_id FROM user_website_access WHERE user_id = ?', [id]);
-    return { ...user, roles, roleIds: roles.map((r) => r.id), websiteIds: websites.map((w) => w.website_id), teams: ctx.teams, teamIds: ctx.teams.map((t) => t.id) };
+    const [extraPermissions, rolePerms] = await Promise.all([userRepo.extraPermissions(id), userRepo.rolePermissions(id)]);
+    return {
+      ...user, roles, roleIds: roles.map((r) => r.id), websiteIds: websites.map((w) => w.website_id), teams: ctx.teams, teamIds: ctx.teams.map((t) => t.id),
+      extraPermissions, rolePermissions: USER_GRANTABLE_PERMISSIONS.filter((c) => rolePerms.includes(c)),
+    };
   },
 
   async create(req, data) {
@@ -130,7 +135,16 @@ export const userAdminService = {
       if (data.websiteIds) await userRepo.setWebsites(id, data.websiteIds, conn);
       if (data.teamIds) await userRepo.setTeams(id, data.teamIds, conn);
       if (newHash) await userRepo.setPassword(id, newHash, conn);
+      if (data.extraPermissions) await userRepo.setExtraPermissions(id, data.extraPermissions.filter((c) => USER_GRANTABLE_PERMISSIONS.includes(c)), req.auth.user.id, conn);
     });
+    if (data.extraPermissions) {
+      const added = data.extraPermissions.filter((c) => !before.extraPermissions.includes(c));
+      const removed = before.extraPermissions.filter((c) => !data.extraPermissions.includes(c));
+      if (added.length || removed.length) {
+        await audit('USER_PERMISSIONS_CHANGED', { actorId: req.auth.user.id, entityType: 'user', entityId: id, req, meta: { added, removed } });
+        emitToUser(id, EVENTS.PERMISSIONS_CHANGED, { added, removed });
+      }
+    }
     await audit('USER_UPDATED', { actorId: req.auth.user.id, entityType: 'user', entityId: id, req, meta: { fields: Object.keys(data).filter((k) => k !== 'newPassword') } });
     if (newHash) {
       const sessions = await sessionRepo.listActiveForUser(id);

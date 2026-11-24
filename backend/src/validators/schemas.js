@@ -71,9 +71,9 @@ export const leads = {
     name: optStr(150), phone: optStr(40), email: z.string().trim().email().max(190).optional().nullable(), location: optStr(), interest: optStr(),
     message: optStr(20000), statusId: optId,
   }),
-  assign: z.object({ userId: id.nullable(), reason: optStr(500) }),
+  assign: z.object({ userId: id.nullable(), reason: optStr(500), grantAccess: z.boolean().optional() }),
   bulk: z.object({
-    ids: z.array(id).min(1).max(200), action: z.enum(['assign', 'status']), userId: id.nullable().optional(), statusId: optId, reason: optStr(500),
+    ids: z.array(id).min(1).max(200), action: z.enum(['assign', 'status']), userId: id.nullable().optional(), statusId: optId, reason: optStr(500), grantAccess: z.boolean().optional(),
   }),
   note: z.object({ body: str(5000).min(1, 'Note cannot be empty') }),
   followup: z.object({
@@ -98,6 +98,7 @@ export const admin = {
   userUpdate: z.object({
     fullName: str(150).min(2).optional(), avatar: avatarSchema.optional(), roleId: id.optional(),
     departmentId: optId, teamIds: z.array(id).optional(), websiteIds: z.array(id).optional(), newPassword: passwordSchema.optional(),
+    extraPermissions: z.array(z.enum(['lead.channel.client', 'lead.channel.meta'])).optional(),
   }),
   userStatus: z.object({ status: z.enum(['ACTIVE', 'DISABLED', 'SUSPENDED', 'BLOCKED']), reason: optStr(500) }),
   department: z.object({ name: str(100).min(2), description: optStr(), isActive: z.boolean().optional() }),
