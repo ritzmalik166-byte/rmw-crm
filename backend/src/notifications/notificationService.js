@@ -21,7 +21,7 @@ export const notificationService = {
       notification = { id: res.insertId, type, title, body, link, data, read_at: null, created_at: new Date().toISOString() };
       emitToUser(userId, EVENTS.NEW_NOTIFICATION, notification);
     }
-    if (prefs.push) await enqueue('push-notifications', 'send', { userId, title, body, link, type });
+    if (prefs.push) await enqueue('push-notifications', 'send', { userId, title, body, link, type, data });
     if (prefs.email) await enqueue('email', 'notification', { userId, title, body, link });
     return notification;
   },

@@ -1,5 +1,5 @@
 'use client';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CalendarDays } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +25,7 @@ export const RANGE_PRESETS = {
 };
 
 export function rangeLabel(r) {
+  if (r.preset === 'all') return 'All time';
   if (r.preset !== 'custom') return RANGE_PRESETS[r.preset].label;
   const f = (s) => new Date(`${s}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
   return r.from === r.to ? f(r.from) : `${f(r.from)} – ${f(r.to)}`;
@@ -46,10 +47,46 @@ export function previousRange(r) {
 }
 
 /**
+ * The CRM-wide lead date range, shared by the Super Admin dashboard and every pipeline page (MPF, RMW, CT, CTMPL…).
+ * Kept for the browser session, so picking "November" on one page applies everywhere.
+ * Defaults to this month; there is no all-time option, so old leads never show.
+ */
+const RANGE_KEY = 'crm.leadsRange';
+const RANGE_EVENT = 'crm:leads-range';
+export const ALL_RANGE = { preset: 'all', from: '', to: '' };
+/** Default for the whole CRM: this month (the filter window, November). */
+export const defaultRange = () => ({ preset: 'month', ...RANGE_PRESETS.month.get() });
+const readRange = () => {
+  try {
+    const v = JSON.parse(sessionStorage.getItem(RANGE_KEY));
+    // Presets are recomputed so "Today" stays today; custom ranges are kept as picked.
+    if (v?.preset && RANGE_PRESETS[v.preset]) return { preset: v.preset, ...RANGE_PRESETS[v.preset].get() };
+    if (v?.preset === 'custom' && v.from && v.to) return v;
+  } catch {}
+  return defaultRange();
+};
+export function useLeadsRange() {
+  const [range, setRangeState] = useState(defaultRange);
+  useEffect(() => {
+    setRangeState(readRange());
+    const sync = () => setRangeState(readRange());
+    window.addEventListener(RANGE_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => { window.removeEventListener(RANGE_EVENT, sync); window.removeEventListener('storage', sync); };
+  }, []);
+  const setRange = (r) => {
+    try { sessionStorage.setItem(RANGE_KEY, JSON.stringify(r)); } catch {}
+    setRangeState(r);
+    window.dispatchEvent(new Event(RANGE_EVENT));
+  };
+  return [range, setRange];
+}
+
+/**
  * Segmented presets + a custom from/to picker. `value` = { preset, from, to }.
  * The highlighted pill glides between options (position and width ease on one curve) instead of jumping.
  */
-export function DateRangeFilter({ value, onChange, className }) {
+export function DateRangeFilter({ value, onChange, className, allowAll = false }) {
   const [draft, setDraft] = useState({ from: value.from, to: value.to });
   const [customOpen, setCustomOpen] = useState(value.preset === 'custom');
   const valid = draft.from && draft.to && draft.from <= draft.to && draft.from >= FILTER_MIN_DATE && draft.to <= filterMaxDate();
@@ -81,6 +118,16 @@ export function DateRangeFilter({ value, onChange, className }) {
             className="absolute rounded-full bg-primary shadow-[0_4px_12px_-4px_hsl(var(--primary)/0.55)] transition-[left,top,width,height] duration-[380ms] ease-[cubic-bezier(.22,.61,.36,1)]"
             style={pill}
           />
+        )}
+        {allowAll && (
+          <button
+            ref={(el) => { btnRefs.current.all = el; }}
+            type="button"
+            role="tab"
+            aria-selected={activeKey === 'all'}
+            onClick={() => { setCustomOpen(false); onChange(ALL_RANGE); }}
+            className={optionCls(activeKey === 'all')}
+          >All time</button>
         )}
         {Object.entries(RANGE_PRESETS).map(([k, p]) => (
           <button

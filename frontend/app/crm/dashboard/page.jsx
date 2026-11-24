@@ -12,7 +12,7 @@ import { cn, timeAgo, titleCase, formatDate, toQuery } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui/badge';
 import { EmptyState, ErrorState } from '@/components/ui/feedback';
 import { DashboardSkeleton } from '@/components/ui/skeletons';
-import { DateRangeFilter, rangeLabel, todayRange, previousRange } from '@/components/ui/date-range';
+import { DateRangeFilter, rangeLabel, previousRange, useLeadsRange } from '@/components/ui/date-range';
 import { MetaLeadFormsList } from '@/components/marketing/MetaLeadForms';
 import { MetaMark } from '@/components/integrations/MetaLogo';
 import { GoogleAdsLogo, WhatsAppLogo, WebsiteLogo } from '@/components/integrations/BrandLogos';
@@ -221,7 +221,7 @@ function RegisterCell({ k, field, value }) {
 function CrmDashboardV2() {
   const { me, can } = useAuth();
   const pipelineOrder = usePipelineOrder();
-  const [range, setRange] = useState(todayRange);
+  const [range, setRange] = useLeadsRange();
   const rq = { from: range.from, to: range.to };
   const prev = previousRange(range);
   const prq = { from: prev.from, to: prev.to };

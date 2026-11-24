@@ -1,12 +1,12 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Users2, UserX, Sparkles, CalendarClock, AlertTriangle, Trophy, Percent, UserPlus, Plug } from 'lucide-react';
 import { api } from '@/lib/api';
 import { timeAgo, titleCase } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge, WebsiteBadge, WEBSITE_LOGOS } from '@/components/ui/badge';
+import { DateRangeFilter, rangeLabel, useLeadsRange } from '@/components/ui/date-range';
 import { ErrorState, PageHeader, Skeleton, StatCard, EmptyState } from '@/components/ui/feedback';
 
 function ActivityList({ rows }) {
@@ -59,10 +59,11 @@ export function AdminDashboard() {
 }
 
 export function SuperAdminDashboard() {
-  const [period, setPeriod] = useState('all');
-  const iso = (d) => d.toISOString();
-  const range = { from: period === 'all' ? '2000-01-01T00:00:00.000Z' : iso(new Date(Date.now() - Number(period) * 86400_000)), to: iso(new Date()) };
-  const analytics = useQuery({ queryKey: ['admin', 'analytics', 'sa-dash', period], queryFn: () => api(`/admin/analytics?from=${range.from}&to=${range.to}`), refetchInterval: 120_000 });
+  const [range, setRange] = useLeadsRange();
+  const all = range.preset === 'all';
+  const from = all ? '2000-01-01' : range.from;
+  const to = all ? new Date().toISOString() : range.to;
+  const analytics = useQuery({ queryKey: ['admin', 'analytics', 'sa-dash', range.preset, range.from, range.to], queryFn: () => api(`/admin/analytics?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`), refetchInterval: 120_000, placeholderData: (prev) => prev });
   const integrations = useQuery({ queryKey: ['admin', 'integrations'], queryFn: () => api('/admin/integrations'), refetchInterval: 60_000 });
   const pending = useQuery({ queryKey: ['admin', 'requests', 'pending-count'], queryFn: () => api('/admin/user-requests?status=PENDING_APPROVAL&limit=1') });
   const dash = useQuery({ queryKey: ['dashboard', 'crm'], queryFn: () => api('/crm/dashboard') });
@@ -76,12 +77,8 @@ export function SuperAdminDashboard() {
     <>
       <PageHeader
         title="Super Admin dashboard"
-        description={period === 'all' ? 'All leads across every website.' : `Last ${period} days across every website.`}
-        actions={
-          <select value={period} onChange={(e) => setPeriod(e.target.value)} className="h-10 w-full rounded border bg-background px-2 text-base sm:h-8 sm:w-auto sm:text-sm" aria-label="Period">
-            <option value="all">All time</option><option value="30">Last 30 days</option><option value="7">Last 7 days</option>
-          </select>
-        }
+        description={all ? 'All leads across every website.' : `${rangeLabel(range)} · leads across every website.`}
+        actions={<DateRangeFilter value={range} onChange={setRange} />}
       />
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard label="Total leads" value={a.totals.total.toLocaleString('en-IN')} icon={Users2} />

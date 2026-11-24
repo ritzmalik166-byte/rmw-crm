@@ -1,5 +1,6 @@
 'use client';
 import { useUiVersion } from '@/lib/useUiVersion';
+import { useLeadsRange } from '@/components/ui/date-range';
 import { MetaChannel as LegacyMetaChannel, MpfChannels as LegacyMpfChannels } from '@/components/legacy/MpfChannels';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
@@ -294,10 +295,12 @@ function MetaChannelV2({ standalone = false }) {
   const tab = params.get('tab') === 'forms' ? 'forms' : params.get('junk') === 'only' ? 'junk' : 'leads';
   const formId = params.get('formId');
   const { data: forms } = useMetaLeadForms();
-  const { data: pipe } = useQuery({ queryKey: ['leads', 'pipelines', 'meta'], queryFn: () => api('/crm/pipelines?channel=meta'), staleTime: 60_000 });
+  const [range] = useLeadsRange();
+  const rq = range.from && range.to ? { from: range.from, to: range.to } : {};
+  const { data: pipe } = useQuery({ queryKey: ['leads', 'pipelines', 'meta', rq.from, rq.to], queryFn: () => api(`/crm/pipelines${toQuery({ channel: 'meta', ...rq })}`), staleTime: 60_000 });
   const { data: junkCount } = useQuery({
-    queryKey: ['leads', 'channel', 'meta', 'junk'],
-    queryFn: () => api(`/crm/leads${toQuery({ pipeline: 'mpf', channel: 'meta', junk: 'only', limit: 1 })}`).then((r) => r?.meta?.total ?? 0),
+    queryKey: ['leads', 'channel', 'meta', 'junk', rq.from, rq.to],
+    queryFn: () => api(`/crm/leads${toQuery({ pipeline: 'mpf', channel: 'meta', junk: 'only', limit: 1, ...rq })}`).then((r) => r?.meta?.total ?? 0),
     staleTime: 60_000,
   });
   const form = formId ? forms?.find((f) => f.formId === formId) : null;
