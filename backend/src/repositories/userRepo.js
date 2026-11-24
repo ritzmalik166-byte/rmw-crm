@@ -1,4 +1,5 @@
 import { query, one } from '../config/db.js';
+import { INTEGRATION_PERMISSIONS } from '../config/rbac.js';
 
 const PUBLIC_COLS = 'u.id, u.full_name, u.email, u.mobile, u.avatar, u.ui_version, u.ui_tour_done, u.status, u.department_id, u.last_login_at, u.created_at, u.updated_at';
 
@@ -55,7 +56,8 @@ export const userRepo = {
     return {
       roles: roles.map((r) => r.code),
       roleLevel: roles.reduce((m, r) => Math.max(m, r.level), 0),
-      permissions: new Set(perms.map((p) => p.code)),
+      // Integrations (Meta and every other channel) are for Owner / Super Admin only, whatever a role was granted.
+      permissions: new Set(perms.map((p) => p.code).filter((c) => isSuperAdmin || !INTEGRATION_PERMISSIONS.includes(c))),
       isSuperAdmin,
       isOwner,
       websites,
