@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, Mail, Phone, MapPin, Target, UserPlus, Pencil, CalendarPlus, CheckCircle2, Copy, GitMerge, Clock, FileText,
   Sparkles, RefreshCw, ArrowRightLeft, MessageSquare, Trophy, ExternalLink, User, Users, Building2, CalendarClock, Globe2,
-  Check, Quote, Send, Megaphone,
+  Check, Quote, Send, Megaphone, Bot, PhoneMissed, PhoneCall,
 } from 'lucide-react';
 import { api, apiMessage } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
@@ -32,6 +32,7 @@ import { LEAD_SOURCE_TYPES } from '@/lib/leadSources';
 
 import { confirmAction } from '@/components/ui/confirm';
 import { AssignmentBanner } from '@/components/leads/AssignmentBanner';
+import { AiCallsPanel } from '@/components/leads/AiCalls';
 const parse = (v, fallback) => (typeof v === 'string' ? (() => { try { return JSON.parse(v || 'null') ?? fallback; } catch { return fallback; } })() : v ?? fallback);
 
 function copy(text, label = 'Copied') {
@@ -125,6 +126,11 @@ const ACTIVITY = {
   CONVERTED: { label: 'Converted', icon: Trophy, tone: 'bg-emerald-50 text-emerald-600 ring-emerald-200' },
   LEAD_MERGED: { label: 'Merged', icon: GitMerge, tone: 'bg-orange-50 text-orange-600 ring-orange-200' },
   META_LEAD_RECEIVED: { label: 'Lead received from Meta Ads', icon: Megaphone, tone: 'bg-blue-50 text-blue-600 ring-blue-200' },
+  AI_CALL_REQUESTED: { label: 'AI call requested', icon: Bot, tone: 'bg-violet-50 text-violet-600 ring-violet-200' },
+  AI_CALL_STARTED: { label: 'AI agent calling', icon: PhoneCall, tone: 'bg-violet-50 text-violet-600 ring-violet-200' },
+  AI_CALL_COMPLETED: { label: 'AI call completed', icon: Bot, tone: 'bg-emerald-50 text-emerald-600 ring-emerald-200' },
+  AI_CALL_UNANSWERED: { label: 'AI call not answered', icon: PhoneMissed, tone: 'bg-amber-50 text-amber-600 ring-amber-200' },
+  AI_CALL_CANCELLED: { label: 'AI call cancelled', icon: PhoneMissed, tone: 'bg-slate-100 text-slate-600 ring-slate-200' },
 };
 
 function describeActivity(a) {
@@ -132,9 +138,13 @@ function describeActivity(a) {
   if (a.type === 'STATUS_CHANGED' || a.type === 'CONVERTED') return `${titleCase(m.from)} → ${titleCase(m.to)}`;
   if (a.type === 'LEAD_UPDATED') return m.fields?.join(', ');
   if (a.type === 'LEAD_CREATED') return [m.website, m.externalLeadId, m.source && `via ${m.source}`].filter(Boolean).join(' · ');
+  if (a.type === 'FOLLOWUP_CREATED' && m.by === 'ai_call') return m.dueAt && `Call back requested on the AI call · due ${formatDateTime(m.dueAt)}`;
   if (a.type === 'FOLLOWUP_CREATED') return m.dueAt && `Due ${formatDateTime(m.dueAt)}`;
   if (a.type === 'META_LEAD_RECEIVED') return [m.campaign && `Campaign: ${m.campaign}`, m.form && `Form: ${m.form}`, m.platform && titleCase(m.platform)].filter(Boolean).join(' · ') || null;
   if (a.type === 'LEAD_SYNCED' && m.via === 'meta') return 'Re-delivered by Meta';
+  if (a.type === 'AI_CALL_COMPLETED') return m.summary || null;
+  if (a.type === 'AI_CALL_STARTED') return `Attempt ${m.attempt || 1}`;
+  if (a.type === 'AI_CALL_UNANSWERED') return [`Attempt ${m.attempt || 1}: ${m.status === 'BUSY' ? 'busy' : 'no answer'}`, m.retryAt ? `trying again ${formatDateTime(m.retryAt)}` : m.final ? 'no more attempts' : null].filter(Boolean).join(' · ');
   if (a.type === 'LEAD_MERGED') return m.mergedExternalId ? `Merged ${m.mergedExternalId} into this lead` : 'Merged into another lead';
   if (m.reason) return m.reason;
   return null;
@@ -515,6 +525,7 @@ function LeadDetailV2({ params }) {
               <TabsTrigger value="activity">Activity<Count n={lead.activities.length} /></TabsTrigger>
               <TabsTrigger value="notes">Notes<Count n={lead.notes.length} /></TabsTrigger>
               <TabsTrigger value="followups">Follow-ups<Count n={openFollowups.length} alert={overdue} /></TabsTrigger>
+              {can('aicall.view') && <TabsTrigger value="ai-calls"><Bot className="mr-1 h-3.5 w-3.5" />AI calls</TabsTrigger>}
             </TabsList>
 
             <TabsContent value="activity">
@@ -607,6 +618,12 @@ function LeadDetailV2({ params }) {
                 </CardContent>
               </Card>
             </TabsContent>
+
+            {can('aicall.view') && (
+              <TabsContent value="ai-calls">
+                <AiCallsPanel leadId={lead.id} hasPhone={Boolean(lead.phone)} />
+              </TabsContent>
+            )}
           </Tabs>
         </div>
       </div>
