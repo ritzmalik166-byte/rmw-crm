@@ -52,6 +52,9 @@ const ALL = PERMISSIONS.map(([code]) => code);
 /** Permissions that only the Owner holds. They can never be granted to another role. */
 export const OWNER_ONLY_PERMISSIONS = ['user.block'];
 
+/** Integration permissions: only Owner and Super Admin ever hold them (enforced in userRepo.loadAuthContext). */
+export const INTEGRATION_PERMISSIONS = ['integration.view', 'integration.manage'];
+
 export const ROLES = [
   {
     code: 'OWNER', name: 'Owner', level: 1000, description: 'System owner: full control, including blocking any account',
@@ -68,7 +71,7 @@ export const ROLES = [
       'lead.view', 'lead.view_all', 'lead.create', 'lead.edit', 'lead.assign', 'lead.reassign', 'lead.export', 'lead.merge', 'lead.channel.meta', 'lead.channel.client',
       'user.view', 'user.edit', 'user.disable',
       'role.view', 'team.manage', 'department.manage',
-      'analytics.view', 'analytics.export', 'integration.view',
+      'analytics.view', 'analytics.export',
       'lead_config.manage', 'settings.view',
     ],
   },

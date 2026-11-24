@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, Globe2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { cn, timeAgo } from '@/lib/utils';
-import { PIPELINES, PIPELINE_ORDER, PipelineLogo } from '@/lib/pipelines';
+import { PIPELINES, PipelineLogo, usePipelineOrder } from '@/lib/pipelines';
 import { MetaLogo } from '@/components/integrations/MetaLogo';
 
 /** Phone / tablet Leads flow: Leads → (Website / App → brand cards) or (Meta → Page cards) → leads. */
@@ -43,18 +43,19 @@ const webStats = (x) => [['Today', x?.today, 'text-emerald-700'], ['New', x?.new
 
 export function LeadHub() {
   const { data: web } = useWebsiteCounts();
+  const order = usePipelineOrder();
   const { data: pages } = useMetaPages();
   const { data: meta } = useQuery({ queryKey: ['leads', 'pipelines', 'meta'], queryFn: () => api('/crm/pipelines?channel=meta'), staleTime: 30_000, refetchInterval: 30_000 });
   const c = web?.counts || {};
   const add = (rows) => rows.reduce((a, x) => { ['total', 'today', 'new_leads', 'unassigned'].forEach((k) => { a[k] += Number(x?.[k] || 0); }); return a; }, { total: 0, today: 0, new_leads: 0, unassigned: 0 });
-  const w = web ? add(PIPELINE_ORDER.map((k) => c[k])) : null;
+  const w = web ? add(order.map((k) => c[k])) : null;
   const m = meta?.counts?.mpf || (pages ? add(pages.map((p) => ({ ...p, new_leads: p.newLeads }))) : null);
   const lastMeta = pages?.map((p) => p.lastLeadAt).filter(Boolean).sort().pop();
   return (
     <div className="mx-auto max-w-5xl space-y-4">
       <h1 className="text-[20px] font-semibold text-slate-900">Leads</h1>
       <div className={GRID}>
-        <Tile href="/crm/lead-hub/website" name="Website / App" sub={`${PIPELINE_ORDER.length} brands · MPF, RMW, CT, CTMPL`} total={w?.total} stats={webStats(w)}
+        <Tile href="/crm/lead-hub/website" name="Website / App" sub={`${order.length} brand${order.length === 1 ? '' : 's'} · ${order.map((k) => PIPELINES[k].short).join(', ')}`} total={w?.total} stats={webStats(w)}
           logo={<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600"><Globe2 className="h-5 w-5" /></span>} />
         <Tile href="/crm/meta" name="Meta" sub={pages ? `${pages.length} pages · Facebook + Instagram` : 'Facebook + Instagram'} total={m?.total} stats={webStats(m)}
           foot={lastMeta ? `Last lead ${timeAgo(lastMeta)}` : null}
@@ -67,12 +68,13 @@ export function LeadHub() {
 
 export function WebsiteHub() {
   const { data: web } = useWebsiteCounts();
+  const order = usePipelineOrder();
   const c = web?.counts || {};
   return (
     <div className="mx-auto max-w-5xl space-y-4">
       <h1 className="text-[20px] font-semibold text-slate-900">Website / App</h1>
       <div className={GRID}>
-        {PIPELINE_ORDER.map((k) => (
+        {order.map((k) => (
           <Tile key={k} href={`/crm/pipeline/${k}`} logo={<PipelineLogo src={PIPELINES[k].logo} className="h-10 w-10" />} name={PIPELINES[k].title} sub={PIPELINES[k].description} total={c[k]?.total} stats={webStats(c[k])}
             foot={c[k]?.overdue > 0 ? `${c[k].overdue} overdue follow-ups` : null} />
         ))}

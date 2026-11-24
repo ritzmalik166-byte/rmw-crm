@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { api, apiMessage } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
 import { useDebounced, useLookups } from '@/lib/hooks';
-import { PIPELINES, PIPELINE_ORDER, PipelineLogo } from '@/lib/pipelines';
+import { PIPELINES, PipelineLogo, usePipelineOrder } from '@/lib/pipelines';
 import { cn, formatDateTime, timeAgo, toQuery } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/input';
@@ -65,7 +65,7 @@ const VIEWS = [
 ];
 
 function PipelineTabs({ active, counts }) {
-  const tabs = ['all', ...PIPELINE_ORDER];
+  const tabs = ['all', ...usePipelineOrder()];
   return (
     <div className="flex overflow-x-auto overflow-y-hidden border-b bg-white px-2 sm:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {tabs.map((k) => {
