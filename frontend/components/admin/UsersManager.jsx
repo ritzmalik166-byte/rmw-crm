@@ -97,6 +97,11 @@ function UserSummaryDialog({ data, onClose }) {
   );
 }
 
+const LEAD_ACCESS = [
+  ['lead.channel.client', 'Client Leads', 'See client landing-page leads assigned to them'],
+  ['lead.channel.meta', 'Meta Leads', 'See Meta (Facebook + Instagram) leads assigned to them'],
+];
+
 function UserDialog({ userId, onClose, onSaved, superAdmin }) {
   const qc = useQueryClient();
   const org = useOrg();
@@ -104,9 +109,9 @@ function UserDialog({ userId, onClose, onSaved, superAdmin }) {
   const editing = Boolean(userId);
   const { data: existing } = useQuery({ queryKey: ['admin', 'user', userId], queryFn: () => api(`/admin/users/${userId}`), enabled: editing });
   const [showPw, setShowPw] = useState(false);
-  const [f, setF] = useState({ fullName: '', email: '', mobile: '', avatar: null, password: '', roleId: '', departmentId: '', teamIds: [], websiteIds: [] });
+  const [f, setF] = useState({ fullName: '', email: '', mobile: '', avatar: null, password: '', roleId: '', departmentId: '', teamIds: [], websiteIds: [], extraPermissions: [] });
   useEffect(() => {
-    if (existing) setF({ fullName: existing.full_name, email: existing.email, mobile: existing.mobile, avatar: existing.avatar || null, password: '', roleId: String(existing.roleIds[0] || ''), departmentId: existing.department_id ? String(existing.department_id) : '', teamIds: existing.teamIds, websiteIds: existing.websiteIds });
+    if (existing) setF({ fullName: existing.full_name, email: existing.email, mobile: existing.mobile, avatar: existing.avatar || null, password: '', roleId: String(existing.roleIds[0] || ''), departmentId: existing.department_id ? String(existing.department_id) : '', teamIds: existing.teamIds, websiteIds: existing.websiteIds, extraPermissions: existing.extraPermissions || [] });
   }, [existing]);
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
   const myLevel = Math.max(...org.roles.filter((r) => me?.roles?.includes(r.code)).map((r) => r.level), 0);
@@ -115,7 +120,7 @@ function UserDialog({ userId, onClose, onSaved, superAdmin }) {
 
   const m = useMutation({
     mutationFn: () => {
-      const body = { fullName: f.fullName, ...(editing ? {} : { email: f.email, mobile: f.mobile }), ...(editing && f.avatar !== (existing?.avatar || null) ? { avatar: f.avatar } : {}), roleId: Number(f.roleId), departmentId: f.departmentId ? Number(f.departmentId) : null, teamIds: f.teamIds, websiteIds: f.websiteIds };
+      const body = { fullName: f.fullName, ...(editing ? {} : { email: f.email, mobile: f.mobile }), ...(editing && f.avatar !== (existing?.avatar || null) ? { avatar: f.avatar } : {}), roleId: Number(f.roleId), departmentId: f.departmentId ? Number(f.departmentId) : null, teamIds: f.teamIds, websiteIds: f.websiteIds, ...(editing ? { extraPermissions: f.extraPermissions } : {}) };
       if (editing && superAdmin && f.password) body.newPassword = f.password;
       return editing ? api(`/admin/users/${userId}`, { method: 'PATCH', body }) : api('/admin/users', { method: 'POST', body: { ...body, password: f.password } });
     },
@@ -165,6 +170,28 @@ function UserDialog({ userId, onClose, onSaved, superAdmin }) {
             </Select>
           </Field>
           <Field label="Website access" className="sm:col-span-2"><MultiCheck options={org.websites} value={f.websiteIds} onChange={(v) => setF((s) => ({ ...s, websiteIds: v }))} render={(w) => <><WebsiteBadge code={w.code} /> {w.name}</>} /></Field>
+          {editing && (
+            <Field label="Lead access" className="sm:col-span-2" hint="Extra lead channels for this user only, on top of their role. Given automatically when you assign them a client or Meta lead.">
+              <div className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+                {LEAD_ACCESS.map(([code, label, desc]) => {
+                  const byRole = existing?.rolePermissions?.includes(code);
+                  const on = byRole || f.extraPermissions.includes(code);
+                  return (
+                    <label key={code} className={`flex min-h-12 items-center gap-3 px-3 py-2 ${byRole ? 'cursor-default' : 'cursor-pointer'}`}>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[14px] font-medium text-slate-900">{label}</span>
+                        <span className="block text-[12px] text-slate-500">{byRole ? 'Included by their role' : desc}</span>
+                      </span>
+                      <input
+                        type="checkbox" className="h-5 w-5 accent-[hsl(var(--primary))]" checked={on} disabled={byRole}
+                        onChange={(e) => setF((s) => ({ ...s, extraPermissions: e.target.checked ? [...new Set([...s.extraPermissions, code])] : s.extraPermissions.filter((c) => c !== code) }))}
+                      />
+                    </label>
+                  );
+                })}
+              </div>
+            </Field>
+          )}
           <Field label="Teams" className="sm:col-span-2"><MultiCheck options={org.teams} value={f.teamIds} onChange={(v) => setF((s) => ({ ...s, teamIds: v }))} /></Field>
           <DialogFooter className="sm:col-span-2"><Button type="button" variant="outline" onClick={onClose}>Cancel</Button><Button type="submit" loading={m.isPending}>{editing ? 'Save changes' : 'Create user'}</Button></DialogFooter>
         </form>

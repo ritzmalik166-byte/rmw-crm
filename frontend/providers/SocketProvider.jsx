@@ -90,6 +90,12 @@ export function SocketProvider({ children }) {
       }
       toast(n.title, { description: n.body || undefined, action: n.link ? { label: 'View', onClick: () => router.push(n.link) } : undefined });
     });
+    socket.on('PERMISSIONS_CHANGED', (p) => {
+      qc.invalidateQueries({ queryKey: ['me'] });
+      invalidateLeads();
+      const names = { 'lead.channel.client': 'Client Leads', 'lead.channel.meta': 'Meta Leads' };
+      if (p?.added?.length) toast.success(`You now have access to ${p.added.map((c) => names[c] || c).join(' and ')}`);
+    });
     socket.on('FORCE_LOGOUT', () => {
       qc.clear();
       toast.error('You were signed out', { description: 'This session was ended from another device or by an administrator.' });

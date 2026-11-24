@@ -635,7 +635,7 @@ function LeadDetailV2({ params }) {
         </div>
       </div>
 
-      <AssignDialog open={dialog === 'assign'} onOpenChange={(o) => !o && setDialog(null)} leadIds={[lead.id]} currentOwner={lead.assigned_user_id ? { id: lead.assigned_user_id, name: lead.assigned_user_name } : null} leadName={lead.name} />
+      <AssignDialog open={dialog === 'assign'} onOpenChange={(o) => !o && setDialog(null)} leadIds={[lead.id]} currentOwner={lead.assigned_user_id ? { id: lead.assigned_user_id, name: lead.assigned_user_name } : null} leadName={lead.name} sourceTypes={[lead.source_type]} />
       {dialog === 'edit' && <EditDialog lead={lead} open onOpenChange={(o) => !o && setDialog(null)} />}
     </div>
   );

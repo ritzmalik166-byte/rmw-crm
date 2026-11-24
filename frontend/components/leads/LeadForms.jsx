@@ -10,23 +10,39 @@ import { Field } from '@/components/ui/label';
 import { MemberPicker } from '@/components/leads/MemberPicker';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
-export function AssignDialog({ open, onOpenChange, leadIds, websiteId, onDone, currentOwner, leadName }) {
+/** Channel a lead belongs to, by source type: client / Meta leads need that channel's permission to be visible. */
+const CHANNEL_OF = { LANDING_PAGE: 'client', META_FORM: 'client', META: 'meta' };
+const CHANNEL_INFO = { client: { flag: 'can_client', label: 'Client Leads' }, meta: { flag: 'can_meta', label: 'Meta Leads' } };
+
+export function AssignDialog({ open, onOpenChange, leadIds, websiteId, onDone, currentOwner, leadName, sourceTypes = [] }) {
   const { data: lk } = useLookups();
   const qc = useQueryClient();
   const [userId, setUserId] = useState('');
   const [reason, setReason] = useState('');
+  const [grantAccess, setGrantAccess] = useState(true);
+  const [serverNeedsAccess, setServerNeedsAccess] = useState(false);
+  const target = lk?.users?.find((u) => String(u.id) === String(userId));
+  // Channels these leads belong to that the chosen person can't see yet.
+  const missing = target ? [...new Set(sourceTypes.map((t) => CHANNEL_OF[t]).filter(Boolean))].filter((c) => !Number(target[CHANNEL_INFO[c].flag])) : [];
+  const needsAccess = Boolean(target) && (missing.length > 0 || serverNeedsAccess);
+  const channelText = (sep) => (missing.length ? missing.map((c) => CHANNEL_INFO[c].label).join(sep) : 'this lead channel');
   const m = useMutation({
     mutationFn: () => (leadIds.length === 1
-      ? api(`/crm/leads/${leadIds[0]}/assign`, { method: 'POST', body: { userId: userId ? Number(userId) : null, reason: reason || null } })
-      : api('/crm/leads/bulk', { method: 'POST', body: { ids: leadIds, action: 'assign', userId: userId ? Number(userId) : null, reason: reason || null } })),
+      ? api(`/crm/leads/${leadIds[0]}/assign`, { method: 'POST', body: { userId: userId ? Number(userId) : null, reason: reason || null, grantAccess: needsAccess && grantAccess } })
+      : api('/crm/leads/bulk', { method: 'POST', body: { ids: leadIds, action: 'assign', userId: userId ? Number(userId) : null, reason: reason || null, grantAccess: needsAccess && grantAccess } })),
     onSuccess: (r) => {
       if (r?.failed?.length) toast.warning(`${r.updated} updated, ${r.failed.length} failed`, { description: r.failed[0].message });
       else toast.success(currentOwner ? 'Lead transferred' : 'Assignment updated');
       qc.invalidateQueries({ queryKey: ['leads'] });
       qc.invalidateQueries({ queryKey: ['lead'] });
+      qc.invalidateQueries({ queryKey: ['lookups'] });
+      if (needsAccess && grantAccess) toast.success(`${target?.full_name || 'They'} can now see ${channelText(' and ')}`);
       onOpenChange(false); onDone?.();
     },
-    onError: (e) => toast.error(apiMessage(e)),
+    onError: (e) => {
+      if (e?.errorCode === 'CHANNEL_ACCESS_REQUIRED') setServerNeedsAccess(true);
+      toast.error(apiMessage(e));
+    },
   });
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -40,10 +56,20 @@ export function AssignDialog({ open, onOpenChange, leadIds, websiteId, onDone, c
         </DialogHeader>
         <Field label={currentOwner ? 'Transfer to' : 'Assign to'}>
           <MemberPicker
-            users={(lk?.users || []).filter((u) => u.id !== currentOwner?.id)} value={userId} onChange={setUserId}
+            users={(lk?.users || []).filter((u) => u.id !== currentOwner?.id)} value={userId} onChange={(v) => { setUserId(v); setServerNeedsAccess(false); setGrantAccess(true); }}
             placeholder={currentOwner ? 'Select a team member…' : 'Unassigned'} allowNone={!currentOwner}
           />
         </Field>
+        {needsAccess && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[13px] text-amber-950">
+            <p className="font-medium">{target.full_name} can&apos;t see {channelText(' or ')} yet.</p>
+            <p className="mt-0.5 text-amber-800">Without access they won&apos;t find this lead in their lists.</p>
+            <label className="mt-2 flex min-h-11 cursor-pointer items-center gap-2.5 font-medium lg:min-h-0">
+              <input type="checkbox" className="h-5 w-5 accent-[hsl(var(--primary))]" checked={grantAccess} onChange={(e) => setGrantAccess(e.target.checked)} />
+              Give {target.full_name} access to {channelText(' and ')}
+            </label>
+          </div>
+        )}
         {userId && (
           <Field label="Remark for the assignee (optional)" hint="Shown to them with the assignment. They'll be asked to acknowledge it; if they don't within 10 minutes, they get a reminder and you get notified.">
             <Textarea value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} rows={3} placeholder="e.g. Hot lead, call before 5 pm. Interested in 3 BHK." />
@@ -51,7 +77,7 @@ export function AssignDialog({ open, onOpenChange, leadIds, websiteId, onDone, c
         )}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button loading={m.isPending} disabled={Boolean(currentOwner) && !userId} onClick={() => m.mutate()}>{currentOwner ? 'Transfer' : 'Save'}</Button>
+          <Button loading={m.isPending} disabled={(Boolean(currentOwner) && !userId) || (needsAccess && !grantAccess)} onClick={() => m.mutate()}>{currentOwner ? 'Transfer' : 'Save'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
