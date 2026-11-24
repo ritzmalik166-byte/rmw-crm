@@ -624,9 +624,9 @@ function LeadDetailV2({ params }) {
             ? (
               <label className="relative active:bg-slate-100">
                 <ArrowRightLeft className="h-5 w-5" />Status
-                <select className="absolute inset-0 h-full w-full cursor-pointer opacity-0" value={lead.status_id} onChange={(e) => status.mutate(e.target.value)} disabled={status.isPending} aria-label="Change status">
+                <Select className="absolute inset-0 h-full w-full cursor-pointer opacity-0 lg:h-full" value={lead.status_id} onChange={(e) => status.mutate(e.target.value)} disabled={status.isPending} aria-label="Change status">
                   {statuses.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
+                </Select>
               </label>
             )
             : <span className="text-slate-300"><ArrowRightLeft className="h-5 w-5" />Status</span>}

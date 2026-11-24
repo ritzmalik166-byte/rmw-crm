@@ -4,9 +4,8 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { api, apiMessage } from '@/lib/api';
-import { AuthCard, FormError } from '@/components/auth/AuthCard';
+import { AuthCard, FormError, PasswordInput, PasswordChecklist, passwordOk } from '@/components/auth/AuthCard';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/label';
 
 function ResetInner() {
@@ -20,6 +19,7 @@ function ResetInner() {
 
   const submit = async (e) => {
     e.preventDefault();
+    if (!passwordOk(password)) { setError('Choose a password that meets all the requirements.'); return; }
     if (password !== confirmPassword) { setError('Passwords do not match'); return; }
     setError(''); setBusy(true);
     try {
@@ -30,15 +30,15 @@ function ResetInner() {
   };
 
   if (!token) {
-    return <AuthCard title="Invalid link" footer={<Link href="/forgot-password" className="hover:text-foreground">Request a new link</Link>}><p className="text-sm text-muted-foreground">This reset link is missing its token.</p></AuthCard>;
+    return <AuthCard title="Invalid link" footer={<Link href="/forgot-password" className="hover:text-foreground">Request a new link</Link>}><p className="text-sm text-slate-600">This reset link is incomplete. Open the link from the email again, or request a new one.</p></AuthCard>;
   }
 
   return (
     <AuthCard title="Set a new password" description="All other sessions will be signed out.">
       <form onSubmit={submit} className="space-y-4">
         <FormError message={error} />
-        <Field label="New password" htmlFor="pw" hint="10+ characters with upper, lower case and a number"><Input id="pw" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required autoFocus /></Field>
-        <Field label="Confirm password" htmlFor="pw2"><Input id="pw2" type="password" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirm(e.target.value)} required /></Field>
+        <div><Field label="New password" htmlFor="pw"><PasswordInput id="pw" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} maxLength={128} required autoFocus /></Field><PasswordChecklist password={password} /></div>
+        <Field label="Confirm password" htmlFor="pw2" error={confirmPassword && confirmPassword !== password ? 'Passwords don’t match' : undefined}><PasswordInput id="pw2" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirm(e.target.value)} maxLength={128} required /></Field>
         <Button type="submit" className="w-full" loading={busy}>Update password</Button>
       </form>
     </AuthCard>
