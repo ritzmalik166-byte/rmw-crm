@@ -37,10 +37,13 @@ export const userRepo = {
     const roles = await query(
       'SELECT r.id, r.code, r.name, r.level FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ?', [userId],
     );
+    // Role permissions plus any extra ones granted to this user directly (user_permissions).
     const perms = await query(
-      `SELECT DISTINCT p.code FROM user_roles ur
+      `SELECT p.code FROM user_roles ur
        JOIN role_permissions rp ON rp.role_id = ur.role_id
-       JOIN permissions p ON p.id = rp.permission_id WHERE ur.user_id = ?`, [userId],
+       JOIN permissions p ON p.id = rp.permission_id WHERE ur.user_id = ?
+       UNION
+       SELECT p.code FROM user_permissions up JOIN permissions p ON p.id = up.permission_id WHERE up.user_id = ?`, [userId, userId],
     );
     const isOwner = roles.some((r) => r.code === 'OWNER');
     const isSuperAdmin = isOwner || roles.some((r) => r.code === 'SUPER_ADMIN');
@@ -69,6 +72,31 @@ export const userRepo = {
   async setRoles(userId, roleIds, conn) {
     await query('DELETE FROM user_roles WHERE user_id = ?', [userId], conn);
     if (roleIds.length) await query('INSERT INTO user_roles (user_id, role_id) VALUES ?', [roleIds.map((r) => [userId, r])], conn);
+  },
+
+  /** Permission codes granted to this user directly (not through their role). */
+  async extraPermissions(userId, conn) {
+    const rows = await query('SELECT p.code FROM user_permissions up JOIN permissions p ON p.id = up.permission_id WHERE up.user_id = ?', [userId], conn);
+    return rows.map((r) => r.code);
+  },
+
+  /** Permission codes this user gets from their role. */
+  async rolePermissions(userId, conn) {
+    const rows = await query(
+      'SELECT DISTINCT p.code FROM user_roles ur JOIN role_permissions rp ON rp.role_id = ur.role_id JOIN permissions p ON p.id = rp.permission_id WHERE ur.user_id = ?', [userId], conn,
+    );
+    return rows.map((r) => r.code);
+  },
+
+  async setExtraPermissions(userId, codes, grantedBy, conn) {
+    await query('DELETE FROM user_permissions WHERE user_id = ?', [userId], conn);
+    if (codes.length) {
+      await query('INSERT INTO user_permissions (user_id, permission_id, granted_by) SELECT ?, id, ? FROM permissions WHERE code IN (?)', [userId, grantedBy, codes], conn);
+    }
+  },
+
+  async addExtraPermission(userId, code, grantedBy, conn) {
+    await query('INSERT IGNORE INTO user_permissions (user_id, permission_id, granted_by) SELECT ?, id, ? FROM permissions WHERE code = ?', [userId, grantedBy, code], conn);
   },
 
   async setWebsites(userId, websiteIds, conn) {

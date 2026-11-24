@@ -537,8 +537,8 @@ function LeadsWorkspaceV2({ pipelineKey = 'all', channel = null, title = null, d
         </button>
       )}
       <CreateLeadDialog open={dialog === 'create'} onOpenChange={(o) => !o && setDialog(null)} />
-      <AssignDialog open={dialog === 'assign'} onOpenChange={(o) => !o && setDialog(null)} leadIds={selected} onDone={() => setSelected([])} />
-      {rowLead && <AssignDialog open onOpenChange={(o) => !o && setRowLead(null)} leadIds={[rowLead.id]} currentOwner={rowLead.assigned_user_id ? { id: rowLead.assigned_user_id, name: rowLead.assigned_user_name } : null} leadName={rowLead.name} />}
+      <AssignDialog open={dialog === 'assign'} onOpenChange={(o) => !o && setDialog(null)} leadIds={selected} sourceTypes={rows.filter((r) => selected.includes(r.id)).map((r) => r.source_type)} onDone={() => setSelected([])} />
+      {rowLead && <AssignDialog open onOpenChange={(o) => !o && setRowLead(null)} leadIds={[rowLead.id]} currentOwner={rowLead.assigned_user_id ? { id: rowLead.assigned_user_id, name: rowLead.assigned_user_name } : null} leadName={rowLead.name} sourceTypes={[rowLead.source_type]} />}
       <BulkStatusDialog open={dialog === 'status'} onOpenChange={(o) => !o && setDialog(null)} leadIds={selected} onDone={() => setSelected([])} />
     </div>
   );

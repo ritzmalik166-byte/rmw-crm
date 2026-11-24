@@ -59,7 +59,7 @@ const DialogFooter = ({ className, sticky = true, ...props }) => (
     className={cn(
       'flex flex-col-reverse gap-2 sm:flex-row sm:justify-end',
       // Phones: pinned to the bottom of the sheet while the body scrolls; full-width actions.
-      sticky && 'sticky bottom-0 z-[2] -mx-5 -mb-[calc(env(safe-area-inset-bottom)+20px)] border-t border-slate-100 bg-white/95 px-5 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3 backdrop-blur [&>*]:w-full sm:static sm:z-auto sm:mx-0 sm:mb-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none sm:[&>*]:w-auto',
+      sticky && 'sticky bottom-0 z-[2] -mx-5 border-t border-slate-100 bg-white/95 px-5 pb-1 pt-3 backdrop-blur [&>*]:w-full sm:static sm:z-auto sm:mx-0 sm:mb-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none sm:[&>*]:w-auto',
       className,
     )}
     {...props}

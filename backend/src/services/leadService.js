@@ -10,6 +10,39 @@ import { env } from '../config/env.js';
 import { parseBound, startOfTodayIst } from '../utils/dateRange.js';
 import { recordStatusConversion } from './conversionService.js';
 import { LEAD_SOURCE_TYPES } from '../config/leadSources.js';
+import { userRepo } from '../repositories/userRepo.js';
+
+const HAS_PERM_SQL = `SELECT 1 FROM permissions p WHERE p.code = ? AND (
+  EXISTS (SELECT 1 FROM user_roles ur JOIN role_permissions rp ON rp.role_id = ur.role_id WHERE ur.user_id = u.id AND rp.permission_id = p.id)
+  OR EXISTS (SELECT 1 FROM user_permissions up WHERE up.user_id = u.id AND up.permission_id = p.id))`;
+
+/** Channel permission a lead needs before someone can see it in their lists (null = plain website / app lead). */
+function channelPermissionFor(lead) {
+  const { META, LANDING_PAGE, META_FORM } = LEAD_SOURCE_TYPES;
+  if (lead.source_type === LANDING_PAGE || lead.source_type === META_FORM) return { code: 'lead.channel.client', label: 'Client Leads' };
+  if (lead.source_type === META) return { code: 'lead.channel.meta', label: 'Meta Leads' };
+  return null;
+}
+
+/**
+ * A client / Meta lead must never be handed to someone who cannot see that channel.
+ * With grantAccess (and user.edit) the channel is granted to the assignee on the spot; otherwise the assignment is refused.
+ */
+async function ensureChannelAccess(req, lead, target, grantAccess) {
+  const need = channelPermissionFor(lead);
+  if (!need) return;
+  const ctx = await userRepo.loadAuthContext(target.id);
+  if (ctx.permissions.has(need.code)) return;
+  if (!grantAccess) {
+    throw badRequest(`${target.full_name} does not have access to ${need.label}, so they would not see this lead. Give them access to assign it.`, 'CHANNEL_ACCESS_REQUIRED');
+  }
+  if (!req.auth.ctx.permissions.has('user.edit')) {
+    throw forbidden(`${target.full_name} needs access to ${need.label}. Ask an Admin to give it in Users → Edit → Lead access.`, 'CHANNEL_ACCESS_FORBIDDEN');
+  }
+  await userRepo.addExtraPermission(target.id, need.code, req.auth.user.id);
+  await audit('USER_PERMISSIONS_CHANGED', { actorId: req.auth.user.id, entityType: 'user', entityId: target.id, req, meta: { added: [need.code], removed: [], viaLeadAssignment: lead.id } });
+  emitToUser(target.id, EVENTS.PERMISSIONS_CHANGED, { added: [need.code], removed: [] });
+}
 
 /** Absolute URL for a stored resume path ("/uploads/x.pdf" or a full URL). */
 export function resumeUrl(p) {
@@ -213,13 +246,14 @@ export const leadService = {
   },
 
   /** Assign or reassign. Assigning an unassigned lead needs lead.assign; changing an owner needs lead.reassign. */
-  async assign(req, id, { userId, reason }) {
+  async assign(req, id, { userId, reason, grantAccess = false }) {
     const lead = await loadVisibleLead(req, id);
     const perms = req.auth.ctx.permissions;
     const isReassign = Boolean(lead.assigned_user_id);
     if (isReassign ? !perms.has('lead.reassign') : !perms.has('lead.assign')) throw forbidden();
     if (lead.assigned_user_id === userId) return;
     const target = userId ? await assertAssignable(userId, lead.website_id) : null;
+    if (target) await ensureChannelAccess(req, lead, target, grantAccess);
     await transaction(async (conn) => {
       await conn.query('UPDATE leads SET assigned_user_id = ? WHERE id = ?', [userId || null, id]);
       await conn.query('INSERT INTO lead_assignments (lead_id, assigned_user_id, previous_user_id, assigned_by, reason) VALUES (?, ?, ?, ?, ?)',
@@ -272,11 +306,11 @@ export const leadService = {
       ORDER BY la.id DESC LIMIT 20`, [req.auth.user.id]);
   },
 
-  async bulk(req, { ids, action, userId, statusId, reason }) {
+  async bulk(req, { ids, action, userId, statusId, reason, grantAccess }) {
     const results = { updated: 0, failed: [] };
     for (const id of ids) {
       try {
-        if (action === 'assign') await leadService.assign(req, id, { userId, reason: reason || 'bulk' });
+        if (action === 'assign') await leadService.assign(req, id, { userId, reason: reason || 'bulk', grantAccess });
         else if (action === 'status') await leadService.update(req, id, { statusId });
         results.updated += 1;
       } catch (err) {
@@ -467,8 +501,11 @@ export const leadService = {
   assignableUsers(req, websiteId) {
     const ids = websiteId ? websiteScope(req, websiteId) : req.auth.ctx.websiteIds;
     return query(
-      `SELECT DISTINCT u.id, u.full_name, u.email FROM users u JOIN user_website_access x ON x.user_id = u.id
-       WHERE u.status = 'ACTIVE' AND x.website_id IN (?) ORDER BY u.full_name`, [ids.length ? ids : [0]],
+      // can_client / can_meta: whether the person can see those channels (role or extra grant), for the Transfer dialog warning.
+      `SELECT DISTINCT u.id, u.full_name, u.email,
+         EXISTS (${HAS_PERM_SQL}) AS can_client, EXISTS (${HAS_PERM_SQL}) AS can_meta
+       FROM users u JOIN user_website_access x ON x.user_id = u.id
+       WHERE u.status = 'ACTIVE' AND x.website_id IN (?) ORDER BY u.full_name`, ['lead.channel.client', 'lead.channel.meta', ids.length ? ids : [0]],
     );
   },
 };
