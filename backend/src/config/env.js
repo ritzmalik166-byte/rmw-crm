@@ -75,6 +75,17 @@ const schema = z.object({
   META_API_VERSION: z.string().optional().transform((v) => (v && /^v\d+\.\d+$/.test(v.trim()) ? v.trim() : 'v23.0')),
   META_LOGIN_CONFIG_ID: z.string().optional(), // Facebook Login for Business configuration id (replaces the scope list)
   META_WEBHOOK_VERIFY_TOKEN: z.string().optional(), // any random string; paste the same value in the Meta app webhook settings
+
+  // AI calling agent (calls new leads a few minutes after they arrive). Provider keys stay here; on/off, hours and script are set in Super Admin → AI calling.
+  AI_CALL_WEBHOOK_SECRET: z.string().optional(), // random string; the provider's result webhook must send it (?token= or x-vapi-secret header)
+  AI_CALL_RECORDINGS_DIR: z.string().default('storage/ai-call-recordings'), // local copies of call recordings
+  AI_CALL_ALLOW_SIMULATOR: bool(false), // allow the built-in simulator in production (it never dials; for demos only)
+  VAPI_API_KEY: z.string().optional(),
+  VAPI_ASSISTANT_ID: z.string().optional(),
+  VAPI_PHONE_NUMBER_ID: z.string().optional(), // the Indian number (SIP trunk from Plivo / Exotel / Tata) imported into Vapi
+  BOLNA_API_KEY: z.string().optional(),
+  BOLNA_AGENT_ID: z.string().optional(),
+  BOLNA_FROM_NUMBER: z.string().optional(), // optional caller number, E.164 (+91…)
 });
 
 const parsed = schema.safeParse(process.env);

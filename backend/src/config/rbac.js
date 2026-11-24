@@ -34,6 +34,9 @@ export const PERMISSIONS = [
   ['analytics.view', 'analytics', 'View analytics'],
   ['analytics.export', 'analytics', 'Export analytics'],
 
+  ['aicall.view', 'ai calling', 'Listen to AI call recordings and read transcripts on leads they can see'],
+  ['aicall.manage', 'ai calling', 'Configure the AI calling agent (on/off, websites, hours, script)'],
+
   ['integration.view', 'integration', 'View integrations and health'],
   ['integration.manage', 'integration', 'Manage integrations and keys'],
 
@@ -72,6 +75,7 @@ export const ROLES = [
     permissions: [
       'area.crm', 'area.admin',
       'lead.view', 'lead.view_all', 'lead.create', 'lead.edit', 'lead.assign', 'lead.reassign', 'lead.export', 'lead.merge', 'lead.channel.meta', 'lead.channel.client',
+      'aicall.view',
       'user.view', 'user.edit', 'user.disable',
       'role.view', 'team.manage', 'department.manage',
       'analytics.view', 'analytics.export',
@@ -80,7 +84,7 @@ export const ROLES = [
   },
   {
     code: 'NORMAL_USER', name: 'Normal User', level: 10, description: 'Marketing / sales employee',
-    permissions: ['area.crm', 'lead.view', 'lead.edit'],
+    permissions: ['area.crm', 'lead.view', 'lead.edit', 'aicall.view'],
   },
 ];
 
@@ -113,4 +117,4 @@ export const DEFAULT_SETTINGS = {
   'followups.reminder_minutes_before': 30,
 };
 
-export const NOTIFICATION_TYPES = ['NEW_LEAD', 'LEAD_ASSIGNED', 'LEAD_REASSIGNED', 'FOLLOWUP_DUE', 'FOLLOWUP_OVERDUE', 'ASSIGNMENT_REMINDER', 'ASSIGNMENT_ACKNOWLEDGED', 'SYSTEM', 'ACCOUNT_REQUEST'];
+export const NOTIFICATION_TYPES = ['NEW_LEAD', 'LEAD_ASSIGNED', 'LEAD_REASSIGNED', 'FOLLOWUP_DUE', 'FOLLOWUP_OVERDUE', 'ASSIGNMENT_REMINDER', 'ASSIGNMENT_ACKNOWLEDGED', 'AI_CALL_RESULT', 'SYSTEM', 'ACCOUNT_REQUEST'];

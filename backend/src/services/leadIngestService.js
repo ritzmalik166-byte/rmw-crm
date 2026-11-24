@@ -8,6 +8,7 @@ import { settingsService } from './settingsService.js';
 import { audit } from './auditService.js';
 import { notificationService } from '../notifications/notificationService.js';
 import { userRepo } from '../repositories/userRepo.js';
+import { scheduleForNewLead } from '../integrations/aicall/aiCall.service.js';
 import { emitToWebsite, emitToUser, EVENTS } from '../realtime/socket.js';
 import { pickAssignee } from './leadAssignmentService.js';
 import { findBySourceLeadId, flagDuplicates } from './duplicateDetectionService.js';
@@ -150,6 +151,7 @@ export async function upsertCanonicalLead(website, c, { silent = false, assignme
   const isCareer = result.junk === 'career';
   if (result.created && (!silent || fresh) && (!result.junk || isCareer)) {
     await audit('LEAD_CREATED', { entityType: 'lead', entityId: result.leadId, meta: { website: website.code, externalLeadId, via: 'integration', sourceType } });
+    if (!isCareer) await scheduleForNewLead(result.leadId); // AI calling agent (no-op when switched off)
     const kind = isCareer ? 'career application' : 'lead';
     const summary = { id: result.leadId, externalLeadId, website: website.code, name: c.name, interest: c.interest, kind, sourceType };
     if (!isCareer) emitToWebsite(website.id, EVENTS.NEW_LEAD, summary);

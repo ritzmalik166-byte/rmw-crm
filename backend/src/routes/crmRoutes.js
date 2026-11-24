@@ -4,6 +4,7 @@ import { authenticate, requireArea, requirePermission, requireAnyPermission } fr
 import { validate } from '../validators/common.js';
 import { leads as s, notifications as n } from '../validators/schemas.js';
 import { asyncHandler as h } from '../utils/http.js';
+import { aiCallCrmRouter } from '../integrations/aicall/aiCall.routes.js';
 
 const r = Router();
 r.use(authenticate, requireArea('crm'));
@@ -26,6 +27,8 @@ r.post('/leads/:id/assign', requireAnyPermission('lead.assign', 'lead.reassign')
 r.post('/leads/:id/notes', requirePermission('lead.view'), validate(s.note), h(c.addNote));
 r.post('/leads/:id/followups', requirePermission('lead.view'), validate(s.followup), h(c.addFollowup));
 r.post('/duplicates/:id/resolve', requirePermission('lead.merge'), validate(s.duplicate), h(c.resolveDuplicate));
+
+r.use(aiCallCrmRouter); // AI calling agent: calls, recordings, "Call with AI now"
 
 r.get('/client-sources', requirePermission('lead.view'), h(c.clientSources));
 r.get('/meta/forms', requirePermission('lead.view'), h(c.metaForms));
