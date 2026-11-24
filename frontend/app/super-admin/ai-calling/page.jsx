@@ -25,11 +25,16 @@ export default function AiCallingPage() {
   const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: ['super-admin', 'ai-calling'], queryFn: () => api('/super-admin/ai-calling'), refetchInterval: 30_000 });
   const { data: pub } = useQuery({ queryKey: ['public-config'], queryFn: () => api('/auth/public-config'), staleTime: 300_000 });
   const [f, setF] = useState(null);
-  useEffect(() => { if (data && !f) setF({ ...data.config, questionsText: data.config.questions.join('\n'), retryText: data.config.retryMinutes.join(', ') }); }, [data, f]);
+  useEffect(() => {
+    if (data && !f) {
+      const profiles = Object.fromEntries(Object.entries(data.config.profiles || {}).map(([code, p]) => [code, { agentId: p.agentId || '', openingLine: p.openingLine || '', questionsText: (p.questions || []).join('\n') }]));
+      setF({ ...data.config, profiles, questionsText: data.config.questions.join('\n'), retryText: data.config.retryMinutes.join(', ') });
+    }
+  }, [data, f]);
 
   const save = useMutation({
     mutationFn: () => {
-      const { questionsText, retryText, ...rest } = f;
+      const { questionsText, retryText, profiles, ...rest } = f;
       return api('/super-admin/ai-calling', {
         method: 'PUT',
         body: {
@@ -37,6 +42,9 @@ export default function AiCallingPage() {
           delayMinutes: Number(rest.delayMinutes), maxAttempts: Number(rest.maxAttempts), recentCallDays: Number(rest.recentCallDays),
           questions: questionsText.split('\n').map((q) => q.trim()).filter(Boolean),
           retryMinutes: retryText.split(',').map((x) => Number(x.trim())).filter((n) => Number.isFinite(n) && n > 0),
+          profiles: Object.fromEntries(Object.entries(profiles || {}).map(([code, p]) => [code, {
+            agentId: p.agentId.trim(), openingLine: p.openingLine.trim(), questions: p.questionsText.split('\n').map((q) => q.trim()).filter(Boolean),
+          }])),
         },
       });
     },
@@ -54,6 +62,8 @@ export default function AiCallingPage() {
   const connected = sum((s) => s.status === 'COMPLETED');
   const interested = sum((s) => s.outcome === 'INTERESTED' || s.outcome === 'CALLBACK');
   const minutes = Math.round(data.stats.reduce((n, s) => n + s.seconds, 0) / 60);
+  const setProfile = (code, k) => (v) => setF((x) => ({ ...x, profiles: { ...x.profiles, [code]: { agentId: '', openingLine: '', questionsText: '', ...x.profiles?.[code], [k]: v } } }));
+  const agentLabel = f.provider === 'vapi' ? 'Vapi assistant ID' : 'Bolna agent ID';
   const toggleSite = (code) => set('websites')(f.websites.includes(code) ? f.websites.filter((c) => c !== code) : [...f.websites, code]);
 
   return (
@@ -123,9 +133,40 @@ export default function AiCallingPage() {
             <Field label="Opening line" hint="Placeholders: {name} {brand} {project} {city}. Keep the automated-assistant and recording disclosure.">
               <Textarea disabled={!canEdit} rows={3} value={f.openingLine} onChange={(e) => set('openingLine')(e.target.value)} maxLength={600} />
             </Field>
-            <Field label="Questions the agent asks" hint="One per line, in order. Sent to the calling service with every call.">
+            <Field label="Default questions" hint="One per line, in order. Used for any website that has no script of its own below.">
               <Textarea disabled={!canEdit} rows={9} value={f.questionsText} onChange={(e) => set('questionsText')(e.target.value)} />
             </Field>
+
+            <div className="space-y-3 border-t border-slate-100 pt-5">
+              <div>
+                <p className="text-[14px] font-semibold text-slate-800">Script per website</p>
+                <p className="text-[12.5px] text-slate-500">Each business can use its own agent (prompt, voice, answer fields) and its own questions. Leave a box empty to use the default above.</p>
+              </div>
+              {f.websites.length === 0 && <p className="text-[13px] text-slate-500">Tick a website above to give it its own script.</p>}
+              {f.websites.map((code) => {
+                const p = f.profiles?.[code] || { agentId: '', openingLine: '', questionsText: '' };
+                const site = (pub?.websites || []).find((w) => w.code === code);
+                return (
+                  <details key={code} className="group rounded-xl border border-slate-200 bg-white" open={Boolean(p.agentId || p.questionsText)}>
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3.5 py-3">
+                      <span className="flex items-center gap-2 text-[13.5px] font-medium text-slate-800"><WebsiteBadge code={code} />{site?.name || code}</span>
+                      <span className="text-[12px] text-slate-500">{p.agentId ? 'Own agent' : 'Default agent'} · {p.questionsText.trim() ? 'own questions' : 'default questions'}</span>
+                    </summary>
+                    <div className="space-y-4 border-t border-slate-100 p-3.5">
+                      <Field label={agentLabel} hint={`Leave empty to use the agent in the server .env (${f.provider === 'vapi' ? 'VAPI_ASSISTANT_ID' : 'BOLNA_AGENT_ID'}).`}>
+                        <Input disabled={!canEdit} value={p.agentId} onChange={(e) => setProfile(code, 'agentId')(e.target.value)} placeholder="e.g. 49fdcd4d-10ca-4ea5-83a4-72d67da51c0c" className="font-mono" />
+                      </Field>
+                      <Field label="Opening line" hint="Placeholders: {name} {brand} {project} {city}. Empty = default.">
+                        <Textarea disabled={!canEdit} rows={2} value={p.openingLine} onChange={(e) => setProfile(code, 'openingLine')(e.target.value)} maxLength={600} />
+                      </Field>
+                      <Field label="Questions" hint="One per line. Empty = default questions.">
+                        <Textarea disabled={!canEdit} rows={7} value={p.questionsText} onChange={(e) => setProfile(code, 'questionsText')(e.target.value)} />
+                      </Field>
+                    </div>
+                  </details>
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
 
