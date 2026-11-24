@@ -10,7 +10,7 @@ import { formatDate, toQuery } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DateRangeFilter, RANGE_PRESETS } from '@/components/ui/date-range';
+import { DateRangeFilter, useLeadsRange } from '@/components/ui/date-range';
 import { ErrorState, PageHeader, Skeleton, EmptyState } from '@/components/ui/feedback';
 import { MetaOverview } from './MetaOverview';
 import { ConversionFunnel } from './ConversionFunnel';
@@ -25,7 +25,7 @@ function DayTooltip({ active, payload, label }) {
 
 /** /admin/marketing/meta and /super-admin/marketing/meta: Meta Ads performance from synchronised CRM data. */
 export function MetaAnalyticsPage({ integrationsHref }) {
-  const [range, setRange] = useState(() => ({ preset: '30d', ...RANGE_PRESETS['30d'].get() }));
+  const [range, setRange] = useLeadsRange();
   const [f, setF] = useState(EMPTY);
   const { data: lk } = useLookups();
   const q = { from: range.from, to: range.to, ...f };

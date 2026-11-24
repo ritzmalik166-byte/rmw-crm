@@ -30,7 +30,7 @@ async function sendWeb(userId, { title, body, link, type }) {
  * Native push to the mobile app through Expo's push service (which relays to FCM / APNs).
  * Tokens Expo reports as DeviceNotRegistered are deleted.
  */
-async function sendExpo(userId, { title, body, link, type }) {
+async function sendExpo(userId, { title, body, link, type, data }) {
   const rows = await query('SELECT id, token FROM expo_push_tokens WHERE user_id = ?', [userId]);
   if (!rows.length) return;
   const messages = rows.map((r) => ({
@@ -40,7 +40,7 @@ async function sendExpo(userId, { title, body, link, type }) {
     sound: 'default',
     priority: 'high',
     channelId: 'default',
-    data: { link: link || null, type: type || null },
+    data: { ...(data || {}), link: link || null, type: type || null },
   }));
   for (let i = 0; i < messages.length; i += 100) {
     const batch = messages.slice(i, i + 100);

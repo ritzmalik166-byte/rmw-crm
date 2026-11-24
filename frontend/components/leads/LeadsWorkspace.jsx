@@ -14,7 +14,7 @@ import { PIPELINES, PipelineLogo, usePipelineOrder } from '@/lib/pipelines';
 import { cn, formatDateTime, timeAgo, toQuery } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/input';
-import { FILTER_MIN_DATE, filterMaxDate } from '@/components/ui/date-range';
+import { DateRangeFilter, FILTER_MIN_DATE, filterMaxDate, useLeadsRange } from '@/components/ui/date-range';
 import { Checkbox, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/controls';
 import { StatusBadge, WebsiteBadge, Badge } from '@/components/ui/badge';
 import { EmptyState, ErrorState, Pagination, TableSkeleton } from '@/components/ui/feedback';
@@ -326,8 +326,13 @@ function LeadsWorkspaceV2({ pipelineKey = 'all', channel = null, title = null, d
   const { data: lk } = useLookups();
   const qc = useQueryClient();
   const urlPageId = channel === 'meta' ? params.get('pageId') || undefined : undefined;
-  const { data: pipe } = useQuery({ queryKey: ['leads', 'pipelines', channel, urlPageId], queryFn: () => api(`/crm/pipelines${toQuery({ channel, pageId: urlPageId })}`), staleTime: 60_000 });
   const filters = useMemo(() => Object.fromEntries(FILTER_KEYS.map((k) => [k, params.get(k) || ''])), [params]);
+  // CRM-wide date range (shared with the dashboard). Explicit from/to in the URL (Filters panel) win over it.
+  const [range, setRange] = useLeadsRange();
+  const dateFrom = filters.from || filters.to ? filters.from : range.from;
+  const dateTo = filters.from || filters.to ? filters.to : range.to;
+  const countRange = dateFrom && dateTo ? { from: dateFrom, to: dateTo } : {};
+  const { data: pipe } = useQuery({ queryKey: ['leads', 'pipelines', channel, urlPageId, countRange.from, countRange.to], queryFn: () => api(`/crm/pipelines${toQuery({ channel, pageId: urlPageId, ...countRange })}`), staleTime: 60_000 });
   const [search, setSearch] = useState(filters.search);
   const debounced = useDebounced(search);
   const [selected, setSelected] = useState([]);
@@ -353,7 +358,7 @@ function LeadsWorkspaceV2({ pipelineKey = 'all', channel = null, title = null, d
   }[filters.view] || {};
   const { view, ...apiFilters } = filters;
   // The `channel` prop always wins over the URL, so embedded channel views (MPF website, Meta) never mix channels.
-  const query = { ...apiFilters, ...viewFilters, ...(channel ? { channel } : {}), pipeline: p.apiPipeline || pipelineKey, page: filters.page || 1, limit: 50 };
+  const query = { ...apiFilters, from: dateFrom, to: dateTo, ...viewFilters, ...(channel ? { channel } : {}), pipeline: p.apiPipeline || pipelineKey, page: filters.page || 1, limit: 50 };
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['leads', query], queryFn: () => api(`/crm/leads${toQuery(query)}`), placeholderData: keepPreviousData,
@@ -401,6 +406,12 @@ function LeadsWorkspaceV2({ pipelineKey = 'all', channel = null, title = null, d
             {canAdd && <Button size="sm" className="hidden lg:inline-flex" onClick={() => setDialog('create')}><Plus />Add lead</Button>}
           </div>
         </div>}
+
+        {/* Date range: applies to the summary strip, the list and exports */}
+        {filters.junk !== 'only' && (
+          <DateRangeFilter className="mb-3" value={filters.from || filters.to ? { preset: 'custom', from: filters.from, to: filters.to } : range}
+            onChange={(r) => { setRange(r); if (filters.from || filters.to) setFilter({ from: '', to: '' }); }} />
+        )}
 
         {/* Pipeline summary strip */}
         {stats && filters.junk !== 'only' && (
