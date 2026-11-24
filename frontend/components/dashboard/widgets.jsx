@@ -134,10 +134,10 @@ export function KpiCard({ label, value, icon: Icon, tone = 'blue', href, delta, 
     <>
       <span aria-hidden className={cn('absolute inset-x-0 top-0 h-[3px]', t.top)} />
       <div className="flex items-start justify-between gap-2">
-        <p className="pt-0.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">{label}</p>
+        <p className="min-w-0 break-words pt-0.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">{label}</p>
         {Icon && <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-full', t.chip)}><Icon className="h-4 w-4" strokeWidth={2} aria-hidden /></span>}
       </div>
-      <AnimatedNumber value={value} className="mt-1 block text-[28px] font-semibold leading-none tracking-tight text-slate-900" />
+      <AnimatedNumber value={value} className="mt-1 block truncate text-[24px] font-semibold sm:text-[28px] leading-none tracking-tight text-slate-900" />
       {(delta || trend) && (
         <div className="mt-3 flex min-h-[30px] items-end justify-between gap-2">
           {delta || <span />}
@@ -146,7 +146,7 @@ export function KpiCard({ label, value, icon: Icon, tone = 'blue', href, delta, 
       )}
     </>
   );
-  const cls = cn('gloss relative block overflow-hidden rounded-2xl px-4 pb-4 pt-4', className);
+  const cls = cn('gloss relative block min-w-0 overflow-hidden rounded-2xl px-3.5 pb-3.5 pt-3.5 sm:px-4 sm:pb-4 sm:pt-4', className);
   return href
     ? <Link href={href} className={cn(cls, 'gloss-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring')}>{body}</Link>
     : <div className={cls}>{body}</div>;

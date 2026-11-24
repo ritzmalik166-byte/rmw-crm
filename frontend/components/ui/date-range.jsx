@@ -69,12 +69,12 @@ export function DateRangeFilter({ value, onChange, className }) {
     return () => ro?.disconnect();
   }, [activeKey, value.from, value.to]);
 
-  const optionCls = (active) => cn('relative z-[1] inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[12.5px] font-medium transition-colors duration-300',
+  const optionCls = (active) => cn('relative z-[1] inline-flex min-h-[40px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-1.5 text-[12.5px] lg:min-h-0 font-medium transition-colors duration-300',
     active ? 'text-white' : 'text-slate-600 hover:text-slate-900');
 
   return (
-    <div className={cn('flex flex-wrap items-center gap-2', className)}>
-      <div ref={groupRef} role="tablist" aria-label="Date range" className="relative inline-flex flex-wrap rounded-full border border-slate-200 bg-white p-1 shadow-[0_1px_2px_rgb(16_24_40/0.04)]">
+    <div className={cn('flex min-w-0 max-w-full flex-wrap items-center gap-2', className)}>
+      <div ref={groupRef} role="tablist" aria-label="Date range" className="relative flex max-w-full overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:inline-flex sm:flex-wrap sm:overflow-visible rounded-full border border-slate-200 bg-white p-1 shadow-[0_1px_2px_rgb(16_24_40/0.04)]">
         {pill && (
           <span
             aria-hidden
@@ -104,13 +104,13 @@ export function DateRangeFilter({ value, onChange, className }) {
       </div>
       {customOpen && (
         <form
-          className="crm-fade flex flex-wrap items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1 shadow-[0_1px_2px_rgb(16_24_40/0.04)]"
+          className="crm-fade grid w-full grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 sm:flex sm:w-auto sm:flex-wrap sm:rounded-full sm:px-2 sm:py-1 shadow-[0_1px_2px_rgb(16_24_40/0.04)]"
           onSubmit={(e) => { e.preventDefault(); if (valid) onChange({ preset: 'custom', ...draft }); }}
         >
-          <input type="date" value={draft.from} min={FILTER_MIN_DATE} max={draft.to || filterMaxDate()} onChange={(e) => setDraft((d) => ({ ...d, from: e.target.value }))} className="h-7 rounded-full border border-slate-200 px-3 text-[12px]" aria-label="From date" />
+          <input type="date" value={draft.from} min={FILTER_MIN_DATE} max={draft.to || filterMaxDate()} onChange={(e) => setDraft((d) => ({ ...d, from: e.target.value }))} className="h-11 min-w-0 rounded-xl border border-slate-200 px-3 text-[16px] sm:h-7 sm:rounded-full sm:text-[12px]" aria-label="From date" />
           <span className="text-[12px] text-slate-400">to</span>
-          <input type="date" value={draft.to} min={draft.from || FILTER_MIN_DATE} max={filterMaxDate()} onChange={(e) => setDraft((d) => ({ ...d, to: e.target.value }))} className="h-7 rounded-full border border-slate-200 px-3 text-[12px]" aria-label="To date" />
-          <button type="submit" disabled={!valid} className="h-7 rounded-full bg-primary px-4 text-[12px] font-semibold text-white hover:bg-[hsl(var(--primary)/0.9)] disabled:opacity-40">Apply</button>
+          <input type="date" value={draft.to} min={draft.from || FILTER_MIN_DATE} max={filterMaxDate()} onChange={(e) => setDraft((d) => ({ ...d, to: e.target.value }))} className="h-11 min-w-0 rounded-xl border border-slate-200 px-3 text-[16px] sm:h-7 sm:rounded-full sm:text-[12px]" aria-label="To date" />
+          <button type="submit" disabled={!valid} className="col-span-3 h-11 rounded-xl bg-primary px-4 sm:col-span-1 sm:h-7 sm:rounded-full text-[12px] font-semibold text-white hover:bg-[hsl(var(--primary)/0.9)] disabled:opacity-40">Apply</button>
         </form>
       )}
     </div>

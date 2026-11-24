@@ -32,8 +32,8 @@ function CopyField({ label, value }) {
     <div>
       <p className="mb-1 text-xs font-medium text-muted-foreground">{label}</p>
       <div className="flex items-center gap-2 rounded-md border bg-muted/50 p-2">
-        <code className="flex-1 break-all text-xs">{value}</code>
-        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => navigator.clipboard.writeText(value).then(() => toast.success('Copied'))} aria-label={`Copy ${label}`}><Copy /></Button>
+        <code className="min-w-0 flex-1 break-all text-xs">{value}</code>
+        <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={() => navigator.clipboard.writeText(value).then(() => toast.success('Copied'))} aria-label={`Copy ${label}`}><Copy /></Button>
       </div>
     </div>
   );
@@ -71,27 +71,27 @@ export function IntegrationsPanel({ canManage = false }) {
       <MetaLeadForms canManage={canManage} />
       <LeadCaptureKeys canManage={canManage} />
       <h2 className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-slate-600">Website lead webhooks</h2>
-      {isLoading ? <div className="grid gap-4 md:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-48" />)}</div> : isError ? <Card><ErrorState error={error} onRetry={refetch} /></Card> : (
-        <div className="grid gap-4 md:grid-cols-3">
+      {isLoading ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-48" />)}</div> : isError ? <Card><ErrorState error={error} onRetry={refetch} /></Card> : (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {data.map((i) => {
             const h = health(i);
             return (
               <Card key={i.website_id}>
-                <CardHeader className="flex-row items-center justify-between space-y-0">
-                  <CardTitle className="flex items-center gap-2"><WebsiteBadge code={i.code} />{i.name}</CardTitle>
+                <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0">
+                  <CardTitle className="flex min-w-0 items-center gap-2"><WebsiteBadge code={i.code} />{i.name}</CardTitle>
                   <Badge variant={h.variant}><h.icon className="mr-1 h-3 w-3" />{h.label}</Badge>
                 </CardHeader>
                 <CardContent className="space-y-1.5 text-sm">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Last received</span><span>{i.last_received_at ? timeAgo(i.last_received_at) : 'Never'}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Last success</span><span>{i.last_success_at ? timeAgo(i.last_success_at) : '—'}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Events (24h)</span><span className="tabular-nums">{i.events_24h}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Processed / failed</span><span className="tabular-nums">{i.success_count} / {i.failure_count}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Pending / failed now</span><span className="tabular-nums">{i.pending_events} / {i.failed_events}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Key</span><span className="font-mono text-xs">{i.api_key_prefix ? `${i.api_key_prefix}_…` : 'none'}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">HMAC signature</span><span>{i.require_signature ? 'Required' : 'Optional'}</span></div>
-                  {i.last_error && <p className="mt-2 rounded bg-red-50 p-2 text-xs text-red-700">{i.last_error}</p>}
+                  <div className="flex justify-between gap-3"><span className="text-muted-foreground">Last received</span><span>{i.last_received_at ? timeAgo(i.last_received_at) : 'Never'}</span></div>
+                  <div className="flex justify-between gap-3"><span className="text-muted-foreground">Last success</span><span>{i.last_success_at ? timeAgo(i.last_success_at) : '—'}</span></div>
+                  <div className="flex justify-between gap-3"><span className="text-muted-foreground">Events (24h)</span><span className="tabular-nums">{i.events_24h}</span></div>
+                  <div className="flex justify-between gap-3"><span className="text-muted-foreground">Processed / failed</span><span className="tabular-nums">{i.success_count} / {i.failure_count}</span></div>
+                  <div className="flex justify-between gap-3"><span className="text-muted-foreground">Pending / failed now</span><span className="tabular-nums">{i.pending_events} / {i.failed_events}</span></div>
+                  <div className="flex justify-between gap-3"><span className="text-muted-foreground">Key</span><span className="font-mono text-xs">{i.api_key_prefix ? `${i.api_key_prefix}_…` : 'none'}</span></div>
+                  <div className="flex justify-between gap-3"><span className="text-muted-foreground">HMAC signature</span><span>{i.require_signature ? 'Required' : 'Optional'}</span></div>
+                  {i.last_error && <p className="mt-2 rounded bg-red-50 p-2 text-xs text-red-700 [overflow-wrap:anywhere]">{i.last_error}</p>}
                   {canManage && (
-                    <div className="flex items-center justify-between gap-2 border-t pt-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
                       <label className="flex items-center gap-2 text-xs"><Switch checked={!!i.is_active} onCheckedChange={(v) => update.mutate({ websiteId: i.website_id, isActive: v })} />Accept leads</label>
                       <Button size="sm" variant="outline" onClick={() => setRotate({ websiteId: i.website_id, code: i.code, requireSignature: !!i.require_signature, hasKey: !!i.api_key_prefix })}><KeyRound />{i.api_key_prefix ? 'Rotate key' : 'Generate key'}</Button>
                     </div>
@@ -106,12 +106,29 @@ export function IntegrationsPanel({ canManage = false }) {
       <Card className="mt-6 overflow-hidden">
         <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0">
           <CardTitle>Recent deliveries</CardTitle>
-          <div className="flex gap-2">
-            <Select className="h-8 w-32" value={evFilter.websiteId} onChange={(e) => setEvFilter({ ...evFilter, websiteId: e.target.value, page: 1 })} aria-label="Website"><option value="">All websites</option>{data?.map((i) => <option key={i.website_id} value={i.website_id}>{i.code}</option>)}</Select>
-            <Select className="h-8 w-36" value={evFilter.status} onChange={(e) => setEvFilter({ ...evFilter, status: e.target.value, page: 1 })} aria-label="Status"><option value="">All statuses</option>{['RECEIVED', 'PROCESSING', 'PROCESSED', 'DUPLICATE', 'FAILED'].map((s) => <option key={s} value={s}>{s.toLowerCase()}</option>)}</Select>
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+            <Select className="w-full sm:h-8 sm:w-32" value={evFilter.websiteId} onChange={(e) => setEvFilter({ ...evFilter, websiteId: e.target.value, page: 1 })} aria-label="Website"><option value="">All websites</option>{data?.map((i) => <option key={i.website_id} value={i.website_id}>{i.code}</option>)}</Select>
+            <Select className="w-full sm:h-8 sm:w-36" value={evFilter.status} onChange={(e) => setEvFilter({ ...evFilter, status: e.target.value, page: 1 })} aria-label="Status"><option value="">All statuses</option>{['RECEIVED', 'PROCESSING', 'PROCESSED', 'DUPLICATE', 'FAILED'].map((s) => <option key={s} value={s}>{s.toLowerCase()}</option>)}</Select>
           </div>
         </CardHeader>
         {events.isLoading ? <TableSkeleton cols={6} /> : !events.data?.rows?.length ? <EmptyState title="No deliveries yet" description="Deliveries appear here once a website starts sending leads." /> : (
+          <>
+          <ul className="divide-y md:hidden">
+            {events.data.rows.map((e) => (
+              <li key={e.id} className="space-y-1.5 p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-xs text-muted-foreground">#{e.id}</span>
+                  <WebsiteBadge code={e.website} />
+                  <Badge variant={e.status === 'FAILED' ? 'danger' : e.status === 'PROCESSED' ? 'success' : e.status === 'DUPLICATE' ? 'secondary' : 'info'}>{e.status.toLowerCase()}</Badge>
+                  {e.lead_id && <a className="text-sm hover:underline" href={`/crm/leads/${e.lead_id}`}>Lead #{e.lead_id}</a>}
+                </div>
+                <div className="text-xs text-muted-foreground">{formatDateTime(e.created_at)} · {e.attempts} attempt{e.attempts === 1 ? '' : 's'}</div>
+                {e.error && <p className="text-xs text-red-700 [overflow-wrap:anywhere]">{e.error}</p>}
+                {canManage && e.status === 'FAILED' && <Button size="sm" variant="outline" className="w-full" onClick={() => retry.mutate(e.id)}><RotateCcw />Retry</Button>}
+              </li>
+            ))}
+          </ul>
+          <div className="hidden md:block">
           <Table>
             <TableHeader><TableRow><TableHead>#</TableHead><TableHead>Website</TableHead><TableHead>Status</TableHead><TableHead>Lead</TableHead><TableHead>Attempts</TableHead><TableHead>Received</TableHead><TableHead>Error</TableHead><TableHead /></TableRow></TableHeader>
             <TableBody>
@@ -129,6 +146,8 @@ export function IntegrationsPanel({ canManage = false }) {
               ))}
             </TableBody>
           </Table>
+          </div>
+          </>
         )}
         <Pagination meta={events.data?.meta} onPage={(page) => setEvFilter({ ...evFilter, page })} />
       </Card>

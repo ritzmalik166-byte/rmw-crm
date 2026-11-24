@@ -118,13 +118,13 @@ export function AuthCard({ title, description, children, footer, wide = false })
           </span>
         </header>
 
-        <div className={`relative z-10 flex flex-1 justify-center px-5 sm:px-8 ${wide ? 'items-start py-6 lg:items-center lg:py-4' : 'items-center py-8 lg:py-4'}`}>
+        <div className={`relative z-10 flex flex-1 justify-center px-4 min-[380px]:px-5 sm:px-8 ${wide ? 'items-start py-6 lg:items-center lg:py-4' : 'items-center py-8 lg:py-4'}`}>
           <div className={`w-full ${wide ? 'max-w-3xl' : 'max-w-[400px]'}`}>
             <div className="mb-5 [@media(max-height:760px)]:mb-3">
-              <h1 className="text-[26px] font-semibold leading-tight tracking-tight text-slate-900">{title}</h1>
+              <h1 className="text-[24px] sm:text-[26px] font-semibold leading-tight tracking-tight text-slate-900">{title}</h1>
               {description && <p className="mt-1.5 text-[14px] text-slate-500">{description}</p>}
             </div>
-            <div className="rounded-2xl border border-slate-200/80 bg-white/90 p-5 shadow-[0_1px_2px_rgb(16_24_40/0.04),0_12px_32px_-12px_rgb(25_65_115/0.18)] backdrop-blur sm:p-6 [&_button[type=submit]]:h-10 [&_button[type=submit]]:text-[14px] [&_input:not([type=checkbox]):not([type=radio])]:h-10 [&_input]:text-[14px] [&_select]:h-10">
+            <div className="rounded-2xl border border-slate-200/80 bg-white/90 p-5 shadow-[0_1px_2px_rgb(16_24_40/0.04),0_12px_32px_-12px_rgb(25_65_115/0.18)] backdrop-blur sm:p-6 [&_button[type=submit]]:h-12 [&_button[type=submit]]:w-full [&_button[type=submit]]:text-[15px] [&_input:not([type=checkbox]):not([type=radio])]:h-12 [&_input]:text-[16px] [&_select]:h-12 lg:[&_button[type=submit]]:h-10 lg:[&_button[type=submit]]:text-[14px] lg:[&_input:not([type=checkbox]):not([type=radio])]:h-10 lg:[&_input]:text-[14px] lg:[&_select]:h-10">
               {children}
             </div>
             {footer && <div className="mt-4 text-center text-[13px] text-slate-500">{footer}</div>}
@@ -132,7 +132,7 @@ export function AuthCard({ title, description, children, footer, wide = false })
           </div>
         </div>
 
-        <footer className="relative z-10 flex items-center justify-between px-6 pb-[calc(env(safe-area-inset-bottom)+14px)] text-[11.5px] text-slate-400">
+        <footer className="relative z-10 flex items-center justify-between gap-3 px-5 sm:px-6 pb-[calc(env(safe-area-inset-bottom)+14px)] text-[11.5px] text-slate-400">
           <span>© {new Date().getFullYear()} Ritz Media World</span>
           <span className="hidden sm:inline">Secure sign-in over HTTPS</span>
         </footer>

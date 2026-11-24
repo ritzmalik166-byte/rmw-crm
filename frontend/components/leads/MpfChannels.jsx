@@ -36,7 +36,7 @@ function ChannelHeader({ channel, tab, tabs, standalone = false, eyebrow = null 
       <div className="flex items-center gap-3 px-4 pb-3 pt-3">
         {!standalone && (
           <Link href={pathname} aria-label="Back to MPF Leads" title="Back to MPF Leads"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-[hsl(var(--primary))]">
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 sm:h-8 sm:w-8 hover:bg-slate-50 hover:text-[hsl(var(--primary))]">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         )}
@@ -48,10 +48,10 @@ function ChannelHeader({ channel, tab, tabs, standalone = false, eyebrow = null 
         </div>
       </div>
       {tabs && (
-        <nav className="flex gap-1 overflow-x-auto border-t border-slate-100 px-2 [scrollbar-width:none]" aria-label={`${title} sections`}>
+        <nav className="flex snap-x gap-1 overflow-x-auto overscroll-x-contain border-t border-slate-100 px-2 [scrollbar-width:none]" aria-label={`${title} sections`}>
           {tabs.map((t) => (
             <Link key={t.key} href={t.href} scroll={false} aria-current={tab === t.key ? 'page' : undefined}
-              className={cn('flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2.5 text-[13px] font-medium transition',
+              className={cn('flex min-h-[44px] shrink-0 snap-start items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2.5 text-[13px] font-medium transition',
                 tab === t.key ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : 'border-transparent text-slate-500 hover:text-slate-800')}>
               <t.icon className="h-4 w-4" />{t.label}
               {t.count != null && (
@@ -110,7 +110,7 @@ function MetaPageGrid({ pages, hrefFor, unseen }) {
       {pages.map((p) => (
         <Link key={p.id} href={hrefFor(p.id)} className={cn(box, 'relative', unseen(p) > 0 && 'border-red-300 ring-1 ring-red-200')}>
           {unseen(p) > 0 && (
-            <span className="absolute -right-2 -top-2 flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 text-[11.5px] font-semibold text-white shadow">
+            <span className="absolute -right-1 -top-2 flex items-center sm:-right-2 gap-1 rounded-full bg-red-600 px-2 py-0.5 text-[11.5px] font-semibold text-white shadow">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />{unseen(p)} new
             </span>
           )}
@@ -229,7 +229,7 @@ function MetaFormFilter({ forms, formId, page, backHref }) {
           <input value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); setHi(0); }} onFocus={() => setOpen(true)} onKeyDown={onKey}
             placeholder={`Search ${forms.length} forms by name… e.g. terra hni`} aria-label="Search lead forms" role="combobox"
             aria-expanded={open} aria-controls="meta-form-suggest" aria-autocomplete="list"
-            className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50/60 pl-8 pr-8 text-[13.5px] outline-none transition focus:border-[hsl(var(--ring))] focus:bg-white focus:ring-2 focus:ring-[hsl(var(--ring)/0.15)]" />
+            className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50/60 pl-8 pr-8 text-[16px] outline-none sm:text-[13.5px] transition focus:border-[hsl(var(--ring))] focus:bg-white focus:ring-2 focus:ring-[hsl(var(--ring)/0.15)]" />
           {q && <button type="button" onClick={() => { setQ(''); setHi(0); }} aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"><X className="h-4 w-4" /></button>}
           {open && (
             <div id="meta-form-suggest" role="listbox" className="absolute left-0 right-0 top-[calc(100%+4px)] z-40 max-h-80 overflow-auto rounded-lg border bg-white py-1 shadow-lg">
@@ -238,14 +238,14 @@ function MetaFormFilter({ forms, formId, page, backHref }) {
               </p>
               {!words.length && (
                 <button type="button" role="option" aria-selected={!formId} onMouseDown={(e) => e.preventDefault()} onClick={() => set('')}
-                  className="flex w-full items-center justify-between px-3 py-2 text-left text-[13px] hover:bg-slate-50">
+                  className="flex min-h-[44px] w-full items-center justify-between px-3 py-2 text-left text-[13px] hover:bg-slate-50">
                   <span className="font-medium text-slate-700">All forms</span><span className="text-[12px] text-slate-500">{forms.length} forms</span>
                 </button>
               )}
               {list.map((f, i) => (
                 <button key={f.formId} type="button" role="option" aria-selected={f.formId === formId} onMouseEnter={() => setHi(i)}
                   onMouseDown={(e) => e.preventDefault()} onClick={() => set(f.formId)}
-                  className={cn('flex w-full items-center gap-3 px-3 py-2 text-left', i === hi ? 'bg-[hsl(var(--accent))]' : 'hover:bg-slate-50')}>
+                  className={cn('flex min-h-[44px] w-full items-center gap-3 px-3 py-2 text-left', i === hi ? 'bg-[hsl(var(--accent))]' : 'hover:bg-slate-50')}>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[13px] text-slate-900"><Highlight text={String(f.name)} term={words[0]} /></span>
                     <span className="block text-[11.5px] text-slate-500">{f.lastLeadAt ? `Last lead ${timeAgo(f.lastLeadAt)}` : 'No leads yet'}{f.status && f.status !== 'ACTIVE' ? ` · ${String(f.status).toLowerCase()}` : ''}</span>
@@ -264,7 +264,7 @@ function MetaFormFilter({ forms, formId, page, backHref }) {
           <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 py-1 pl-3 pr-1 text-[12.5px] text-indigo-900">
             <span className="truncate" title={current.name}>{current.name}</span>
             <span className="rounded-full bg-white px-1.5 text-[11px] font-semibold tabular-nums">{current.total}</span>
-            <button type="button" onClick={() => set('')} aria-label="Remove form filter" className="rounded-full p-0.5 hover:bg-indigo-100"><X className="h-3.5 w-3.5" /></button>
+            <button type="button" onClick={() => set('')} aria-label="Remove form filter" className="rounded-full p-1.5 hover:bg-indigo-100 sm:p-0.5"><X className="h-3.5 w-3.5" /></button>
           </span>
         )}
         <AllPagesLink href={backHref} />

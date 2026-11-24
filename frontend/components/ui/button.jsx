@@ -17,8 +17,9 @@ const buttonVariants = cva(
         ghost: 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
         link: 'text-primary underline-offset-4 hover:underline',
       },
-      // Heights match the h-8 inputs so toolbars stay aligned.
-      size: { default: 'h-8 px-3', sm: 'h-7 px-2.5 text-xs', lg: 'h-9 px-5', icon: 'h-8 w-8' },
+      // Heights match the h-8 inputs so toolbars stay aligned. Below lg (touch) everything grows to a
+      // comfortable target: 44px default/lg/icon, 36px sm (compact inline actions).
+      size: { default: 'h-11 px-4 lg:h-8 lg:px-3', sm: 'h-9 px-3 text-xs lg:h-7 lg:px-2.5', lg: 'h-12 px-5 lg:h-9', icon: 'h-11 w-11 lg:h-8 lg:w-8' },
     },
     defaultVariants: { variant: 'default', size: 'default' },
   },

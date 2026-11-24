@@ -34,7 +34,7 @@ export function MultiCheck({ options, value, onChange, render, max = 10, title =
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
       {shown.map((o) => (
-        <label key={o.id} className="flex items-center gap-2 text-sm"><Checkbox checked={value.includes(o.id)} onCheckedChange={() => toggle(o.id)} />{label(o)}</label>
+        <label key={o.id} className="flex min-h-11 items-center gap-2 text-sm lg:min-h-0"><Checkbox checked={value.includes(o.id)} onCheckedChange={() => toggle(o.id)} />{label(o)}</label>
       ))}
       {hidden > 0 && (
         <button type="button" onClick={() => setOpen(true)} className="rounded-full border bg-muted px-2.5 py-0.5 text-xs font-semibold text-slate-700 hover:bg-slate-200">

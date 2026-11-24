@@ -128,18 +128,48 @@ export function LiveUsers() {
         <StatCard label="Total users" value={sum?.total ?? '—'} icon={Users} />
       </div>
 
-      <Card className="mb-4 flex flex-wrap items-center gap-2 p-3">
-        <div className="relative w-full max-w-sm"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-8" placeholder="Search name or email" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
-        <Select className="w-36" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+      <Card className="mb-4 grid grid-cols-2 gap-2 p-3 sm:flex sm:flex-wrap sm:items-center">
+        <div className="relative col-span-2 w-full sm:max-w-sm"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input type="search" className="pl-8" placeholder="Search name or email" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+        <Select className="w-full sm:w-36" aria-label="Status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="">All statuses</option><option value="online">Online</option><option value="idle">Idle</option><option value="offline">Offline</option>
         </Select>
-        <Select className="w-40" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+        <Select className="w-full sm:w-40" aria-label="Role" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
           <option value="">All roles</option><option value="SUPER_ADMIN">Super Admins</option><option value="ADMIN">Admins</option><option value="USER">Users</option>
         </Select>
       </Card>
 
       <Card className="overflow-hidden">
         {isLoading ? <TableSkeleton cols={6} /> : isError ? <ErrorState error={error} onRetry={refetch} /> : !rows.length ? <EmptyState title="No users match" /> : (
+          <>
+          <ul className="divide-y md:hidden">
+            {rows.map((r) => {
+              const dev = browserOf(r.userAgent);
+              const DevIcon = dev?.mobile ? Smartphone : Monitor;
+              return (
+                <li key={r.id} className={cn('space-y-2 p-3', r.status === 'offline' && 'opacity-70')}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium [overflow-wrap:anywhere]">{r.fullName}</div>
+                      <div className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{r.email}</div>
+                    </div>
+                    <div className="shrink-0"><StatusCell row={r} /></div>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {(r.roles.length ? r.roles : ['USER']).map((c) => <Badge key={c} variant="outline">{roleLabel(c)}</Badge>)}
+                    {r.accountStatus !== 'ACTIVE' && <Badge variant="outline">{r.accountStatus.toLowerCase().replace(/_/g, ' ')}</Badge>}
+                  </div>
+                  {r.status !== 'offline' && <div className="text-sm [overflow-wrap:anywhere]">{describePage(r.page) || 'Opening the CRM…'}{r.status === 'idle' && <span className="ml-1 text-xs text-amber-700">(tab in background)</span>}</div>}
+                  {r.lastAction && <div className="text-xs text-muted-foreground [overflow-wrap:anywhere]">Last: {r.lastAction.label} · {timeAgo(r.lastAction.at)}</div>}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    {dev && <span className="flex items-center gap-1"><DevIcon className="h-3.5 w-3.5" />{dev.label}</span>}
+                    {r.ip && <span className="font-mono [overflow-wrap:anywhere]">{r.ip}</span>}
+                    {r.lastLoginAt && <span>Login {formatDateTime(r.lastLoginAt)}</span>}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="hidden md:block">
           <Table>
             <TableHeader><TableRow><TableHead>User</TableHead><TableHead>Status</TableHead><TableHead>Doing now</TableHead><TableHead>Last action</TableHead><TableHead>Device</TableHead><TableHead>Last login</TableHead></TableRow></TableHeader>
             <TableBody>
@@ -178,6 +208,8 @@ export function LiveUsers() {
               })}
             </TableBody>
           </Table>
+          </div>
+          </>
         )}
       </Card>
     </>

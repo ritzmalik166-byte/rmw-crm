@@ -67,9 +67,9 @@ export function Pagination({ meta, onPage }) {
     <div className="flex items-center justify-between border-t px-3 py-2.5 text-sm text-muted-foreground">
       <span>{from}–{to} of {meta.total.toLocaleString('en-IN')}</span>
       <div className="flex items-center gap-1">
-        <Button variant="outline" size="icon" className="h-8 w-8" disabled={meta.page <= 1} onClick={() => onPage(meta.page - 1)} aria-label="Previous page"><ChevronLeft /></Button>
+        <Button variant="outline" size="icon" className="h-11 w-11 lg:h-8 lg:w-8" disabled={meta.page <= 1} onClick={() => onPage(meta.page - 1)} aria-label="Previous page"><ChevronLeft /></Button>
         <span className="px-2">Page {meta.page} of {meta.totalPages}</span>
-        <Button variant="outline" size="icon" className="h-8 w-8" disabled={meta.page >= meta.totalPages} onClick={() => onPage(meta.page + 1)} aria-label="Next page"><ChevronRight /></Button>
+        <Button variant="outline" size="icon" className="h-11 w-11 lg:h-8 lg:w-8" disabled={meta.page >= meta.totalPages} onClick={() => onPage(meta.page + 1)} aria-label="Next page"><ChevronRight /></Button>
       </div>
     </div>
   );
@@ -78,9 +78,9 @@ export function Pagination({ meta, onPage }) {
 export function PageHeader({ title, description, actions }) {
   return (
     <div className="mb-4 flex flex-col gap-3 border-b pb-4 sm:mb-3 sm:flex-row sm:items-end sm:justify-between sm:gap-2 sm:pb-3">
-      <div>
-        <h1 className="text-[17px] font-semibold text-slate-900">{title}</h1>
-        {description && <p className="mt-0.5 text-[12px] text-muted-foreground">{description}</p>}
+      <div className="min-w-0">
+        <h1 className="text-[17px] font-semibold text-slate-900 [overflow-wrap:anywhere]">{title}</h1>
+        {description && <p className="mt-0.5 text-[12px] text-muted-foreground [overflow-wrap:anywhere]">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2 [&>*]:h-10 [&>*]:flex-1 sm:[&>*]:h-8 sm:[&>*]:flex-none">{actions}</div>}
     </div>

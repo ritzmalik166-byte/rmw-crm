@@ -33,7 +33,7 @@ function ClientLeads() {
           </div>
         </div>
         {clients.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto border-t border-slate-100 px-3 py-3 [scrollbar-width:none]">
+          <div className="flex snap-x snap-mandatory scroll-px-3 gap-2 overflow-x-auto overscroll-x-contain border-t border-slate-100 px-3 py-3 [scrollbar-width:none]">
             <ClientChip href="/crm/client-leads" active={!active} title="All clients" sub={`${clients.length} client${clients.length === 1 ? '' : 's'}`} count={total} />
             {clients.map((c) => (
               <ClientChip key={c.client} href={c.clientName ? `/crm/client-leads?clientName=${encodeURIComponent(c.clientName)}` : null} active={active === c.clientName}
@@ -71,7 +71,7 @@ function ClientChip({ href, active, title, sub, count, today, last }) {
       {(today > 0 || last) && <p className="text-[11px] text-slate-400">{today > 0 ? <span className="font-medium text-emerald-600">{today} today</span> : `Last lead ${timeAgo(last)}`}</p>}
     </>
   );
-  const cls = cn('block w-[220px] shrink-0 rounded-lg border px-3 py-2 text-left transition',
+  const cls = cn('block w-[min(220px,72vw)] shrink-0 snap-start rounded-lg border px-3 py-2 text-left transition',
     active ? 'border-indigo-300 bg-indigo-50/70 text-indigo-950' : 'border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50');
   return href ? <Link href={href} scroll={false} className={cls}>{body}</Link> : <div className={cls}>{body}</div>;
 }

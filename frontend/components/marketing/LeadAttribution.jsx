@@ -12,9 +12,9 @@ const STANDARD = new Set(['full_name', 'first_name', 'last_name', 'email', 'work
 
 function Row({ label, value, mono }) {
   return (
-    <div className="grid grid-cols-[110px_minmax(0,1fr)] items-baseline gap-3 py-2 text-[13px]">
+    <div className="grid grid-cols-[90px_minmax(0,1fr)] items-baseline gap-3 py-2 sm:grid-cols-[110px_minmax(0,1fr)] text-[13px]">
       <dt className="text-slate-500">{label}</dt>
-      <dd className={cn('min-w-0 break-words text-slate-800', mono && 'font-mono text-xs')}>{value || <span className="text-slate-400">—</span>}</dd>
+      <dd className={cn('min-w-0 text-slate-800 [overflow-wrap:anywhere]', mono && 'font-mono text-xs')}>{value || <span className="text-slate-400">—</span>}</dd>
     </div>
   );
 }
@@ -22,9 +22,9 @@ function Row({ label, value, mono }) {
 function IdRow({ label, value }) {
   return (
     <div className="flex items-center justify-between gap-2 py-1.5 text-[12px]">
-      <span className="text-slate-500">{label}</span>
+      <span className="shrink-0 text-slate-500">{label}</span>
       {value ? (
-        <button type="button" className="flex min-w-0 items-center gap-1 font-mono text-slate-700 hover:text-[hsl(var(--primary))]" title="Copy"
+        <button type="button" className="-my-1.5 flex min-w-0 items-center gap-1 py-1.5 font-mono text-slate-700 hover:text-[hsl(var(--primary))]" title="Copy"
           onClick={() => navigator.clipboard?.writeText(String(value)).then(() => toast.success(`${label} copied`))}>
           <span className="truncate">{value}</span><Copy className="h-3 w-3 shrink-0" />
         </button>

@@ -385,7 +385,7 @@ function ImportDialog({ open, onOpenChange, row }) {
         <Button variant="outline" onClick={() => input.current?.click()} disabled={running}><Upload />{fileName || 'Choose CSV file'}</Button>
         {preview && (
           <div className="rounded-md border bg-slate-50 p-3 text-[12.5px] text-slate-700">
-            <p><b>{preview.total}</b> rows · columns: <span className="font-mono text-[11.5px]">{preview.columns.join(', ')}{preview.columns.length === 12 ? '…' : ''}</span></p>
+            <p><b>{preview.total}</b> rows · columns: <span className="font-mono text-[11.5px] [overflow-wrap:anywhere]">{preview.columns.join(', ')}{preview.columns.length === 12 ? '…' : ''}</span></p>
             {preview.other > 0 && <p className="text-amber-700">{preview.other} rows belong to another form and will be skipped.</p>}
             <p className="mt-1 text-slate-500">Uses this form&apos;s field mapping. Leads already in the CRM are updated, not duplicated. No notifications are sent for imported leads.</p>
           </div>
@@ -445,7 +445,7 @@ export function MetaLeadForms({ canManage }) {
         <h2 className="flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-wide text-slate-600"><MetaMark />Meta lead forms</h2>
         {canManage && <Button size="sm" onClick={() => setDialog({ type: 'edit', row: null })}><Plus />Register form</Button>}
       </div>
-      <Card className="overflow-x-auto">
+      <Card className="overflow-x-auto overscroll-x-contain">
         {isLoading ? <Skeleton className="m-3 h-20" /> : isError ? (
           <p className="p-4 text-[13px] text-red-600">Could not load forms: {apiMessage(error)}</p>
         ) : !rows.length ? (

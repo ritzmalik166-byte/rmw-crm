@@ -74,17 +74,17 @@ export function MetaAnalyticsPage({ integrationsHref }) {
         {active > 0 && <Button variant="ghost" size="sm" className="col-span-2 sm:col-span-1" onClick={() => setF(EMPTY)}><X />Clear filters ({active})</Button>}
       </div>
 
-      {isLoading ? <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-6">{[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-20" />)}</div>
+      {isLoading ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">{[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-20" />)}</div>
         : isError ? <Card><ErrorState error={error} onRetry={refetch} /></Card> : (
           <div className={`space-y-5 transition-opacity ${isFetching ? 'opacity-70' : ''}`}>
             <MetaOverview totals={data.totals} />
-            <div className="grid gap-5 lg:grid-cols-5">
+            <div className="grid min-w-0 gap-5 lg:grid-cols-5">
               <div className="lg:col-span-2"><ConversionFunnel funnel={data.funnel} /></div>
               <Card className="lg:col-span-3">
                 <CardHeader><CardTitle>Meta leads per day</CardTitle></CardHeader>
                 <CardContent>
                   {!data.byDay.length ? <EmptyState title="No Meta leads in this period" description="Leads arrive here as soon as Meta delivers them. Connect Meta under Integrations." /> : (
-                    <div className="h-64" role="img" aria-label="Bar chart of Meta leads per day">
+                    <div className="h-56 sm:h-64" role="img" aria-label="Bar chart of Meta leads per day">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={data.byDay} margin={{ top: 8, right: 8, left: -16, bottom: 0 }} barCategoryGap="20%">
                           <CartesianGrid vertical={false} stroke="#e2e8f0" />

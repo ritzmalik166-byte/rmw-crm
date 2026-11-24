@@ -80,7 +80,7 @@ function Deliveries({ canManage }) {
           <TableBody>
             {events.data.rows.map((e) => (
               <TableRow key={e.id}>
-                <TableCell className="font-mono text-xs">{e.leadgen_id}</TableCell>
+                <TableCell className="font-mono text-xs [overflow-wrap:anywhere]">{e.leadgen_id}</TableCell>
                 <TableCell className="text-xs">{e.source.toLowerCase()}</TableCell>
                 <TableCell><Badge variant={EVENT_TONE[e.status]} title={e.error || ''}>{e.status.toLowerCase()}</Badge></TableCell>
                 <TableCell>{e.lead_id ? <a className="hover:underline" href={`/crm/leads/${e.lead_id}`}>#{e.lead_id}</a> : '—'}</TableCell>

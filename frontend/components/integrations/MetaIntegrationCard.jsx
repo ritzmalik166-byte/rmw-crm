@@ -119,7 +119,7 @@ export function MetaIntegrationCard({ canManage }) {
 
       <div className="mt-2.5 space-y-1">
         {s.state === 'NOT_CONFIGURED' && (
-          <p className="rounded-md bg-slate-50 p-2.5 text-xs text-slate-600">Server setup needed: set {s.missingConfig.join(', ')} in the API environment.</p>
+          <p className="rounded-md bg-slate-50 p-2.5 text-xs text-slate-600 [overflow-wrap:anywhere]">Server setup needed: set {s.missingConfig.join(', ')} in the API environment.</p>
         )}
         {s.state === 'NOT_CONNECTED' && <p className="text-[13px] text-slate-600">Receive Facebook and Instagram lead form submissions in the CRM instantly, with campaign attribution.</p>}
         {c && (
@@ -139,13 +139,13 @@ export function MetaIntegrationCard({ canManage }) {
               ))}
             </div>
             {s.sync.running && <SyncProgress stats={st} className="mt-2" />}
-            {s.error && <p className="rounded-md bg-red-50 p-2 text-xs text-red-700">{s.error.message}</p>}
+            {s.error && <p className="rounded-md bg-red-50 p-2 text-xs text-red-700 [overflow-wrap:anywhere]">{s.error.message}</p>}
           </>
         )}
       </div>
 
       {canManage ? (
-        <div className="mt-3 flex flex-wrap gap-1.5 border-t pt-2.5 [&_button]:h-8 [&_button]:px-2.5 [&_button]:text-[12.5px]">
+        <div className="mt-3 flex flex-wrap gap-1.5 border-t pt-2.5 [&_button]:h-10 sm:[&_button]:h-8 [&_button]:px-2.5 [&_button]:text-[12.5px]">
           {(s.state === 'NOT_CONNECTED' || s.state === 'NOT_CONFIGURED') && (
             <Button loading={connect.isPending} disabled={s.state === 'NOT_CONFIGURED'} onClick={() => connect.mutate()}><PlugZap />Connect Meta</Button>
           )}

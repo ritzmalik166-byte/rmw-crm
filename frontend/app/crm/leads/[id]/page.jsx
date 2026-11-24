@@ -207,8 +207,8 @@ function EditDialog({ lead, open, onOpenChange }) {
         <DialogHeader><DialogTitle>Edit lead</DialogTitle></DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Name" className="sm:col-span-2"><Input value={f.name} onChange={set('name')} /></Field>
-          <Field label="Phone"><Input value={f.phone} onChange={set('phone')} /></Field>
-          <Field label="Email"><Input type="email" value={f.email} onChange={set('email')} /></Field>
+          <Field label="Phone"><Input type="tel" inputMode="tel" autoComplete="tel" value={f.phone} onChange={set('phone')} /></Field>
+          <Field label="Email"><Input type="email" inputMode="email" autoComplete="email" value={f.email} onChange={set('email')} /></Field>
           <Field label="Location"><Input value={f.location} onChange={set('location')} /></Field>
           <Field label="Interest"><Input value={f.interest} onChange={set('interest')} /></Field>
         </div>
@@ -246,7 +246,7 @@ function FollowupForm({ leadId, onDone }) {
         <span className="mr-1 text-[12px] font-medium text-slate-500">Quick pick:</span>
         {QUICK_SLOTS.map(([label, fn]) => (
           <button key={label} type="button" onClick={() => { const d = fn(); setDate(localDate(d)); setTime(localTime(d)); }}
-            className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[12px] text-slate-700 hover:border-[hsl(var(--primary))] hover:text-[hsl(var(--primary))]">{label}</button>
+            className="min-h-[36px] rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] lg:min-h-0 lg:px-2.5 text-slate-700 hover:border-[hsl(var(--primary))] hover:text-[hsl(var(--primary))]">{label}</button>
         ))}
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -258,7 +258,7 @@ function FollowupForm({ leadId, onDone }) {
           </Select>
         </Field>
         <div className="flex items-end"><Button type="submit" className="w-full" loading={m.isPending}><CalendarPlus />Schedule</Button></div>
-        <Field label="Notes" className="sm:col-span-4"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="What should happen on this follow-up?" /></Field>
+        <Field label="Notes" className="col-span-2"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="What should happen on this follow-up?" /></Field>
       </div>
     </form>
   );
@@ -284,6 +284,9 @@ function LeadDetailV2({ params }) {
   const { data: lk } = useLookups();
   const [dialog, setDialog] = useState(null);
   const [note, setNote] = useState('');
+  const [tab, setTab] = useState('activity');
+  // Phone action bar: jump to a tab and bring it into view.
+  const openTab = (t) => { setTab(t); requestAnimationFrame(() => document.getElementById('lead-tabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); };
   const { data: lead, isLoading, isError, error, refetch } = useQuery({ queryKey: ['lead', id], queryFn: () => api(`/crm/leads/${id}`) });
 
   const invalidate = () => { qc.invalidateQueries({ queryKey: ['lead', id] }); qc.invalidateQueries({ queryKey: ['leads'] }); };
@@ -327,7 +330,7 @@ function LeadDetailV2({ params }) {
     : [lead.source, lead.medium !== 'none' && lead.medium].filter(Boolean).join(' / ');
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4 max-lg:pb-20">
       {/* ── Header ─────────────────────────────────────────────── */}
       <div className="panel overflow-hidden">
         <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-2 text-[12px] text-slate-500">
@@ -358,8 +361,8 @@ function LeadDetailV2({ params }) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 [&>*]:max-sm:flex-1">
-            {lead.phone && <Button asChild className="bg-[hsl(var(--primary))]"><a href={`tel:${lead.phone}`}><Phone />Call</a></Button>}
-            {wa && <Button asChild variant="outline" className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"><a href={wa} target="_blank" rel="noopener noreferrer"><WhatsAppIcon className="h-4 w-4" />WhatsApp</a></Button>}
+            {lead.phone && <Button asChild className="bg-[hsl(var(--primary))] max-lg:hidden"><a href={`tel:${lead.phone}`}><Phone />Call</a></Button>}
+            {wa && <Button asChild variant="outline" className="max-lg:hidden border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"><a href={wa} target="_blank" rel="noopener noreferrer"><WhatsAppIcon className="h-4 w-4" />WhatsApp</a></Button>}
             {lead.email && <Button asChild variant="outline"><a href={`mailto:${lead.email}`}><Mail />Email</a></Button>}
             {((lead.assigned_user_id ? can('lead.reassign') : can('lead.assign'))) && <Button variant="outline" onClick={() => setDialog('assign')}><UserPlus />{lead.assigned_user_id ? 'Transfer' : 'Assign'}</Button>}
             {can('lead.edit') && <Button variant="outline" size="icon" aria-label="Edit lead" title="Edit lead" onClick={() => setDialog('edit')} className="max-sm:flex-none"><Pencil /></Button>}
@@ -507,8 +510,8 @@ function LeadDetailV2({ params }) {
 
         {/* ── Right column ──────────────────────────────────────── */}
         <div className="lg:col-span-2">
-          <Tabs defaultValue="activity">
-            <TabsList>
+          <Tabs value={tab} onValueChange={setTab} id="lead-tabs" className="scroll-mt-20">
+            <TabsList className="max-w-full overflow-x-auto [scrollbar-width:none]">
               <TabsTrigger value="activity">Activity<Count n={lead.activities.length} /></TabsTrigger>
               <TabsTrigger value="notes">Notes<Count n={lead.notes.length} /></TabsTrigger>
               <TabsTrigger value="followups">Follow-ups<Count n={openFollowups.length} alert={overdue} /></TabsTrigger>
@@ -578,7 +581,7 @@ function LeadDetailV2({ params }) {
                       {lead.followups.map((f) => {
                         const done = f.status === 'COMPLETED';
                         return (
-                          <div key={f.id} className={cn('flex items-start justify-between gap-3 rounded-xl border p-3', f.status === 'OVERDUE' ? 'border-red-200 bg-red-50/40' : done ? 'border-slate-200 bg-slate-50/60' : 'border-slate-200 bg-white')}>
+                          <div key={f.id} className={cn('flex flex-wrap items-start justify-between gap-3 rounded-xl border p-3 sm:flex-nowrap', f.status === 'OVERDUE' ? 'border-red-200 bg-red-50/40' : done ? 'border-slate-200 bg-slate-50/60' : 'border-slate-200 bg-white')}>
                             <div className="flex min-w-0 gap-3">
                               <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', done ? 'bg-emerald-50 text-emerald-600' : f.status === 'OVERDUE' ? 'bg-red-100 text-red-600' : 'bg-violet-50 text-violet-600')}>
                                 {done ? <CheckCircle2 className="h-4 w-4" /> : <CalendarClock className="h-4 w-4" />}
@@ -605,6 +608,30 @@ function LeadDetailV2({ params }) {
               </Card>
             </TabsContent>
           </Tabs>
+        </div>
+      </div>
+
+      {/* ── Phone / tablet action bar, pinned above the bottom tab bar ── */}
+      <div className="fixed inset-x-0 bottom-[calc(max(env(safe-area-inset-bottom),14px)+59px)] z-30 border-t border-slate-200 bg-white/95 px-2 py-1.5 shadow-[0_-6px_20px_-12px_rgb(15_23_42/0.25)] backdrop-blur-md md:bottom-[calc(max(env(safe-area-inset-bottom),18px)+65px)] lg:hidden">
+        <div className="mx-auto grid max-w-xl grid-cols-5 gap-1 text-[11px] font-medium text-slate-700 [&>*]:flex [&>*]:min-h-[48px] [&>*]:flex-col [&>*]:items-center [&>*]:justify-center [&>*]:gap-0.5 [&>*]:rounded-lg">
+          {lead.phone
+            ? <a href={`tel:${lead.phone}`} className="bg-[hsl(var(--primary))] text-white active:opacity-90"><Phone className="h-5 w-5" />Call</a>
+            : <span className="text-slate-300"><Phone className="h-5 w-5" />Call</span>}
+          {wa
+            ? <a href={wa} target="_blank" rel="noopener noreferrer" className="text-emerald-700 active:bg-emerald-50"><WhatsAppIcon className="h-5 w-5" />WhatsApp</a>
+            : <span className="text-slate-300"><WhatsAppIcon className="h-5 w-5" />WhatsApp</span>}
+          {can('lead.edit') && statuses?.length > 0
+            ? (
+              <label className="relative active:bg-slate-100">
+                <ArrowRightLeft className="h-5 w-5" />Status
+                <select className="absolute inset-0 h-full w-full cursor-pointer opacity-0" value={lead.status_id} onChange={(e) => status.mutate(e.target.value)} disabled={status.isPending} aria-label="Change status">
+                  {statuses.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </label>
+            )
+            : <span className="text-slate-300"><ArrowRightLeft className="h-5 w-5" />Status</span>}
+          <button type="button" onClick={() => openTab('followups')} className={cn('active:bg-slate-100', overdue && 'text-red-700')}><CalendarPlus className="h-5 w-5" />Follow-up</button>
+          <button type="button" onClick={() => openTab('notes')} className="active:bg-slate-100"><MessageSquare className="h-5 w-5" />Note</button>
         </div>
       </div>
 

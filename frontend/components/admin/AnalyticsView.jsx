@@ -40,7 +40,7 @@ function RankTable({ title, rows, label, empty }) {
           <TableBody>
             {rows.map((r, i) => (
               <TableRow key={i}>
-                <TableCell className="text-sm">{r.name}</TableCell>
+                <TableCell className="text-sm [overflow-wrap:anywhere]">{r.name}</TableCell>
                 <TableCell className="text-right tabular-nums">{r.total}</TableCell>
                 <TableCell className="text-right tabular-nums">{r.converted ?? 0}</TableCell>
                 <TableCell className="text-right tabular-nums text-muted-foreground">{pct(r.converted, r.total)}</TableCell>
@@ -76,18 +76,18 @@ export function AnalyticsView({ title = 'Analytics' }) {
   return (
     <>
       <PageHeader title={title} description="Lead volume, conversion and attribution across websites." />
-      <div className="mb-5 flex flex-wrap items-center gap-2">
-        <Input type="date" className="w-40" value={range.from} min={FILTER_MIN_DATE} max={range.to || filterMaxDate()} onChange={(e) => setRange({ ...range, from: e.target.value })} aria-label="From" />
-        <span className="text-sm text-muted-foreground">to</span>
-        <Input type="date" className="w-40" value={range.to} min={range.from || FILTER_MIN_DATE} max={filterMaxDate()} onChange={(e) => setRange({ ...range, to: e.target.value })} aria-label="To" />
-        <Select className="w-40" value={websiteId} onChange={(e) => setWebsiteId(e.target.value)} aria-label="Website">
+      <div className="mb-5 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+        <Input type="date" className="w-full sm:w-40" value={range.from} min={FILTER_MIN_DATE} max={range.to || filterMaxDate()} onChange={(e) => setRange({ ...range, from: e.target.value })} aria-label="From" />
+        <span className="hidden text-sm text-muted-foreground sm:inline">to</span>
+        <Input type="date" className="w-full sm:w-40" value={range.to} min={range.from || FILTER_MIN_DATE} max={filterMaxDate()} onChange={(e) => setRange({ ...range, to: e.target.value })} aria-label="To" />
+        <Select className="col-span-2 w-full sm:col-span-1 sm:w-40" value={websiteId} onChange={(e) => setWebsiteId(e.target.value)} aria-label="Website">
           <option value="">All websites</option>{websites?.map((w) => <option key={w.id} value={w.id}>{w.code}</option>)}
         </Select>
       </div>
 
-      {isLoading ? <div className="grid gap-4 sm:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-24" />)}</div> : isError ? <Card><ErrorState error={error} onRetry={refetch} /></Card> : (
+      {isLoading ? <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-24" />)}</div> : isError ? <Card><ErrorState error={error} onRetry={refetch} /></Card> : (
         <div className="space-y-5">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <StatCard label="Total leads" value={data.totals.total.toLocaleString('en-IN')} icon={Users2} />
             <StatCard label="Converted" value={data.totals.converted.toLocaleString('en-IN')} icon={Trophy} tone="success" />
             <StatCard label="Conversion rate" value={`${data.totals.conversionRate}%`} icon={Percent} />
@@ -99,7 +99,7 @@ export function AnalyticsView({ title = 'Analytics' }) {
               <CardHeader><CardTitle>Leads per day by website</CardTitle></CardHeader>
               <CardContent>
                 {!daily.length ? <EmptyState title="No leads in this period" /> : (
-                  <div className="h-72" role="img" aria-label="Stacked bar chart of daily leads per website">
+                  <div className="h-60 sm:h-72" role="img" aria-label="Stacked bar chart of daily leads per website">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={daily} margin={{ top: 8, right: 8, left: -16, bottom: 0 }} barCategoryGap="20%">
                         <CartesianGrid vertical={false} stroke="#e2e8f0" />
@@ -122,7 +122,7 @@ export function AnalyticsView({ title = 'Analytics' }) {
               <CardContent className="space-y-2.5">
                 {data.byStatus.map((s) => (
                   <div key={s.code}>
-                    <div className="mb-1 flex items-center justify-between text-sm"><StatusBadge name={s.name} color={s.color} /><span className="tabular-nums text-muted-foreground">{s.total}</span></div>
+                    <div className="mb-1 flex items-center justify-between gap-2 text-sm"><StatusBadge name={s.name} color={s.color} /><span className="tabular-nums text-muted-foreground">{s.total}</span></div>
                     <div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-[#2a78d6]" style={{ width: `${(Number(s.total) / maxStatus) * 100}%` }} /></div>
                   </div>
                 ))}
@@ -131,7 +131,7 @@ export function AnalyticsView({ title = 'Analytics' }) {
             </Card>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-3">
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             <RankTable title="Website performance" label="Website" rows={data.byWebsite.map((w) => ({ name: `${w.code} · ${w.name}`, total: w.total, converted: w.converted }))} empty="No leads" />
             <RankTable title="Source performance" label="Source / medium" rows={data.bySource.map((s) => ({ name: s.medium && s.medium !== 'none' ? `${s.source} / ${s.medium}` : s.source, total: s.total, converted: s.converted }))} empty="No sources" />
             <RankTable title="Campaign performance" label="Campaign" rows={data.byCampaign.map((c) => ({ name: c.campaign, total: c.total, converted: c.converted }))} empty="No campaign-tagged leads" />
@@ -144,7 +144,7 @@ export function AnalyticsView({ title = 'Analytics' }) {
                 <TableHeader><TableRow><TableHead>User</TableHead><TableHead className="text-right">Assigned</TableHead><TableHead className="text-right">Open</TableHead><TableHead className="text-right">Converted</TableHead><TableHead className="text-right">Rate</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {data.byUser.map((u) => (
-                    <TableRow key={u.id}><TableCell>{u.full_name}</TableCell><TableCell className="text-right tabular-nums">{u.total}</TableCell><TableCell className="text-right tabular-nums">{u.open_leads}</TableCell><TableCell className="text-right tabular-nums">{u.converted}</TableCell><TableCell className="text-right tabular-nums text-muted-foreground">{pct(u.converted, u.total)}</TableCell></TableRow>
+                    <TableRow key={u.id}><TableCell className="[overflow-wrap:anywhere]">{u.full_name}</TableCell><TableCell className="text-right tabular-nums">{u.total}</TableCell><TableCell className="text-right tabular-nums">{u.open_leads}</TableCell><TableCell className="text-right tabular-nums">{u.converted}</TableCell><TableCell className="text-right tabular-nums text-muted-foreground">{pct(u.converted, u.total)}</TableCell></TableRow>
                   ))}
                 </TableBody>
               </Table>

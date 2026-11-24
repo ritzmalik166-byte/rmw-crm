@@ -54,6 +54,28 @@ export function MetaLeadFormsList({ params, compact = false, limit, pageId }) {
   }
 
   return (
+    <>
+    <ul className="divide-y md:hidden">
+      {rows.map((f) => (
+        <li key={f.formId} className="space-y-1.5 p-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <Link href={formLeadsHref(f.formId)} className="font-medium text-[hsl(var(--primary))] [overflow-wrap:anywhere] hover:underline">{f.name}</Link>
+              {f.pageName && <p className="text-[11px] text-slate-500 [overflow-wrap:anywhere]">{f.pageName}</p>}
+            </div>
+            {f.status && <Badge variant={f.status === 'ACTIVE' ? 'success' : 'secondary'}>{f.status.toLowerCase()}</Badge>}
+          </div>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600 tabular-nums">
+            <span><b className="font-semibold text-slate-800">{f.total}</b> leads</span>
+            <span>{f.newLeads} new</span>
+            <span className={cn(f.unassigned && 'text-amber-700')}>{f.unassigned} unassigned</span>
+            <span>{f.converted} converted</span>
+            <span className="text-slate-500">{f.lastLeadAt ? `Last ${timeAgo(f.lastLeadAt)}` : 'No leads yet'}</span>
+          </div>
+        </li>
+      ))}
+    </ul>
+    <div className="hidden md:block">
     <Table>
       <TableHeader>
         <TableRow>
@@ -79,5 +101,7 @@ export function MetaLeadFormsList({ params, compact = false, limit, pageId }) {
         ))}
       </TableBody>
     </Table>
+    </div>
+    </>
   );
 }

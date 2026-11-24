@@ -145,15 +145,15 @@ function LoginInner() {
       footer={<>Need an account? <Link href="/register" className="font-medium text-foreground hover:underline">Request access</Link></>}
     >
       <div className="mb-5 grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
-        <button className={`flex items-center justify-center gap-1.5 rounded-md py-1.5 text-sm font-medium ${mode === 'password' ? 'bg-white shadow-sm' : 'text-slate-600'}`} onClick={() => { setMode('password'); setError(''); }}><Mail className="h-4 w-4" />Email</button>
-        <button className={`flex items-center justify-center gap-1.5 rounded-md py-1.5 text-sm font-medium ${mode === 'otp' ? 'bg-white shadow-sm' : 'text-slate-600'}`} onClick={() => { setMode('otp'); setError(''); }}><Smartphone className="h-4 w-4" />Mobile OTP</button>
+        <button className={`flex min-h-[44px] items-center justify-center gap-1.5 rounded-md py-2 text-sm font-medium lg:min-h-0 lg:py-1.5 ${mode === 'password' ? 'bg-white shadow-sm' : 'text-slate-600'}`} onClick={() => { setMode('password'); setError(''); }}><Mail className="h-4 w-4" />Email</button>
+        <button className={`flex min-h-[44px] items-center justify-center gap-1.5 rounded-md py-2 text-sm font-medium lg:min-h-0 lg:py-1.5 ${mode === 'otp' ? 'bg-white shadow-sm' : 'text-slate-600'}`} onClick={() => { setMode('otp'); setError(''); }}><Smartphone className="h-4 w-4" />Mobile OTP</button>
       </div>
       <FormError message={error} />
       {mode === 'password' ? (
         <form onSubmit={loginPassword} className="mt-4 space-y-4">
           <Field label="Email" htmlFor="email"><Input id="email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus /></Field>
           <Field label="Password" htmlFor="password"><div className="relative"><Input id="password" type={showPw ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} className="pr-10" required /><button type="button" onClick={() => setShowPw((v) => !v)} aria-label={showPw ? 'Hide password' : 'Show password'} className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-800">{showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div></Field>
-          <div className="flex justify-end"><Link href="/forgot-password" className="text-sm text-muted-foreground hover:text-foreground">Forgot password?</Link></div>
+          <div className="flex justify-end"><Link href="/forgot-password" className="-my-2 inline-block py-2 text-sm text-muted-foreground hover:text-foreground">Forgot password?</Link></div>
           <Button type="submit" className="w-full" loading={busy}>{busy ? 'Signing in…' : 'Sign in'}</Button>
         </form>
       ) : (

@@ -42,6 +42,23 @@ export function DepartmentsManager() {
       <PageHeader title="Departments" description="Departments group teams, e.g. Marketing → MPF Marketing." actions={manage && <Button onClick={() => setEdit({ name: '', description: '' })}><Plus />Add department</Button>} />
       <Card className="overflow-hidden">
         {isLoading ? <TableSkeleton cols={4} /> : isError ? <ErrorState error={error} onRetry={refetch} /> : !data.length ? <EmptyState title="No departments" /> : (
+          <>
+          <ul className="divide-y md:hidden">
+            {data.map((d) => (
+              <li key={d.id} className="flex items-start gap-3 p-3">
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium [overflow-wrap:anywhere]">{d.name}</div>
+                  {d.description && <div className="text-sm text-muted-foreground [overflow-wrap:anywhere]">{d.description}</div>}
+                  <div className="mt-1 text-xs text-muted-foreground">{d.team_count} teams · {d.user_count} users</div>
+                </div>
+                {manage && <div className="flex shrink-0">
+                  <Button size="icon" variant="ghost" className="h-11 w-11" onClick={() => setEdit(d)} aria-label="Edit"><Pencil /></Button>
+                  <Button size="icon" variant="ghost" className="h-11 w-11" onClick={() => confirmAction({ title: `Delete department “${d.name}”?`, description: 'This cannot be undone. Users and teams in it are not deleted.', confirmText: 'Delete department', tone: 'danger' }, () => del.mutate(d.id))} aria-label="Delete"><Trash2 /></Button>
+                </div>}
+              </li>
+            ))}
+          </ul>
+          <div className="hidden md:block">
           <Table>
             <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Description</TableHead><TableHead>Teams</TableHead><TableHead>Users</TableHead><TableHead /></TableRow></TableHeader>
             <TableBody>
@@ -58,6 +75,8 @@ export function DepartmentsManager() {
               ))}
             </TableBody>
           </Table>
+          </div>
+          </>
         )}
       </Card>
       {edit && (
@@ -123,6 +142,27 @@ export function TeamsManager() {
       <PageHeader title="Teams" description="Teams belong to a department and can be linked to a website for round-robin assignment." actions={manage && <Button onClick={() => setEdit({ name: '', department_id: org.departments[0]?.id || '', website_id: '' })}><Plus />Add team</Button>} />
       <Card className="overflow-hidden">
         {isLoading ? <TableSkeleton cols={5} /> : isError ? <ErrorState error={error} onRetry={refetch} /> : !data.length ? <EmptyState title="No teams" /> : (
+          <>
+          <ul className="divide-y md:hidden">
+            {data.map((t) => (
+              <li key={t.id} className="space-y-2 p-3">
+                <div className="flex items-start gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium [overflow-wrap:anywhere]">{t.name}</div>
+                    <div className="text-xs text-muted-foreground">{t.department_name} · {t.member_count} members</div>
+                  </div>
+                  {t.website_code && <WebsiteBadge code={t.website_code} />}
+                  <Badge variant={t.is_active ? 'success' : 'secondary'}>{t.is_active ? 'Active' : 'Inactive'}</Badge>
+                </div>
+                {manage && <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="flex-1" onClick={() => setMembers(t)}><Users />Members</Button>
+                  <Button size="icon" variant="outline" onClick={() => setEdit(t)} aria-label="Edit"><Pencil /></Button>
+                  <Button size="icon" variant="outline" onClick={() => confirmAction({ title: `Delete team “${t.name}”?`, description: 'This cannot be undone. Members keep their accounts; lead routing to this team stops.', confirmText: 'Delete team', tone: 'danger' }, () => del.mutate(t.id))} aria-label="Delete"><Trash2 /></Button>
+                </div>}
+              </li>
+            ))}
+          </ul>
+          <div className="hidden md:block">
           <Table>
             <TableHeader><TableRow><TableHead>Team</TableHead><TableHead>Department</TableHead><TableHead>Website</TableHead><TableHead>Members</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader>
             <TableBody>
@@ -142,6 +182,8 @@ export function TeamsManager() {
               ))}
             </TableBody>
           </Table>
+          </div>
+          </>
         )}
       </Card>
       {edit && (
@@ -170,6 +212,20 @@ export function WebsitesManager({ canEdit = false }) {
       <PageHeader title="Websites" description="Source websites feeding leads into the CRM. External lead IDs use the prefix shown." />
       <Card className="overflow-hidden">
         {isLoading ? <TableSkeleton cols={5} /> : isError ? <ErrorState error={error} onRetry={refetch} /> : (
+          <>
+          <ul className="divide-y md:hidden">
+            {data.map((w) => (
+              <li key={w.id} className="flex items-start gap-3 p-3">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex flex-wrap items-center gap-1.5"><WebsiteBadge code={w.code} /><span className="font-medium">{w.name}</span><Badge variant={w.is_active ? 'success' : 'secondary'}>{w.is_active ? 'Active' : 'Inactive'}</Badge></div>
+                  <div className="text-sm [overflow-wrap:anywhere]">{w.domain}</div>
+                  <div className="text-xs text-muted-foreground">Prefix <span className="font-mono">{w.external_id_prefix}-</span> · {Number(w.lead_count).toLocaleString('en-IN')} leads · {w.user_count} users</div>
+                </div>
+                {canEdit && <Button size="icon" variant="ghost" className="h-11 w-11 shrink-0" onClick={() => setEdit(w)} aria-label="Edit"><Pencil /></Button>}
+              </li>
+            ))}
+          </ul>
+          <div className="hidden md:block">
           <Table>
             <TableHeader><TableRow><TableHead>Website</TableHead><TableHead>Domain</TableHead><TableHead>ID prefix</TableHead><TableHead>Leads</TableHead><TableHead>Users</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader>
             <TableBody>
@@ -186,6 +242,8 @@ export function WebsitesManager({ canEdit = false }) {
               ))}
             </TableBody>
           </Table>
+          </div>
+          </>
         )}
       </Card>
       {edit && (
@@ -193,7 +251,7 @@ export function WebsitesManager({ canEdit = false }) {
           <DialogContent>
             <DialogHeader><DialogTitle>Edit {edit.code}</DialogTitle></DialogHeader>
             <Field label="Name"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></Field>
-            <Field label="Domain"><Input value={edit.domain || ''} onChange={(e) => setEdit({ ...edit, domain: e.target.value })} /></Field>
+            <Field label="Domain"><Input type="url" inputMode="url" autoCapitalize="none" value={edit.domain || ''} onChange={(e) => setEdit({ ...edit, domain: e.target.value })} /></Field>
             <label className="flex items-center gap-2 text-sm"><Switch checked={!!edit.is_active} onCheckedChange={(v) => setEdit({ ...edit, is_active: v })} />Active (inactive websites reject new leads)</label>
             <DialogFooter><Button variant="outline" onClick={() => setEdit(null)}>Cancel</Button><Button loading={m.isPending} onClick={() => m.mutate(edit)}>Save</Button></DialogFooter>
           </DialogContent>
@@ -226,6 +284,19 @@ export function LeadConfigManager() {
         <Card className="overflow-hidden lg:col-span-2">
           <CardHeader><CardTitle>Statuses</CardTitle></CardHeader>
           {isLoading ? <TableSkeleton cols={4} /> : (
+            <>
+            <ul className="divide-y md:hidden">
+              {lk?.statuses?.map((s) => (
+                <li key={s.id} className={`flex items-start gap-3 p-3 ${s.is_active ? '' : 'opacity-50'}`}>
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex flex-wrap items-center gap-1.5"><StatusBadge name={s.name} color={s.color} /><span className="font-mono text-xs text-muted-foreground [overflow-wrap:anywhere]">{s.code}</span><span className="text-xs text-muted-foreground">#{s.sort_order}</span></div>
+                    <div className="flex flex-wrap gap-1">{!!s.is_default && <Badge variant="info">Default</Badge>}{!!s.is_conversion && <Badge variant="success">Conversion</Badge>}{!!s.is_closed && <Badge>Closed</Badge>}{!s.is_active && <Badge variant="secondary">Inactive</Badge>}</div>
+                  </div>
+                  {manage && <Button size="icon" variant="ghost" className="h-11 w-11 shrink-0" onClick={() => setEdit(s)} aria-label="Edit"><Pencil /></Button>}
+                </li>
+              ))}
+            </ul>
+            <div className="hidden md:block">
             <Table>
               <TableHeader><TableRow><TableHead>Status</TableHead><TableHead>Code</TableHead><TableHead>Order</TableHead><TableHead>Flags</TableHead><TableHead /></TableRow></TableHeader>
               <TableBody>
@@ -240,6 +311,8 @@ export function LeadConfigManager() {
                 ))}
               </TableBody>
             </Table>
+            </div>
+            </>
           )}
         </Card>
         <Card>
@@ -258,7 +331,7 @@ export function LeadConfigManager() {
             <Field label="Name"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Colour"><Select value={edit.color} onChange={(e) => setEdit({ ...edit, color: e.target.value })}>{Object.keys(STATUS_COLORS).map((c) => <option key={c} value={c}>{c}</option>)}</Select></Field>
-              <Field label="Order"><Input type="number" value={edit.sort_order} onChange={(e) => setEdit({ ...edit, sort_order: e.target.value })} /></Field>
+              <Field label="Order"><Input type="number" inputMode="numeric" value={edit.sort_order} onChange={(e) => setEdit({ ...edit, sort_order: e.target.value })} /></Field>
             </div>
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm"><Switch checked={!!edit.is_conversion} onCheckedChange={(v) => setEdit({ ...edit, is_conversion: v })} />Counts as a conversion</label>
