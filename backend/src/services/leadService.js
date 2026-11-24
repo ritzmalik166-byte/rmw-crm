@@ -125,7 +125,7 @@ function buildFilters(req, f) {
   return { where: where.join(' AND '), params };
 }
 
-async function loadVisibleLead(req, id, conn = null) {
+export async function loadVisibleLead(req, id, conn = null) {
   const vis = leadVisibilitySql(req);
   const lead = await one(`SELECT l.* FROM leads l WHERE l.id = ? AND ${vis.sql}`, [id, ...vis.params], conn);
   if (!lead) throw notFound('Lead not found');

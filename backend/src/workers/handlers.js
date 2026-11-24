@@ -3,6 +3,7 @@ import { processIntegrationEvent } from '../services/leadIngestService.js';
 import { emailService } from '../notifications/emailService.js';
 import { pushService } from '../notifications/pushService.js';
 import { runFollowupSweep } from '../services/followupScheduler.js';
+import { runAiCallSweep } from '../integrations/aicall/aiCall.service.js';
 import { processMetaWebhookEvent } from '../integrations/meta/metaLead.service.js';
 import { runMetaSync } from '../integrations/meta/metaSync.service.js';
 import { metaConversion } from '../integrations/meta/metaConversion.service.js';
@@ -25,7 +26,7 @@ export async function processJob(queueName, jobName, data) {
     case 'push-notifications':
       return pushService.sendToUser(data.userId, data);
     case 'notifications':
-      if (jobName === 'followup-sweep') return runFollowupSweep();
+      if (jobName === 'followup-sweep') { await runAiCallSweep().catch(() => {}); return runFollowupSweep(); }
       return undefined;
     case 'analytics':
       return undefined;

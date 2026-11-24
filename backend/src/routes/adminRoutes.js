@@ -8,6 +8,7 @@ import { asyncHandler as h } from '../utils/http.js';
 import { metaAdminRouter, metaSuperAdminRouter } from '../integrations/meta/meta.routes.js';
 import { leadCaptureAdminRouter, leadCaptureSuperAdminRouter } from './leadCaptureRoutes.js';
 import { metaFormAdminRouter, metaFormSuperAdminRouter } from './metaFormRoutes.js';
+import { aiCallSuperAdminRouter } from '../integrations/aicall/aiCall.routes.js';
 
 /** /api/admin: Admin and Super Admin. Each route also checks its own permission. */
 export const adminRouter = Router();
@@ -54,6 +55,7 @@ sa.use(authenticate, requireArea('super_admin'));
 sa.use(metaSuperAdminRouter); // before /integrations/:id so "meta" is never read as a website id
 sa.use(leadCaptureSuperAdminRouter);
 sa.use(metaFormSuperAdminRouter);
+sa.use(aiCallSuperAdminRouter);
 
 sa.post('/user-requests/:id/approve', can('user.approve'), validate(s.approve), h(c.approve));
 sa.post('/user-requests/:id/reject', can('user.approve'), validate(s.reject), h(c.reject));

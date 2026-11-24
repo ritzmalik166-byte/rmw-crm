@@ -7,6 +7,7 @@ import { createApp } from './app.js';
 import { initSocket } from './realtime/socket.js';
 import { closeQueues } from './workers/queues.js';
 import { runFollowupSweep } from './services/followupScheduler.js';
+import { runAiCallSweep } from './integrations/aicall/aiCall.service.js';
 
 const app = createApp();
 const server = http.createServer(app);
@@ -26,7 +27,10 @@ async function start() {
   if (!getRedis()) {
     
     logger.warn('REDIS_URL not set: background jobs run in-process (fine for development, not for production).');
-    sweepTimer = setInterval(() => runFollowupSweep().catch((e) => logger.error({ err: e.message }, 'Follow-up sweep failed')), 60_000);
+    sweepTimer = setInterval(() => {
+      runAiCallSweep().catch((e) => logger.error({ err: e.message }, 'AI call sweep failed'));
+      runFollowupSweep().catch((e) => logger.error({ err: e.message }, 'Follow-up sweep failed'));
+    }, 60_000);
   }
   if (env.SYNC_INTERVAL_MINUTES > 0) {
     const { syncAll } = await import('./integrations/pull/syncService.js');
