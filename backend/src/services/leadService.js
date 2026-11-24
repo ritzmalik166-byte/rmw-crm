@@ -237,7 +237,7 @@ export const leadService = {
       await notificationService.notify(target.id, {
         type: isReassign ? 'LEAD_REASSIGNED' : 'LEAD_ASSIGNED', title: isReassign ? 'A lead was reassigned to you' : 'New lead assigned to you',
         body: `${lead.name || 'Unnamed'} · ${lead.external_lead_id}${remark ? `\nRemark: ${remark}` : ''}`, link: `/crm/leads/${id}`,
-        data: { leadId: id, needsAck: byOther, remark, by: req.auth.user.full_name || null },
+        data: { leadId: id, name: lead.name || null, externalLeadId: lead.external_lead_id, needsAck: byOther, remark, by: req.auth.user.full_name || null },
       });
     }
     if (isReassign && lead.assigned_user_id && lead.assigned_user_id !== userId) emitToUser(lead.assigned_user_id, EVENTS.LEAD_REASSIGNED, payload);
