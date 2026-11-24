@@ -7,6 +7,7 @@ import { useLookups } from '@/lib/hooks';
 import { Button } from '@/components/ui/button';
 import { Input, Select, Textarea } from '@/components/ui/input';
 import { Field } from '@/components/ui/label';
+import { MemberPicker } from '@/components/leads/MemberPicker';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export function AssignDialog({ open, onOpenChange, leadIds, websiteId, onDone, currentOwner, leadName }) {
@@ -38,10 +39,10 @@ export function AssignDialog({ open, onOpenChange, leadIds, websiteId, onDone, c
           </DialogDescription>
         </DialogHeader>
         <Field label={currentOwner ? 'Transfer to' : 'Assign to'}>
-          <Select value={userId} onChange={(e) => setUserId(e.target.value)}>
-            <option value="">{currentOwner ? 'Select a team member…' : 'Unassigned'}</option>
-            {lk?.users?.filter((u) => u.id !== currentOwner?.id).map((u) => <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>)}
-          </Select>
+          <MemberPicker
+            users={(lk?.users || []).filter((u) => u.id !== currentOwner?.id)} value={userId} onChange={setUserId}
+            placeholder={currentOwner ? 'Select a team member…' : 'Unassigned'} allowNone={!currentOwner}
+          />
         </Field>
         {userId && (
           <Field label="Remark for the assignee (optional)" hint="Shown to them with the assignment. They'll be asked to acknowledge it; if they don't within 10 minutes, they get a reminder and you get notified.">
