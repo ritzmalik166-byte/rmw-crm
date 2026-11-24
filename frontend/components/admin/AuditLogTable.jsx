@@ -117,21 +117,21 @@ function Entry({ r }) {
         <span className={cn('absolute -bottom-1 -right-1 flex h-[18px] w-[18px] items-center justify-center rounded-full ring-2 ring-white', TONES[d.tone])}><Icon className="h-2.5 w-2.5" strokeWidth={2.5} /></span>
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-[13.5px] leading-snug text-slate-600">
+        <p className="text-[13.5px] leading-snug text-slate-600 [overflow-wrap:anywhere]">
           <B>{r.actor_name || 'System'}</B> {d.text}
         </p>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11.5px] text-slate-400">
           <span title={formatDateTime(r.created_at)}>{timeAgo(r.created_at)} · {new Date(r.created_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>
           {r.ip_address && <span className="font-mono">{r.ip_address}</span>}
           {(hasMeta || r.user_agent) && (
-            <button type="button" onClick={() => setOpen((v) => !v)} className="inline-flex items-center gap-0.5 font-medium text-slate-500 hover:text-slate-800">
+            <button type="button" onClick={() => setOpen((v) => !v)} className="-my-2 inline-flex items-center gap-0.5 py-2 font-medium text-slate-500 hover:text-slate-800">
               Details<ChevronDown className={cn('h-3 w-3 transition-transform', open && 'rotate-180')} />
             </button>
           )}
         </p>
         {open && (
           <div className="mt-2 space-y-1 rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-[11.5px]">
-            <p className="text-slate-500"><span className="font-semibold text-slate-700">Event:</span> {r.action}{r.entity_type ? ` · ${r.entity_type} #${r.entity_id}` : ''}{r.actor_email ? ` · ${r.actor_email}` : ''}</p>
+            <p className="text-slate-500 [overflow-wrap:anywhere]"><span className="font-semibold text-slate-700">Event:</span> {r.action}{r.entity_type ? ` · ${r.entity_type} #${r.entity_id}` : ''}{r.actor_email ? ` · ${r.actor_email}` : ''}</p>
             {r.user_agent && <p className="truncate text-slate-500" title={r.user_agent}><span className="font-semibold text-slate-700">Device:</span> {r.user_agent}</p>}
             {hasMeta && <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-all font-mono text-[11px] text-slate-600">{JSON.stringify(r.meta, null, 2)}</pre>}
           </div>
@@ -177,7 +177,7 @@ function AuditLogTableV2() {
           <div className="flex max-w-full overflow-x-auto rounded-lg border border-slate-200 bg-slate-50 p-0.5 [scrollbar-width:none]">
             {CATEGORIES.map((c) => (
               <button key={c.key} type="button" onClick={() => setF({ ...f, category: c.key, page: 1 })}
-                className={cn('whitespace-nowrap rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors', f.category === c.key ? 'bg-white text-[hsl(var(--primary))] shadow-sm ring-1 ring-slate-200' : 'text-slate-600 hover:text-slate-900')}>{c.label}</button>
+                className={cn('whitespace-nowrap rounded-md px-3 py-2 text-[12px] sm:px-2.5 sm:py-1 font-medium transition-colors', f.category === c.key ? 'bg-white text-[hsl(var(--primary))] shadow-sm ring-1 ring-slate-200' : 'text-slate-600 hover:text-slate-900')}>{c.label}</button>
             ))}
           </div>
           <div className="ml-auto grid w-full grid-cols-2 gap-2 sm:w-auto">

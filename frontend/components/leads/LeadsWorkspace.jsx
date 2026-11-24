@@ -67,13 +67,13 @@ const VIEWS = [
 function PipelineTabs({ active, counts }) {
   const tabs = ['all', ...usePipelineOrder()];
   return (
-    <div className="flex overflow-x-auto overflow-y-hidden border-b bg-white px-2 sm:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="flex snap-x snap-mandatory scroll-px-2 overflow-x-auto overflow-y-hidden overscroll-x-contain border-b bg-white px-2 sm:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {tabs.map((k) => {
         const p = PIPELINES[k];
         const href = k === 'all' ? '/crm/leads' : `/crm/pipeline/${k}`;
         const c = k === 'all' ? null : counts?.[k];
         return (
-          <Link key={k} href={href} className={cn('-mb-px flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2.5 text-[13px] font-medium transition-colors sm:px-4',
+          <Link key={k} href={href} className={cn('-mb-px flex min-h-[44px] shrink-0 snap-start items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2.5 text-[13px] font-medium transition-colors sm:px-4',
             active === k ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : 'border-transparent text-slate-600 hover:text-slate-900')}>
             <PipelineLogo src={p.logo} />{p.short === 'All' ? 'All leads' : `${p.short} Leads`}
             {c && <span className={cn('rounded-sm px-1.5 text-[11px] tabular-nums', active === k ? 'bg-[hsl(213_70%_94%)]' : 'bg-slate-100')}>{c.total}</span>}
@@ -111,14 +111,14 @@ export function WhatsAppIcon(props) {
 }
 
 /** Phone layout: one tappable card per lead with one-tap call / WhatsApp. */
-function LeadCard({ lead: l, pipelineKey, editable, canTransfer, me, onTransfer, showWebsite }) {
+function LeadCard({ lead: l, pipelineKey, editable, canTransfer, me, onTransfer, showWebsite, selecting, selected, onToggle }) {
   const wa = whatsappHref(l.phone);
   return (
-    <li className="px-3 py-3 active:bg-slate-50">
-      <Link href={`/crm/leads/${l.id}`} className="block">
+    <li className={cn('min-w-0 px-3 py-3 active:bg-slate-50', selected && 'bg-[hsl(213_70%_97%)]')}>
+      <Link href={`/crm/leads/${l.id}`} className="block" onClick={selecting ? (e) => { e.preventDefault(); onToggle(l.id); } : undefined} aria-pressed={selecting ? selected : undefined}>
         <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[hsl(213_70%_94%)] text-[14px] font-semibold text-[hsl(var(--primary))]">
-            {(l.name || '?').trim().charAt(0).toUpperCase()}
+          <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[14px] font-semibold', selected ? 'bg-[hsl(var(--primary))] text-white' : 'bg-[hsl(213_70%_94%)] text-[hsl(var(--primary))]')}>
+            {selected ? <Check className="h-5 w-5" /> : (l.name || '?').trim().charAt(0).toUpperCase()}
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
@@ -127,6 +127,7 @@ function LeadCard({ lead: l, pipelineKey, editable, canTransfer, me, onTransfer,
               <span className="ml-auto shrink-0 text-[11px] text-slate-400">{timeAgo(l.received_at || l.created_at)}</span>
             </div>
             <p className="truncate text-[12.5px] text-slate-600">{['LANDING_PAGE', 'META_FORM', 'META'].includes(l.source_type) && l.form_name ? <b className="font-semibold text-indigo-600">{l.form_name} · </b> : null}{l.interest || l.form_type || l.external_lead_id}</p>
+            {l.phone && <p className="truncate text-[12px] tabular-nums text-slate-500">{l.phone}</p>}
             {(l.location || l.source) && (
               <p className="truncate text-[11.5px] text-slate-400">{[l.location, l.source && `${l.source}${l.medium && l.medium !== 'none' ? ` / ${l.medium}` : ''}`].filter(Boolean).join(' · ')}</p>
             )}
@@ -144,7 +145,7 @@ function LeadCard({ lead: l, pipelineKey, editable, canTransfer, me, onTransfer,
         </span>
         {l.next_followup_at && <span className="text-[11px]"><FollowupCell at={l.next_followup_at} /></span>}
       </div>
-      <div className="mt-2 grid grid-cols-3 gap-2 pl-[52px] [&>*]:h-10 [&>*]:min-h-0">
+      {!selecting && <div className="mt-2 grid grid-cols-3 gap-2 pl-[52px] [&>*]:h-10 [&>*]:min-h-0">
         {l.phone
           ? <a href={`tel:${l.phone}`} className="flex h-10 items-center justify-center gap-1.5 rounded-lg bg-[hsl(213_70%_95%)] text-[12.5px] font-semibold text-[hsl(var(--primary))]"><Phone className="h-4 w-4" />Call</a>
           : <span className="flex h-10 items-center justify-center rounded-lg bg-slate-50 text-[12px] text-slate-400">No phone</span>}
@@ -158,7 +159,7 @@ function LeadCard({ lead: l, pipelineKey, editable, canTransfer, me, onTransfer,
           : l.resume_url
             ? <a href={l.resume_url} target="_blank" rel="noopener noreferrer" className="flex h-10 items-center justify-center gap-1.5 rounded-lg border border-slate-200 text-[12.5px] font-semibold text-slate-700"><FileText className="h-4 w-4" />Resume</a>
             : <span />}
-      </div>
+      </div>}
     </li>
   );
 }
@@ -333,6 +334,7 @@ function LeadsWorkspaceV2({ pipelineKey = 'all', channel = null, title = null, d
   const [dialog, setDialog] = useState(null);
   const [rowLead, setRowLead] = useState(null); // lead being transferred from its row
   const [moreFilters, setMoreFilters] = useState(false);
+  const [selecting, setSelecting] = useState(false); // touch bulk-select mode for the card list
 
   const setFilter = (patch) => {
     const next = { ...filters, ...patch };
@@ -424,35 +426,52 @@ function LeadsWorkspaceV2({ pipelineKey = 'all', channel = null, title = null, d
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input className="pl-8" placeholder={channel === 'meta' ? 'Search name, phone, email, form, campaign…' : 'Search name, phone, email, lead ID…'} value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search leads" />
             </div>
-            <div className="order-3 grid w-full grid-cols-2 gap-2 sm:order-none sm:flex sm:w-auto sm:flex-wrap sm:items-center">
+            <div className="order-3 grid w-full grid-cols-3 gap-2 sm:order-none sm:flex sm:w-auto sm:flex-wrap sm:items-center">
             {has('status') && (
-              <Select className="min-w-0 sm:w-36" value={filters.statusId} onChange={(e) => setFilter({ statusId: e.target.value })} aria-label="Status">
+              <Select className="hidden min-w-0 sm:block sm:w-36" value={filters.statusId} onChange={(e) => setFilter({ statusId: e.target.value })} aria-label="Status">
                 <option value="">Any status</option>{lk?.statuses?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </Select>
             )}
             {has('owner') && (
-              <Select className="min-w-0 sm:w-40" value={filters.assignedUserId} onChange={(e) => setFilter({ assignedUserId: e.target.value })} aria-label="Owner">
+              <Select className="hidden min-w-0 sm:block sm:w-40" value={filters.assignedUserId} onChange={(e) => setFilter({ assignedUserId: e.target.value })} aria-label="Owner">
                 <option value="">Any owner</option><option value="me">Me</option>
                 {can('lead.view_all') && <option value="unassigned">Unassigned</option>}
                 {can('lead.view_all') && lk?.users?.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
               </Select>
             )}
-            <Select className="min-w-0 sm:w-36" value={`${filters.sort || 'created_at'}:${filters.dir || 'desc'}`} onChange={(e) => { const [sort, dir] = e.target.value.split(':'); setFilter({ sort, dir }); }} aria-label="Sort">
+            <Select className="hidden min-w-0 sm:block sm:w-36" value={`${filters.sort || 'created_at'}:${filters.dir || 'desc'}`} onChange={(e) => { const [sort, dir] = e.target.value.split(':'); setFilter({ sort, dir }); }} aria-label="Sort">
               <option value="created_at:desc">Newest first</option><option value="created_at:asc">Oldest first</option>
               <option value="updated_at:desc">Recently updated</option><option value="name:asc">Name A–Z</option><option value="status:asc">By status</option>
             </Select>
-            <Button className="min-w-0" variant={moreFilters || activeFilters ? 'secondary' : 'outline'} size="sm" onClick={() => setMoreFilters((v) => !v)}>
-              <SlidersHorizontal />Filters{activeFilters ? ` (${activeFilters})` : ''}
+            <Button className="min-w-0" variant={moreFilters || activeFilters ? 'secondary' : 'outline'} size="sm" onClick={() => setMoreFilters((v) => !v)} aria-expanded={moreFilters}>
+              <SlidersHorizontal />Filters{activeFilters ? <span className="ml-0.5 rounded-full bg-[hsl(var(--primary))] px-1.5 text-[10.5px] font-semibold leading-[18px] text-white">{activeFilters}</span> : null}
             </Button>
             <Button className="min-w-0" variant="outline" size="sm" onClick={reloadAll} disabled={isFetching} title="Reload leads">
               <RefreshCw className={isFetching ? 'animate-spin' : ''} /><span className="sm:sr-only xl:not-sr-only">Reload</span>
             </Button>
-            {can('lead.export') && <Button className="min-w-0" variant="outline" size="sm" onClick={exportCsv} title="Export these leads as CSV"><Download />Export</Button>}
+            {can('lead.export') && <Button className="min-w-0" variant="outline" size="sm" onClick={exportCsv} title="Export these leads as CSV"><Download /><span className="max-sm:sr-only">Export</span></Button>}
             </div>
           </div>
 
           {moreFilters && (
-            <div className="grid grid-cols-2 gap-2 border-b bg-slate-50/70 px-2.5 py-2 sm:grid-cols-3 lg:grid-cols-6">
+            <div className="grid grid-cols-1 gap-2 border-b bg-slate-50/70 px-2.5 py-2 min-[400px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+              {/* Phones: the primary selects live in this panel so the toolbar stays one row. */}
+              {has('status') && (
+                <Select className="sm:hidden" value={filters.statusId} onChange={(e) => setFilter({ statusId: e.target.value })} aria-label="Status">
+                  <option value="">Any status</option>{lk?.statuses?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </Select>
+              )}
+              {has('owner') && (
+                <Select className="sm:hidden" value={filters.assignedUserId} onChange={(e) => setFilter({ assignedUserId: e.target.value })} aria-label="Owner">
+                  <option value="">Any owner</option><option value="me">Me</option>
+                  {can('lead.view_all') && <option value="unassigned">Unassigned</option>}
+                  {can('lead.view_all') && lk?.users?.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+                </Select>
+              )}
+              <Select className="sm:hidden" value={`${filters.sort || 'created_at'}:${filters.dir || 'desc'}`} onChange={(e) => { const [sort, dir] = e.target.value.split(':'); setFilter({ sort, dir }); }} aria-label="Sort">
+                <option value="created_at:desc">Newest first</option><option value="created_at:asc">Oldest first</option>
+                <option value="updated_at:desc">Recently updated</option><option value="name:asc">Name A–Z</option><option value="status:asc">By status</option>
+              </Select>
               {has('website') && <Select value={filters.websiteId} onChange={(e) => setFilter({ websiteId: e.target.value })} aria-label="Website"><option value="">All websites</option>{lk?.websites?.map((w) => <option key={w.id} value={w.id}>{w.code}</option>)}</Select>}
               {has('source') && <Select value={filters.source} onChange={(e) => setFilter({ source: e.target.value })} aria-label="Source"><option value="">Any source</option>{lk?.sources?.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}</Select>}
               {has('source') && <Select value={filters.sourceType} onChange={(e) => setFilter({ sourceType: e.target.value })} aria-label="Channel"><option value="">Any channel</option>{LEAD_SOURCE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</Select>}
@@ -467,6 +486,7 @@ function LeadsWorkspaceV2({ pipelineKey = 'all', channel = null, title = null, d
               {has('dates') && <Input type="date" min={FILTER_MIN_DATE} max={filters.to || filterMaxDate()} value={filters.from} onChange={(e) => setFilter({ from: e.target.value })} aria-label="Received from" title="Received from" />}
               {has('dates') && <Input type="date" min={filters.from || FILTER_MIN_DATE} max={filterMaxDate()} value={filters.to} onChange={(e) => setFilter({ to: e.target.value })} aria-label="Received to" title="Received to" />}
               {has('quality') && <Select value={filters.junk} onChange={(e) => setFilter({ junk: e.target.value })} aria-label="Lead quality"><option value="">Genuine leads</option><option value="only">Junk / spam only</option><option value="all">Include junk</option></Select>}
+              <Button variant="outline" size="sm" className="sm:hidden" onClick={() => setMoreFilters(false)}>Done</Button>
               {activeFilters > 0 && <Button variant="ghost" size="sm" onClick={() => { setSearch(''); router.replace(params.get('channel') ? `${pathname}?channel=${params.get('channel')}` : pathname); }}><X />Clear all</Button>}
             </div>
           )}
@@ -476,7 +496,7 @@ function LeadsWorkspaceV2({ pipelineKey = 'all', channel = null, title = null, d
               <span className="font-semibold text-[hsl(var(--primary))]">{selected.length} selected</span>
               {(can('lead.assign') || can('lead.reassign')) && <Button size="sm" variant="outline" onClick={() => setDialog('assign')}><UserPlus />Assign owner</Button>}
               {can('lead.edit') && <Button size="sm" variant="outline" onClick={() => setDialog('status')}><Tag />Change status</Button>}
-              <Button size="sm" variant="ghost" onClick={() => setSelected([])}>Clear selection</Button>
+              <Button size="sm" variant="ghost" onClick={() => { setSelected([]); setSelecting(false); }}>Clear selection</Button>
             </div>
           )}
         </div>
@@ -487,9 +507,18 @@ function LeadsWorkspaceV2({ pipelineKey = 'all', channel = null, title = null, d
             <EmptyState title="No leads match" description={activeFilters || filters.search || filters.view ? 'Try another view or remove some filters.' : 'Leads from this source will appear here automatically.'} />
           ) : (
             <div className={isFetching ? 'opacity-70 transition-opacity' : ''}>
+              {(can('lead.edit') || can('lead.assign') || can('lead.reassign')) && (
+                <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-3 py-1 text-[12px] text-slate-500 xl:hidden">
+                  {selecting
+                    ? <button className="min-h-[40px] font-medium text-[hsl(var(--primary))]" onClick={() => setSelected(allSelected ? [] : rows.map((r) => r.id))}>{allSelected ? 'Deselect all' : 'Select all on page'}</button>
+                    : <span>{data?.meta?.total != null ? `${data.meta.total.toLocaleString('en-IN')} leads` : ''}</span>}
+                  <button className="min-h-[40px] rounded-md px-3 font-medium text-slate-700 active:bg-slate-100" onClick={() => { if (selecting) setSelected([]); setSelecting((v) => !v); }}>{selecting ? 'Cancel' : 'Select'}</button>
+                </div>
+              )}
               <ul className="divide-y divide-slate-100 md:grid md:grid-cols-2 md:divide-y-0 md:[&>li:nth-child(odd)]:border-r md:[&>li]:border-b md:[&>li]:border-slate-100 xl:hidden">
                 {rows.map((l) => (
                   <LeadCard key={l.id} lead={l} pipelineKey={pipelineKey} editable={can('lead.edit')} me={me} showWebsite={p.showWebsite}
+                    selecting={selecting} selected={selected.includes(l.id)} onToggle={toggle}
                     canTransfer={l.assigned_user_id ? can('lead.reassign') : can('lead.assign')} onTransfer={setRowLead} />
                 ))}
               </ul>

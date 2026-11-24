@@ -234,6 +234,55 @@ function SearchBox({ onNavigate }) {
   );
 }
 
+/**
+ * Phones / tablets (below lg): a search icon in the top bar that expands into a full-width
+ * search field over the header row. Same destination as the desktop SearchBox.
+ */
+function MobileSearch({ onNavigate }) {
+  const router = useRouter();
+  const ref = useRef(null);
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  useEffect(() => { if (open) ref.current?.focus(); }, [open]);
+  const close = () => { setOpen(false); setQ(''); };
+  const submit = (e) => {
+    e.preventDefault();
+    const term = q.trim();
+    const href = term ? `/crm/leads?search=${encodeURIComponent(term)}` : '/crm/leads';
+    onNavigate(href);
+    router.push(href);
+    close();
+  };
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} aria-label="Search leads"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-white hover:text-slate-900 lg:hidden">
+        <Search className="h-[20px] w-[20px]" strokeWidth={1.9} />
+      </button>
+      {open && (
+        <form onSubmit={submit} role="search"
+          className="crm-fade absolute inset-x-0 bottom-0 z-10 flex h-14 items-center gap-2 bg-white px-3 shadow-[0_4px_16px_-12px_rgb(16_24_40/0.25)] sm:px-5 md:h-[4.25rem] lg:hidden">
+          <button type="button" onClick={close} aria-label="Close search" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#475569] hover:!bg-slate-100 hover:!text-[#0f172a]">
+            <ArrowLeft className="h-5 w-5" strokeWidth={2.2} />
+          </button>
+          <input
+            ref={ref}
+            type="search"
+            enterKeyHint="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Escape') close(); }}
+            onBlur={() => { if (!q.trim()) setOpen(false); }}
+            placeholder="Search leads, names, phone, ID…"
+            aria-label="Search leads"
+            className="h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-[16px] text-[#0f172a] outline-none placeholder:text-slate-400 focus:border-[hsl(var(--primary)/0.5)] focus:bg-white"
+          />
+        </form>
+      )}
+    </>
+  );
+}
+
 /** Shows a one-time welcome toast right after sign-in (flag set by the login page). */
 function useLoginToast(me) {
   useEffect(() => {
@@ -518,7 +567,7 @@ function Shell({ area, nav, children }) {
       <div className={cn('min-w-0 transition-[padding] duration-300 ease-out', collapsed ? 'lg:pl-[76px]' : CONTENT_PAD)}>
         <header className={cn('crm-topbar sticky top-0 z-20 border-b pt-[env(safe-area-inset-top)] transition-[background-color,border-color,box-shadow] duration-300',
           scrolled ? 'border-slate-200/80 bg-white/85 shadow-[0_4px_16px_-12px_rgb(16_24_40/0.18)] backdrop-blur-md' : 'border-transparent bg-[hsl(var(--page))]')}>
-          <div className="flex h-14 items-center gap-3 px-4 sm:px-6 lg:h-[72px] lg:gap-5 lg:px-7">
+          <div className="relative flex h-14 min-w-0 items-center gap-2 px-3 sm:gap-3 sm:px-6 lg:h-[72px] lg:gap-5 lg:px-7">
             {/* Phones / tablets: back arrow (inner pages) + brand tile + page title */}
             {showBack && (
               <button type="button" onClick={goBack} aria-label="Back" className="-ml-2 -mr-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-700 hover:bg-white lg:hidden">
@@ -541,6 +590,7 @@ function Shell({ area, nav, children }) {
             {me?.areas?.crm && <SearchBox onNavigate={(href) => href !== pathname && setPendingHref(href)} />}
 
             <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+              {me?.areas?.crm && <MobileSearch onNavigate={(href) => href !== pathname && setPendingHref(href)} />}
               <button type="button" onClick={() => setAppearanceOpen(true)} aria-label="Appearance" title="Appearance"
                 className="hidden h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-[0_1px_2px_rgb(16_24_40/0.06)] sm:flex">
                 <SunMedium className="h-[20px] w-[20px]" strokeWidth={1.9} />

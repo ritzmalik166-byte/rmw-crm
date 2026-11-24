@@ -69,10 +69,10 @@ function UserSummaryDialog({ data, onClose }) {
         </DialogHeader>
         <dl className="divide-y rounded-md border text-sm">
           {rows.map(([k, v]) => (
-            <div key={k} className="grid grid-cols-[120px_1fr] gap-2 px-3 py-2"><dt className="text-muted-foreground">{k}</dt><dd className="break-all font-medium">{v || '—'}</dd></div>
+            <div key={k} className="grid grid-cols-1 gap-0.5 px-3 py-2 sm:grid-cols-[120px_1fr] sm:gap-2"><dt className="text-muted-foreground">{k}</dt><dd className="break-all font-medium">{v || '—'}</dd></div>
           ))}
           {data.password && (
-            <div className="grid grid-cols-[120px_1fr] items-center gap-2 bg-amber-50 px-3 py-2">
+            <div className="grid grid-cols-1 gap-0.5 bg-amber-50 sm:grid-cols-[120px_1fr] sm:items-center sm:gap-2 px-3 py-2">
               <dt className="text-amber-800">{data.created ? 'Password' : 'New password'}</dt>
               <dd className="flex items-center gap-1 font-mono font-medium">
                 <span className="break-all">{show ? data.password : '•'.repeat(data.password.length)}</span>
@@ -141,11 +141,11 @@ function UserDialog({ userId, onClose, onSaved, superAdmin }) {
         <form className="grid gap-3 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); m.mutate(); }}>
           {editing && <div className="sm:col-span-2"><AvatarUploader size="h-16 w-16 text-lg" src={f.avatar} name={f.fullName} onChange={(avatar) => setF((s) => ({ ...s, avatar }))} /></div>}
           <Field label="Full name"><Input value={f.fullName} onChange={set('fullName')} required /></Field>
-          <Field label="Email" hint={editing ? 'Only the user can change this, with an email code.' : undefined}><Input type="email" value={f.email} onChange={set('email')} required disabled={editing} /></Field>
-          <Field label="Mobile" hint={editing ? 'Only the user can change this, with an SMS code.' : undefined}><Input type="tel" value={f.mobile} onChange={set('mobile')} required disabled={editing} /></Field>
+          <Field label="Email" hint={editing ? 'Only the user can change this, with an email code.' : undefined}><Input type="email" inputMode="email" autoComplete="email" value={f.email} onChange={set('email')} required disabled={editing} /></Field>
+          <Field label="Mobile" hint={editing ? 'Only the user can change this, with an SMS code.' : undefined}><Input type="tel" inputMode="tel" autoComplete="tel" value={f.mobile} onChange={set('mobile')} required disabled={editing} /></Field>
           {(!editing || superAdmin) && (
             <Field label={editing ? 'New password' : 'Initial password'} hint={editing ? 'Leave blank to keep the current password. No old password needed.' : '10+ chars, upper, lower, number'}>
-              <div className="flex gap-1">
+              <div className="flex min-w-0 gap-1">
                 <Input type={showPw ? 'text' : 'password'} autoComplete="new-password" value={f.password} onChange={set('password')} required={!editing} placeholder={editing ? 'Unchanged' : ''} />
                 <Button type="button" size="icon" variant="outline" onClick={() => setShowPw((v) => !v)} aria-label={showPw ? 'Hide password' : 'Show password'}>{showPw ? <EyeOff /> : <Eye />}</Button>
                 <Button type="button" size="icon" variant="outline" onClick={() => { setF((s) => ({ ...s, password: generatePassword() })); setShowPw(true); }} title="Generate a strong password" aria-label="Generate password"><Wand2 /></Button>
@@ -230,11 +230,27 @@ export function UsersManager({ superAdmin = false }) {
     onError: (e) => toast.error(apiMessage(e)),
   });
 
+  // eslint-disable-next-line react/no-unstable-nested-components
+  const UserActions = ({ u, block = false }) => (!(u.id !== me?.user?.id && (iAmOwner || (!u.roles?.split(',').includes('OWNER') && u.status !== 'BLOCKED'))) ? null : (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild><Button variant={block ? 'outline' : 'ghost'} size="sm" className={block ? 'w-full' : undefined}>Actions</Button></DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {can('user.edit') && <DropdownMenuItem onClick={() => setDialog({ type: 'edit', id: u.id })}><Pencil />Edit</DropdownMenuItem>}
+                          {can('user.disable') && u.status === 'ACTIVE' && <DropdownMenuItem onClick={() => confirmAction({ title: `Disable ${u.full_name}?`, description: 'They will be signed out everywhere and cannot sign in until re-enabled.', confirmText: 'Disable user', tone: 'danger', icon: 'security' }, () => setStatus.mutate({ id: u.id, status: 'DISABLED' }))}><Ban />Disable</DropdownMenuItem>}
+                          {can('user.disable') && u.status === 'ACTIVE' && <DropdownMenuItem onClick={() => confirmAction({ title: `Suspend ${u.full_name}?`, description: 'They lose access until an admin restores the account.', confirmText: 'Suspend user', tone: 'warning', icon: 'security' }, () => setStatus.mutate({ id: u.id, status: 'SUSPENDED' }))}><Ban />Suspend</DropdownMenuItem>}
+                          {can('user.disable') && ['DISABLED', 'SUSPENDED'].includes(u.status) && <DropdownMenuItem onClick={() => setStatus.mutate({ id: u.id, status: 'ACTIVE' })}><CheckCircle2 />Re-enable</DropdownMenuItem>}
+                          {can('user.block') && u.status !== 'BLOCKED' && <DropdownMenuItem className="text-destructive" onClick={() => setBlocking(u)}><ShieldOff />Block account</DropdownMenuItem>}
+                          {can('user.block') && u.status === 'BLOCKED' && <DropdownMenuItem onClick={() => confirmAction({ title: `Unblock ${u.full_name}?`, description: 'They can sign in again (with a new-device OTP).', confirmText: 'Unblock account', icon: 'security' }, () => setStatus.mutate({ id: u.id, status: 'ACTIVE' }))}><ShieldCheck />Unblock account</DropdownMenuItem>}
+                          {superAdmin && can('session.revoke_any') && <DropdownMenuItem onClick={() => confirmAction({ title: `Terminate all sessions for ${u.full_name}?`, description: 'They will be signed out on every device immediately and must sign in again.', confirmText: 'Terminate sessions', tone: 'danger', icon: 'logout' }, () => killSessions.mutate(u.id))}><LogOut />Terminate all sessions</DropdownMenuItem>}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+  ));
+
   return (
     <>
       <PageHeader title={superAdmin ? 'Users & admins' : 'Users'} description="Manage accounts, roles and website access." actions={can('user.create') && <Button onClick={() => setDialog({ type: 'create' })}><Plus />Create user</Button>} />
-      <Card className="mb-4 grid gap-2 p-3 sm:grid-cols-4">
-        <div className="relative"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-8" placeholder="Search name, email, mobile" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} /></div>
+      <Card className="mb-4 grid grid-cols-1 gap-2 p-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="relative sm:col-span-2 lg:col-span-1"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-8" placeholder="Search name, email, mobile" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} /></div>
         <Select value={filters.status} onChange={(e) => { setFilters({ ...filters, status: e.target.value }); setPage(1); }} aria-label="Status">
           <option value="">All statuses</option>{['ACTIVE', 'PENDING_APPROVAL', 'DISABLED', 'SUSPENDED', 'BLOCKED', 'REJECTED'].map((s) => <option key={s} value={s}>{s.replace('_', ' ').toLowerCase()}</option>)}
         </Select>
@@ -247,6 +263,29 @@ export function UsersManager({ superAdmin = false }) {
       </Card>
       <Card className="overflow-hidden">
         {isLoading ? <TableSkeleton cols={6} /> : isError ? <ErrorState error={error} onRetry={refetch} /> : !data.rows.length ? <EmptyState title="No users found" /> : (
+          <>
+          <ul className="divide-y md:hidden">
+            {data.rows.map((u) => (
+              <li key={u.id} className="space-y-2 p-3">
+                <div className="flex items-start gap-2.5">
+                  <UserAvatar src={u.avatar} name={u.full_name} />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium [overflow-wrap:anywhere]">{u.full_name}{u.id === me?.user?.id && <span className="ml-1 text-xs text-muted-foreground">(you)</span>}</div>
+                    <div className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{u.email}</div>
+                    <div className="text-xs text-muted-foreground">{u.mobile}</div>
+                  </div>
+                  <AccountStatusBadge status={u.status} />
+                </div>
+                <div className="flex flex-wrap items-center gap-1">
+                  {u.roles?.split(',').map((r) => <RoleBadge key={r} code={r} />)}
+                  {u.websites?.split(',').map((c) => <WebsiteBadge key={c} code={c} />)}
+                </div>
+                <div className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{u.department_name || 'No department'}{u.teams ? ` · ${u.teams}` : ''} · Last login {u.last_login_at ? timeAgo(u.last_login_at) : 'never'}</div>
+                <UserActions u={u} block />
+              </li>
+            ))}
+          </ul>
+          <div className="hidden md:block">
           <Table>
             <TableHeader><TableRow><TableHead>User</TableHead><TableHead>Role</TableHead><TableHead>Websites</TableHead><TableHead>Department / teams</TableHead><TableHead>Status</TableHead><TableHead>Last login</TableHead><TableHead /></TableRow></TableHeader>
             <TableBody>
@@ -259,25 +298,14 @@ export function UsersManager({ superAdmin = false }) {
                   <TableCell><AccountStatusBadge status={u.status} /></TableCell>
                   <TableCell className="whitespace-nowrap text-sm">{u.last_login_at ? timeAgo(u.last_login_at) : 'Never'}</TableCell>
                   <TableCell className="text-right">
-                    {u.id !== me?.user?.id && (iAmOwner || (!u.roles?.split(',').includes('OWNER') && u.status !== 'BLOCKED')) && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild><Button variant="ghost" size="sm">Actions</Button></DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {can('user.edit') && <DropdownMenuItem onClick={() => setDialog({ type: 'edit', id: u.id })}><Pencil />Edit</DropdownMenuItem>}
-                          {can('user.disable') && u.status === 'ACTIVE' && <DropdownMenuItem onClick={() => confirmAction({ title: `Disable ${u.full_name}?`, description: 'They will be signed out everywhere and cannot sign in until re-enabled.', confirmText: 'Disable user', tone: 'danger', icon: 'security' }, () => setStatus.mutate({ id: u.id, status: 'DISABLED' }))}><Ban />Disable</DropdownMenuItem>}
-                          {can('user.disable') && u.status === 'ACTIVE' && <DropdownMenuItem onClick={() => confirmAction({ title: `Suspend ${u.full_name}?`, description: 'They lose access until an admin restores the account.', confirmText: 'Suspend user', tone: 'warning', icon: 'security' }, () => setStatus.mutate({ id: u.id, status: 'SUSPENDED' }))}><Ban />Suspend</DropdownMenuItem>}
-                          {can('user.disable') && ['DISABLED', 'SUSPENDED'].includes(u.status) && <DropdownMenuItem onClick={() => setStatus.mutate({ id: u.id, status: 'ACTIVE' })}><CheckCircle2 />Re-enable</DropdownMenuItem>}
-                          {can('user.block') && u.status !== 'BLOCKED' && <DropdownMenuItem className="text-destructive" onClick={() => setBlocking(u)}><ShieldOff />Block account</DropdownMenuItem>}
-                          {can('user.block') && u.status === 'BLOCKED' && <DropdownMenuItem onClick={() => confirmAction({ title: `Unblock ${u.full_name}?`, description: 'They can sign in again (with a new-device OTP).', confirmText: 'Unblock account', icon: 'security' }, () => setStatus.mutate({ id: u.id, status: 'ACTIVE' }))}><ShieldCheck />Unblock account</DropdownMenuItem>}
-                          {superAdmin && can('session.revoke_any') && <DropdownMenuItem onClick={() => confirmAction({ title: `Terminate all sessions for ${u.full_name}?`, description: 'They will be signed out on every device immediately and must sign in again.', confirmText: 'Terminate sessions', tone: 'danger', icon: 'logout' }, () => killSessions.mutate(u.id))}><LogOut />Terminate all sessions</DropdownMenuItem>}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
+                    <UserActions u={u} />
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+          </div>
+          </>
         )}
         <Pagination meta={data?.meta} onPage={setPage} />
       </Card>

@@ -35,6 +35,17 @@ export function RolesManager() {
       <PageHeader title="Roles" description="Users can only grant roles below their own level. Edit what each role can do on the Permissions page." actions={<Button onClick={() => setCreate({ code: '', name: '', description: '', level: 20, permissionCodes: ['area.crm', 'lead.view'] })}><Plus />New role</Button>} />
       <Card className="overflow-hidden">
         {isLoading ? <TableSkeleton cols={5} /> : (
+          <>
+          <ul className="divide-y md:hidden">
+            {roles?.map((r) => (
+              <li key={r.id} className="space-y-1 p-3">
+                <div className="flex flex-wrap items-center gap-1.5"><span className="font-medium">{r.name}</span><span className="font-mono text-xs text-muted-foreground [overflow-wrap:anywhere]">{r.code}</span>{!!r.is_system && <Badge variant="outline">system</Badge>}</div>
+                {r.description && <div className="text-xs text-muted-foreground">{r.description}</div>}
+                <div className="text-xs text-muted-foreground">Level {r.level} · {r.user_count} users · {parsePerms(r.permissions).length} permissions</div>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden md:block">
           <Table>
             <TableHeader><TableRow><TableHead>Role</TableHead><TableHead>Code</TableHead><TableHead>Level</TableHead><TableHead>Users</TableHead><TableHead>Permissions</TableHead></TableRow></TableHeader>
             <TableBody>
@@ -49,6 +60,8 @@ export function RolesManager() {
               ))}
             </TableBody>
           </Table>
+          </div>
+          </>
         )}
       </Card>
       {create && (
@@ -58,13 +71,13 @@ export function RolesManager() {
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Code" hint="e.g. TEAM_LEAD"><Input value={create.code} onChange={(e) => setCreate({ ...create, code: e.target.value.toUpperCase() })} /></Field>
               <Field label="Name"><Input value={create.name} onChange={(e) => setCreate({ ...create, name: e.target.value })} /></Field>
-              <Field label="Level" hint="1–99. Admin is 50, Normal User is 10."><Input type="number" min={1} max={99} value={create.level} onChange={(e) => setCreate({ ...create, level: e.target.value })} /></Field>
+              <Field label="Level" hint="1–99. Admin is 50, Normal User is 10."><Input type="number" inputMode="numeric" min={1} max={99} value={create.level} onChange={(e) => setCreate({ ...create, level: e.target.value })} /></Field>
               <Field label="Description"><Input value={create.description} onChange={(e) => setCreate({ ...create, description: e.target.value })} /></Field>
             </div>
             <Field label="Permissions">
               <div className="grid max-h-64 gap-1.5 overflow-y-auto rounded-md border p-3 sm:grid-cols-2">
                 {perms?.filter((p) => p.code !== 'area.super_admin').map((p) => (
-                  <label key={p.code} className="flex items-center gap-2 text-xs">
+                  <label key={p.code} className="flex min-h-9 items-center gap-2 text-xs [overflow-wrap:anywhere]">
                     <Checkbox checked={create.permissionCodes.includes(p.code)} onCheckedChange={(v) => setCreate({ ...create, permissionCodes: v ? [...create.permissionCodes, p.code] : create.permissionCodes.filter((c) => c !== p.code) })} />
                     <span className="font-mono">{p.code}</span>
                   </label>
@@ -102,6 +115,8 @@ export function PermissionsMatrix() {
     onSuccess: () => { toast.success('Permissions saved. Changes apply on the next request.'); qc.invalidateQueries({ queryKey: ['admin', 'roles'] }); },
     onError: (e) => toast.error(apiMessage(e)),
   });
+  const [mRoleId, setMRoleId] = useState('');
+  const mRole = (roles || []).find((r) => String(r.id) === String(mRoleId)) || editable[0] || roles?.[0];
   const toggle = (roleId, code) => setDraft((d) => {
     const s = new Set(d[roleId]);
     s.has(code) ? s.delete(code) : s.add(code);
@@ -113,6 +128,42 @@ export function PermissionsMatrix() {
       <PageHeader title="Permissions" description="What each role can do. Owner and Super Admin always have every permission; blocking accounts is reserved for the Owner. Every change is audit-logged." actions={<Button disabled={!dirty.length} loading={save.isPending} onClick={() => save.mutate()}>Save {dirty.length ? `(${dirty.length} role${dirty.length > 1 ? 's' : ''})` : ''}</Button>} />
       <Card className="overflow-hidden">
         {isLoading ? <TableSkeleton cols={4} /> : (
+          <>
+          <div className="md:hidden">
+            <div className="border-b p-3">
+              <Field label="Role">
+                <Select value={mRole ? String(mRole.id) : ''} onChange={(e) => setMRoleId(e.target.value)}>
+                  {roles?.map((r) => <option key={r.id} value={r.id}>{r.name}{dirty.some((d) => d.id === r.id) ? ' (unsaved)' : ''}</option>)}
+                </Select>
+              </Field>
+              {mRole && FIXED_ROLES.includes(mRole.code) && <p className="mt-2 text-xs text-muted-foreground">{mRole.name} always has every permission and cannot be edited.</p>}
+            </div>
+            {mRole && groups.map(([group, items]) => (
+              <section key={group}>
+                <h3 className="bg-muted/30 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{group}</h3>
+                <ul className="divide-y">
+                  {items.map((p) => {
+                    const fixed = FIXED_ROLES.includes(mRole.code);
+                    return (
+                      <li key={p.code}>
+                        <label className="flex min-h-11 cursor-pointer items-start gap-3 px-3 py-2.5">
+                          <Checkbox
+                            className="mt-0.5"
+                            checked={fixed ? (mRole.code === 'OWNER' || p.code !== 'user.block') : draft[mRole.id]?.has(p.code) || false}
+                            disabled={fixed || p.code === 'area.super_admin' || p.code === 'user.block'}
+                            onCheckedChange={() => toggle(mRole.id, p.code)}
+                            aria-label={`${p.code} for ${mRole.name}`}
+                          />
+                          <span className="min-w-0"><span className="block font-mono text-xs [overflow-wrap:anywhere]">{p.code}</span><span className="block text-xs text-muted-foreground">{p.description}</span></span>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
           <Table>
             <TableHeader><TableRow><TableHead>Permission</TableHead>{roles?.map((r) => <TableHead key={r.id} className="text-center">{r.name}</TableHead>)}</TableRow></TableHeader>
             <TableBody>
@@ -136,6 +187,8 @@ export function PermissionsMatrix() {
               ])}
             </TableBody>
           </Table>
+          </div>
+          </>
         )}
       </Card>
     </>
@@ -163,9 +216,32 @@ export function SessionsTable() {
   return (
     <>
       <PageHeader title="Sessions & security" description="Active sessions across all users. Terminating a session signs that device out immediately and is audit-logged." />
-      <Card className="mb-4 p-3"><div className="relative max-w-sm"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-8" placeholder="Search user, email or IP" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} /></div></Card>
+      <Card className="mb-4 p-3"><div className="relative w-full sm:max-w-sm"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input type="search" className="pl-8" placeholder="Search user, email or IP" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} /></div></Card>
       <Card className="overflow-hidden">
         {isLoading ? <TableSkeleton cols={6} /> : isError ? <ErrorState error={error} onRetry={refetch} /> : !data.rows.length ? <EmptyState title="No active sessions" /> : (
+          <>
+          <ul className="divide-y md:hidden">
+            {data.rows.map((s) => (
+              <li key={s.id} className="space-y-2 p-3">
+                <div>
+                  <div className="font-medium [overflow-wrap:anywhere]">{s.full_name}</div>
+                  <div className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{s.email}</div>
+                </div>
+                <div className="text-sm">{s.device_name || '—'} <span className="text-xs text-muted-foreground">{s.browser} · {s.operating_system}</span></div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span className="font-mono [overflow-wrap:anywhere]">{s.ip_address || '—'}</span>
+                  <span>Active {timeAgo(s.last_activity_at)}</span>
+                  <Badge variant="outline">{s.auth_method.replace('_', ' + ').toLowerCase()}</Badge>
+                </div>
+                <div className="text-xs text-muted-foreground">Signed in {formatDateTime(s.created_at)}</div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="flex-1" onClick={() => confirmAction({ title: `Terminate this session for ${s.full_name}?`, description: 'That device is signed out immediately.', confirmText: 'Terminate session', tone: 'danger', icon: 'logout' }, () => kill.mutate(s.id))}><LogOut />Terminate</Button>
+                  <Button size="sm" variant="outline" className="flex-1" onClick={() => confirmAction({ title: `Terminate all sessions for ${s.full_name}?`, description: 'They will be signed out on every device immediately.', confirmText: 'Terminate all', tone: 'danger', icon: 'logout' }, () => killAll.mutate(s.user_id))}>All sessions</Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden md:block">
           <Table>
             <TableHeader><TableRow><TableHead>User</TableHead><TableHead>Device</TableHead><TableHead>IP</TableHead><TableHead>Signed in</TableHead><TableHead>Last activity</TableHead><TableHead>Method</TableHead><TableHead /></TableRow></TableHeader>
             <TableBody>
@@ -185,6 +261,8 @@ export function SessionsTable() {
               ))}
             </TableBody>
           </Table>
+          </div>
+          </>
         )}
         <Pagination meta={data?.meta} onPage={setPage} />
       </Card>
@@ -195,7 +273,7 @@ export function SessionsTable() {
 /* ---------------- System health ---------------- */
 function HealthRow({ icon: Icon, label, ok, detail }) {
   return (
-    <div className="flex items-center justify-between py-2.5">
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2.5">
       <span className="flex items-center gap-2 text-sm"><Icon className="h-4 w-4 text-muted-foreground" />{label}</span>
       <span className={cn('flex items-center gap-1.5 text-sm', ok ? 'text-emerald-700' : 'text-red-700')}>
         {ok ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}{detail}
@@ -211,7 +289,7 @@ export function SystemHealth() {
   return (
     <>
       <PageHeader title="System health" description={`Uptime ${Math.round(data.uptimeSeconds / 3600)}h · Node ${data.node}`} />
-      <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
         <StatCard label="Users" value={data.counts.users} /><StatCard label="Leads" value={Number(data.counts.leads).toLocaleString('en-IN')} />
         <StatCard label="Active sessions" value={data.counts.active_sessions} /><StatCard label="Pending requests" value={data.counts.pending_requests} tone={data.counts.pending_requests ? 'warning' : undefined} />
         <StatCard label="Failed integration events" value={data.counts.failed_events} tone={data.counts.failed_events ? 'danger' : undefined} />
@@ -262,9 +340,9 @@ export function SettingsForm({ canEdit }) {
               {meta.type === 'select' ? (
                 <Select disabled={!canEdit} value={draft[key]} onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}>{meta.options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</Select>
               ) : meta.type === 'list' ? (
-                <Input disabled={!canEdit} value={(draft[key] || []).join(', ')} onChange={(e) => setDraft({ ...draft, [key]: e.target.value.split(',').map((x) => Number(x.trim())).filter(Boolean) })} />
+                <Input disabled={!canEdit} inputMode="numeric" value={(draft[key] || []).join(', ')} onChange={(e) => setDraft({ ...draft, [key]: e.target.value.split(',').map((x) => Number(x.trim())).filter(Boolean) })} />
               ) : (
-                <Input disabled={!canEdit} type="number" min={1} value={draft[key]} onChange={(e) => setDraft({ ...draft, [key]: Number(e.target.value) })} />
+                <Input disabled={!canEdit} type="number" inputMode="numeric" min={1} value={draft[key]} onChange={(e) => setDraft({ ...draft, [key]: Number(e.target.value) })} />
               )}
             </Field>
           ))}

@@ -85,7 +85,7 @@ export function MetaPagesManager({ open, onOpenChange }) {
                   <div key={p.id} className={`rounded-lg border p-3 ${p.active ? 'border-blue-200 bg-blue-50/40' : 'border-slate-200'}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-[14px] font-medium text-slate-900">{p.name}</p>
+                        <p className="break-words text-[14px] font-medium text-slate-900">{p.name}</p>
                         <p className="flex flex-wrap items-center gap-x-2 text-[12px] text-slate-500">
                           {p.category && <span>{p.category}</span>}
                           {p.businessName && <span>· {p.businessName}</span>}

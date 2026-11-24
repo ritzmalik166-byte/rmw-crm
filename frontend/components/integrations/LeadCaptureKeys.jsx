@@ -206,7 +206,7 @@ export function LeadCaptureKeys({ canManage }) {
         </div>
         {canManage && <Button size="sm" onClick={() => setDialog({ type: 'edit', row: null })}><Plus />New API key</Button>}
       </div>
-      <Card className="overflow-x-auto">
+      <Card className="overflow-x-auto overscroll-x-contain">
         {isLoading ? <Skeleton className="m-3 h-20" /> : !rows.length ? (
           <p className="p-4 text-[13px] text-slate-500">No keys yet. Create one per client / landing page.</p>
         ) : (
@@ -247,7 +247,7 @@ export function LeadCaptureKeys({ canManage }) {
           </table>
         )}
       </Card>
-      {data?.endpoint && <p className="mt-1.5 flex items-center gap-1 text-[12px] text-slate-500"><Link2 className="h-3.5 w-3.5" />End point: <code className="font-mono">{data.endpoint}</code></p>}
+      {data?.endpoint && <p className="mt-1.5 flex items-start gap-1 text-[12px] text-slate-500"><Link2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />End point: <code className="min-w-0 break-all font-mono">{data.endpoint}</code></p>}
       <KeyDialog open={dialog?.type === 'edit'} onOpenChange={(o) => !o && setDialog(null)} editing={dialog?.row} />
       <CodeDialog open={dialog?.type === 'code'} onOpenChange={(o) => !o && setDialog(null)} row={dialog?.row} endpoint={data?.endpoint} />
     </section>

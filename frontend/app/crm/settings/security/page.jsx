@@ -31,7 +31,7 @@ export default function SecurityPage() {
     <>
       <PageHeader title="Security & devices" description="Devices signed in to your account. Signing in from a new device always requires an OTP sent to your mobile." />
       <Card className="max-w-3xl">
-        <CardHeader className="flex-row items-start justify-between space-y-0">
+        <CardHeader className="flex-row flex-wrap items-start justify-between gap-3 space-y-0">
           <div><CardTitle>Active sessions</CardTitle><CardDescription className="mt-1">Signing out a device also removes its trusted status.</CardDescription></div>
           {others.length > 0 && <Button variant="outline" size="sm" onClick={() => confirmAction({ title: 'Log out all other devices?', description: 'Every other browser and phone signed in to your account will be signed out. This device stays signed in.', confirmText: 'Log out others', tone: 'warning', icon: 'logout' }, () => logoutAll.mutate())} loading={logoutAll.isPending}><LogOut />Log out all other devices</Button>}
         </CardHeader>
@@ -43,7 +43,7 @@ export default function SecurityPage() {
                 const trusted = s.is_trusted && s.trusted_until && new Date(s.trusted_until) > new Date();
                 return (
                   <li key={s.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex gap-3">
+                    <div className="flex min-w-0 gap-3">
                       <Icon className="mt-0.5 h-6 w-6 text-muted-foreground" />
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -51,7 +51,7 @@ export default function SecurityPage() {
                           {s.current && <Badge variant="success">This device</Badge>}
                           {trusted && <Badge variant="info"><ShieldCheck className="mr-1 h-3 w-3" />Trusted until {formatDateTime(s.trusted_until).split(',')[0]}</Badge>}
                         </div>
-                        <p className="text-xs text-muted-foreground">{s.browser} · {s.operating_system} · IP {s.ip_address || '—'}</p>
+                        <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{s.browser} · {s.operating_system} · IP {s.ip_address || '—'}</p>
                         <p className="text-xs text-muted-foreground">Last active {s.current ? 'now' : timeAgo(s.last_activity_at)} · Signed in {formatDateTime(s.created_at)} via {METHOD[s.auth_method] || s.auth_method}</p>
                       </div>
                     </div>

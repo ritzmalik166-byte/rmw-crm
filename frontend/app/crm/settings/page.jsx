@@ -41,7 +41,7 @@ function ProfileSummary() {
           <p className="text-sm capitalize text-muted-foreground">{me?.roles?.map((r) => r.replace(/_/g, ' ').toLowerCase()).join(', ')}</p>
         </div>
         <dl className="space-y-3 text-sm">
-          <div className="flex items-center gap-2.5"><Mail className="h-4 w-4 shrink-0 text-muted-foreground" /><span className="truncate">{u?.email}</span></div>
+          <div className="flex items-center gap-2.5"><Mail className="h-4 w-4 shrink-0 text-muted-foreground" /><span className="min-w-0 [overflow-wrap:anywhere]">{u?.email}</span></div>
           <div className="flex items-center gap-2.5"><Phone className="h-4 w-4 shrink-0 text-muted-foreground" /><span className="tabular-nums">{u?.mobile}</span></div>
           {me?.teams?.length > 0 && <div className="flex items-center gap-2.5"><Users2 className="h-4 w-4 shrink-0 text-muted-foreground" /><span>{me.teams.map((t) => t.name).join(', ')}</span></div>}
           <div className="flex items-center gap-2.5"><Globe className="h-4 w-4 shrink-0 text-muted-foreground" /><div className="flex flex-wrap gap-1.5">{me?.websites?.map((w) => <WebsiteBadge key={w.id} code={w.code} />)}</div></div>
@@ -214,11 +214,11 @@ function NotificationPrefs() {
         <PushToggle />
         {prefs && (
           <div className="overflow-x-auto"><table className="w-full min-w-[320px] text-sm">
-            <thead><tr className="text-xs uppercase text-muted-foreground"><th className="py-2 text-left font-medium">Event</th><th className="w-20 font-medium">In-app</th><th className="w-20 font-medium">Push</th><th className="w-20 font-medium">Email</th></tr></thead>
+            <thead><tr className="text-xs uppercase text-muted-foreground"><th className="py-2 text-left font-medium">Event</th><th className="w-14 font-medium sm:w-20">In-app</th><th className="w-14 font-medium sm:w-20">Push</th><th className="w-14 font-medium sm:w-20">Email</th></tr></thead>
             <tbody className="divide-y">
               {prefs.map((p) => (
                 <tr key={p.type}>
-                  <td className="py-2.5">{TYPE_LABELS[p.type] || titleCase(p.type)}</td>
+                  <td className="py-2.5 pr-2">{TYPE_LABELS[p.type] || titleCase(p.type)}</td>
                   {['inApp', 'push', 'email'].map((k) => <td key={k} className="text-center"><Switch checked={p[k]} onCheckedChange={(v) => set(p.type, k, v)} aria-label={`${k} for ${p.type}`} /></td>)}
                 </tr>
               ))}

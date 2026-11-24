@@ -205,3 +205,8 @@ html[data-ui='v1'] .panel-head { background: linear-gradient(180deg, #fff, rgb(2
 html[data-ui='v1'] .panel-title { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: rgb(51 65 85); }
 html[data-ui='v1'] .panel-title::before { content: ''; height: .875rem; width: 3px; border-radius: 9999px; background: hsl(var(--saffron)); }
 html[data-ui='v1'] thead { background: linear-gradient(180deg, rgb(248 250 252), rgb(241 245 249 / .7)); }
+
+/* Toasts on phones/tablets sit above the bottom tab bar (sonner's own mobile CSS pins them at 20px). */
+@media (max-width: 1023.98px) {
+  [data-sonner-toaster][data-y-position='bottom'] { bottom: calc(env(safe-area-inset-bottom) + 84px) !important; }
+}

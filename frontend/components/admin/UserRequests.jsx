@@ -17,7 +17,7 @@ import { EmptyState, ErrorState, PageHeader, Pagination, TableSkeleton } from '@
 import { useOrg, MultiCheck } from './common';
 
 function Detail({ label, children }) {
-  return <div className="grid grid-cols-3 gap-2 py-1 text-sm"><span className="text-muted-foreground">{label}</span><span className="col-span-2">{children || '—'}</span></div>;
+  return <div className="grid grid-cols-3 gap-2 py-1 text-sm"><span className="text-muted-foreground">{label}</span><span className="col-span-2 min-w-0 [overflow-wrap:anywhere]">{children || '—'}</span></div>;
 }
 
 function ApproveDialog({ req, onClose }) {
@@ -85,11 +85,39 @@ export function UserRequests({ canReview }) {
   return (
     <>
       <PageHeader title="User requests" description={canReview ? 'Review and approve new account requests.' : 'Account requests are approved by a Super Admin.'} />
-      <Tabs value={status} onValueChange={(v) => { setStatus(v); setPage(1); }} className="mb-4">
+      <Tabs value={status} onValueChange={(v) => { setStatus(v); setPage(1); }} className="mb-4 max-w-full overflow-x-auto">
         <TabsList><TabsTrigger value="PENDING_APPROVAL">Pending</TabsTrigger><TabsTrigger value="APPROVED">Approved</TabsTrigger><TabsTrigger value="REJECTED">Rejected</TabsTrigger><TabsTrigger value="ALL">All</TabsTrigger></TabsList>
       </Tabs>
       <Card className="overflow-hidden">
         {isLoading ? <TableSkeleton cols={6} /> : isError ? <ErrorState error={error} onRetry={refetch} /> : !data.rows.length ? <EmptyState title="No requests" description="New account requests appear here." /> : (
+          <>
+          <ul className="divide-y md:hidden">
+            {data.rows.map((r) => (
+              <li key={r.id} className="space-y-2 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-medium [overflow-wrap:anywhere]">{r.full_name}</div>
+                    <div className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{r.email}</div>
+                    <div className="text-xs text-muted-foreground">{r.mobile}</div>
+                  </div>
+                  <AccountStatusBadge status={r.status} />
+                </div>
+                <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                  {r.requested_websites.map((c) => <WebsiteBadge key={c} code={c} />)}
+                  <span>{[r.requested_department, r.requested_team].filter(Boolean).join(' / ')}</span>
+                </div>
+                <div className="text-xs text-muted-foreground">Requested {formatDateTime(r.created_at)}</div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className={canReview && r.status === 'PENDING_APPROVAL' ? '' : 'flex-1'} onClick={() => setAction({ type: 'view', req: r })} aria-label="View details"><Eye />{canReview && r.status === 'PENDING_APPROVAL' ? null : 'Details'}</Button>
+                  {canReview && r.status === 'PENDING_APPROVAL' && <>
+                    <Button size="sm" variant="outline" className="flex-1" onClick={() => setAction({ type: 'reject', req: r })}><X />Reject</Button>
+                    <Button size="sm" className="flex-1" onClick={() => setAction({ type: 'approve', req: r })}><Check />Approve</Button>
+                  </>}
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden md:block">
           <Table>
             <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Mobile</TableHead><TableHead>Requested department / team</TableHead><TableHead>Websites</TableHead><TableHead>Requested</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader>
             <TableBody>
@@ -112,6 +140,8 @@ export function UserRequests({ canReview }) {
               ))}
             </TableBody>
           </Table>
+          </div>
+          </>
         )}
         <Pagination meta={data?.meta} onPage={setPage} />
       </Card>

@@ -33,7 +33,7 @@ function DashLeadRow({ l, showOwner = true }) {
   const ch = leadChannel(l);
   return (
     <li>
-      <Link href={`/crm/leads/${l.id}`} className="group relative flex items-center gap-3 px-5 py-3 transition-colors duration-200 hover:bg-slate-50/80">
+      <Link href={`/crm/leads/${l.id}`} className="group relative flex min-h-[56px] items-center gap-3 px-4 py-3 transition-colors sm:px-5 duration-200 hover:bg-slate-50/80">
         <span aria-hidden className={cn('absolute inset-y-2.5 left-0 w-[3px] rounded-r-full opacity-60 transition-opacity duration-200 group-hover:opacity-100', CHANNEL_STYLE[ch].bar)} />
         <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-[12px] font-semibold text-white ring-2 ring-white', AVATAR_TONE[ch])}>{initials(l.name)}</span>
         <div className="min-w-0 flex-1">
@@ -400,7 +400,7 @@ function CrmDashboardV2() {
       {/* Greeting */}
       <div className="flex flex-wrap items-start justify-between gap-3 pt-1">
         <div className="min-w-0">
-          <h1 className="flex items-center gap-3 text-[24px] font-bold tracking-tight text-slate-900 sm:text-[28px]">
+          <h1 className="flex min-w-0 flex-wrap items-center gap-x-3 break-words text-[22px] font-bold tracking-tight text-slate-900 sm:text-[28px]">
             <span aria-hidden className="text-[26px] sm:text-[30px]">👋</span>{greeting()}, {me?.user?.full_name?.split(' ')[0]}
           </h1>
           <p className="mt-1 text-[13.5px] text-slate-500">Here&apos;s your lead overview. Figures cover the websites you have access to.</p>
@@ -417,7 +417,7 @@ function CrmDashboardV2() {
       {/* Range */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <DateRangeFilter value={range} onChange={setRange} />
-        <p className="flex items-center gap-2 text-[12.5px] text-slate-500">
+        <p className="flex min-w-0 items-center gap-2 text-[12.5px] text-slate-500">
           <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgb(16_185_129/0.15)]" />
           <span>Showing leads received <span className="font-semibold text-slate-700">{periodText}</span>.</span>
           <span className="hidden text-slate-400 md:inline">Follow-up figures are always live.</span>
@@ -428,7 +428,7 @@ function CrmDashboardV2() {
         ? <>{registerSection}{metaSection}{teamSection}{myWorkSection}</>
         : <>{myWorkSection}{registerSection}{metaSection}</>}
 
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className="grid gap-5 lg:grid-cols-2 [&>*]:min-w-0">
         <Panel title={`Leads received · ${label}`} icon={Users} action={<OpenLink href={`/crm/leads${toQuery({ ...rq, ...(recvCh !== 'all' ? { channel: recvCh } : {}) })}`}>View all{received?.meta?.total ? ` ${received.meta.total}` : ''}</OpenLink>}>
           <div role="tablist" aria-label="Lead source" className="flex gap-1 overflow-x-auto border-b border-slate-100 px-4 py-2.5">
             {recvChannels.map(([k, t]) => (
@@ -486,7 +486,7 @@ function CrmDashboardV2() {
         <Panel title="Recent activity" icon={Activity}>
           <ul className="divide-y divide-slate-100">
             {activity.map((a) => (
-              <li key={a.id} className="flex items-center justify-between gap-3 px-5 py-2.5 text-[13px] transition-colors duration-200 hover:bg-slate-50/70">
+              <li key={a.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[13px] transition-colors sm:px-5 duration-200 hover:bg-slate-50/70">
                 <span className="min-w-0 truncate"><span className="font-medium text-slate-800">{a.actor || 'System'}</span> <span className="text-slate-500">· {titleCase(a.type)} ·</span> <Link className="text-primary hover:underline" href={`/crm/leads/${a.lead_id}`}>{a.lead_name || a.external_lead_id}</Link></span>
                 <span className="shrink-0 text-[11px] text-slate-400">{timeAgo(a.created_at)}</span>
               </li>

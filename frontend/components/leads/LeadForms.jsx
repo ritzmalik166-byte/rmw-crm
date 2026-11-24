@@ -114,8 +114,8 @@ export function CreateLeadDialog({ open, onOpenChange }) {
             </Select>
           </Field>
           <Field label="Name"><Input value={f.name} onChange={set('name')} required /></Field>
-          <Field label="Phone"><Input value={f.phone} onChange={set('phone')} /></Field>
-          <Field label="Email"><Input type="email" value={f.email} onChange={set('email')} /></Field>
+          <Field label="Phone"><Input type="tel" inputMode="tel" autoComplete="tel" value={f.phone} onChange={set('phone')} /></Field>
+          <Field label="Email"><Input type="email" inputMode="email" autoComplete="email" value={f.email} onChange={set('email')} /></Field>
           <Field label="Location"><Input value={f.location} onChange={set('location')} /></Field>
           <Field label="Interest" className="sm:col-span-2"><Input value={f.interest} onChange={set('interest')} /></Field>
           <Field label="Source"><Input value={f.source} onChange={set('source')} placeholder="manual" /></Field>
