@@ -29,6 +29,24 @@ export const DEFAULT_CONFIG = Object.freeze({
     'What is the best time for our property advisor to call you back?',
   ],
   language: 'hinglish', // hinglish | hindi | english
+  // Per-website overrides: a different provider agent, opening line and questions per business.
+  // Empty values fall back to the defaults above.
+  profiles: {
+    RMW: {
+      agentId: '',
+      openingLine: 'Namaste {name}, this is the automated assistant from Ritz Media World, calling about your enquiry on our website. This call is recorded for quality. Is this a good time to talk for two minutes?',
+      questions: [
+        'What is the name of your company or brand, and what do you do?',
+        'Which service are you looking for: digital marketing, SEO, social media, Google or Meta ads, branding and design, website development, print, radio or influencer marketing?',
+        'What is the main goal: more leads, more sales, brand awareness, a new website or a product launch?',
+        'Are you running any marketing right now, in-house or with another agency?',
+        'What monthly marketing budget do you have in mind, roughly?',
+        'When would you like to start?',
+        'Are you the decision maker, or should someone else join the discussion?',
+        'When is a good time for our strategist to call you or set up a meeting?',
+      ],
+    },
+  },
 });
 
 const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -44,8 +62,35 @@ export function resolveConfig(stored) {
   c.recentCallDays = clampInt(c.recentCallDays, 0, 90, DEFAULT_CONFIG.recentCallDays);
   c.retryMinutes = (Array.isArray(c.retryMinutes) ? c.retryMinutes : DEFAULT_CONFIG.retryMinutes).map((n) => clampInt(n, 5, 1440, 60));
   c.websites = Array.isArray(c.websites) ? c.websites.map(String) : [];
-  c.questions = Array.isArray(c.questions) ? c.questions.map((q) => String(q).trim()).filter(Boolean).slice(0, 20) : [];
+  c.questions = cleanQuestions(c.questions);
+  c.profiles = cleanProfiles(c.profiles);
   return c;
+}
+
+const cleanQuestions = (q) => (Array.isArray(q) ? q.map((x) => String(x).trim()).filter(Boolean).slice(0, 20) : []);
+
+function cleanProfiles(p) {
+  const out = {};
+  if (!p || typeof p !== 'object') return out;
+  for (const [code, v] of Object.entries(p)) {
+    if (!/^[A-Z0-9_]{1,20}$/.test(code) || !v || typeof v !== 'object') continue;
+    out[code] = {
+      agentId: /^[\w-]{0,100}$/.test(String(v.agentId || '')) ? String(v.agentId || '') : '',
+      openingLine: String(v.openingLine || '').trim().slice(0, 600),
+      questions: cleanQuestions(v.questions),
+    };
+  }
+  return out;
+}
+
+/** The agent, opening line and questions for a website: its own profile where set, else the defaults. */
+export function profileFor(cfg, websiteCode) {
+  const p = cfg.profiles?.[websiteCode] || {};
+  return {
+    agentId: p.agentId || null,
+    openingLine: p.openingLine || cfg.openingLine,
+    questions: p.questions?.length ? p.questions : cfg.questions,
+  };
 }
 
 function clampInt(v, lo, hi, d) {
@@ -112,13 +157,19 @@ const falsy = (v) => (typeof v === 'boolean' ? !v : typeof v === 'string' ? NO.t
 
 const KEY_ALIASES = {
   interested: ['interested', 'is_interested', 'still_looking', 'stillLooking', 'isInterested', 'interest_confirmed', 'project_interest', 'interest_status'],
+  service: ['service', 'service_interest', 'services', 'service_needed', 'service_required'],
+  company: ['company', 'company_name', 'business_name', 'brand_name', 'brand'],
+  goal: ['goal', 'marketing_goal', 'objective', 'business_goal'],
+  currentMarketing: ['current_marketing', 'currentMarketing', 'existing_agency', 'current_agency'],
+  decisionMaker: ['decision_maker', 'decisionMaker', 'is_decision_maker'],
+  website: ['website', 'website_url', 'websiteUrl'],
   configuration: ['configuration', 'bhk', 'bhk_type', 'bhkType', 'unit_type', 'unitType', 'property_type', 'propertyType'],
-  budget: ['budget', 'budget_range', 'budgetRange'],
+  budget: ['budget', 'budget_range', 'budgetRange', 'monthly_budget', 'marketing_budget'],
   location: ['location', 'preferred_location', 'preferredLocation', 'location_preference', 'sector', 'city'],
   purpose: ['purpose', 'self_use_or_investment', 'buying_for', 'buyingFor'],
-  timeline: ['timeline', 'buying_timeline', 'buyingTimeline', 'purchase_timeline', 'when_to_buy', 'purchase_timeframe'],
+  timeline: ['timeline', 'buying_timeline', 'buyingTimeline', 'purchase_timeline', 'when_to_buy', 'purchase_timeframe', 'start_timeline', 'start_date'],
   siteVisit: ['site_visit', 'siteVisit', 'site_visit_interest', 'siteVisitInterest', 'wants_site_visit', 'site_visit_day', 'siteVisitDay'],
-  callbackTime: ['callback_time', 'callbackTime', 'callback_datetime', 'best_time_to_call', 'bestTimeToCall', 'call_back_time'],
+  callbackTime: ['callback_time', 'callbackTime', 'callback_datetime', 'meeting_time', 'preferred_meeting_time', 'best_time_to_call', 'bestTimeToCall', 'call_back_time'],
   optOut: ['opt_out', 'optOut', 'do_not_call', 'doNotCall', 'dnd'],
   wrongNumber: ['wrong_number', 'wrongNumber'],
   wantsHuman: ['wants_human', 'wantsHuman', 'transfer_requested', 'talk_to_human'],
