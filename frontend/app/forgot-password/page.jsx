@@ -20,9 +20,9 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <AuthCard title="Reset your password" description="We'll email you a secure link to set a new password." footer={<Link href="/login" className="hover:text-foreground">Back to sign in</Link>}>
+    <AuthCard title="Reset your password" description="We'll email you a secure link to set a new password." footer={<Link href="/login" className="font-medium text-primary hover:underline">&larr; Back to sign in</Link>}>
       {sent ? (
-        <p className="text-sm text-muted-foreground">If an account exists for <span className="font-medium text-foreground">{email}</span>, a reset link is on its way. The link expires soon and works once.</p>
+        <div className="space-y-3 text-[14px] text-slate-700"><p>If an account exists for <span className="font-medium text-slate-900">{email}</span>, a reset link is on its way.</p><p className="text-[13px] text-slate-500">The link works once and expires soon. Nothing in your inbox after a few minutes? Check spam, or <button type="button" className="font-medium text-primary hover:underline" onClick={() => setSent(false)}>try another email</button>.</p></div>
       ) : (
         <form onSubmit={submit} className="space-y-4">
           <FormError message={error} />

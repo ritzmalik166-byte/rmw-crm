@@ -1,4 +1,4 @@
-import { Inter } from 'next/font/google';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import { QueryProvider } from '@/providers/QueryProvider';
 import { AuthProvider } from '@/providers/AuthProvider';
 import { MaintenanceGate } from '@/components/MaintenanceGate';
@@ -8,7 +8,8 @@ import { PREFS_BOOT_SCRIPT } from '@/lib/preferences';
 import { UI_BOOT_SCRIPT } from '@/lib/uiVersion';
 import './globals.css';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
+// Plus Jakarta Sans: readable at small table sizes, with tabular figures for counts and phone numbers.
+const sans = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-sans', display: 'swap' });
 
 export const metadata = {
   title: { default: 'RMW CRM', template: '%s · RMW CRM' },
@@ -30,13 +31,13 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html lang="en" className={sans.variable} suppressHydrationWarning>
       <head>
         {/* Personal Appearance settings, applied before first paint. */}
         <script dangerouslySetInnerHTML={{ __html: PREFS_BOOT_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: UI_BOOT_SCRIPT }} />
       </head>
-      <body className="font-sans">
+      <body className="font-sans antialiased">
         <QueryProvider>
           <AuthProvider>{children}</AuthProvider>
         </QueryProvider>

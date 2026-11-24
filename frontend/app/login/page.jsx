@@ -3,12 +3,12 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Smartphone, Mail, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import { Smartphone, Mail, ShieldCheck } from 'lucide-react';
 import { api, apiMessage } from '@/lib/api';
-import { AuthCard, FormError } from '@/components/auth/AuthCard';
+import { AuthCard, FormError, Notice, PasswordInput, MobileInput, IconInput, mobileOk, emailOk } from '@/components/auth/AuthCard';
 import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/input';
-import { Field } from '@/components/ui/label';
+import { Field, Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/controls';
 
 function safeNext(next) {
@@ -57,15 +57,12 @@ function OtpStep({ info, onBack, onDone }) {
   return (
     <form onSubmit={submit} className="space-y-4">
       {info.reason === 'NEW_DEVICE' && (
-        <div className="flex gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>We don&apos;t recognise this device. For your security, enter the code sent to your registered mobile.</span>
-        </div>
+        <Notice tone="warning" icon={ShieldCheck}>This device is new to us. For your security, enter the code sent to your registered mobile.</Notice>
       )}
       <p className="text-sm text-muted-foreground">Code sent to <span className="font-medium text-foreground">{info.maskedMobile}</span></p>
       <FormError message={error} />
       <Field label="Verification code" htmlFor="otp">
-        <Input id="otp" inputMode="numeric" autoComplete="one-time-code" autoFocus maxLength={8} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} className="text-center text-lg tracking-[0.4em]" required />
+        <Input id="otp" inputMode="numeric" autoComplete="one-time-code" autoFocus maxLength={8} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} className="text-center font-mono text-xl tracking-[0.5em]" required />
       </Field>
       <div className="space-y-2 rounded-md border p-3">
         <label className="flex items-center gap-2 text-sm">
@@ -84,8 +81,8 @@ function OtpStep({ info, onBack, onDone }) {
       </div>
       <Button type="submit" className="w-full" loading={busy} disabled={otp.length < 4}>{busy ? 'Signing in…' : 'Verify and sign in'}</Button>
       <div className="flex items-center justify-between text-sm">
-        <button type="button" className="text-muted-foreground hover:text-foreground" onClick={onBack}>Back</button>
-        <button type="button" className="font-medium disabled:text-muted-foreground" disabled={cooldown > 0} onClick={resend}>
+        <button type="button" className="text-slate-600 hover:text-slate-900" onClick={onBack}>&larr; Use a different method</button>
+        <button type="button" className="font-medium text-primary disabled:text-slate-400" disabled={cooldown > 0} onClick={resend}>
           {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
         </button>
       </div>
@@ -93,18 +90,29 @@ function OtpStep({ info, onBack, onDone }) {
   );
 }
 
+const EMAIL_KEY = 'crm.lastEmail';
+
 function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();
   const qc = useQueryClient();
+  const { data: cfg } = useQuery({ queryKey: ['public-config'], queryFn: () => api('/auth/public-config'), staleTime: 300_000 });
+  const otpEnabled = cfg?.otpEnabled !== false;
   const [mode, setMode] = useState('password');
   const [email, setEmail] = useState('');
+  const [remember, setRemember] = useState(true);
   const [password, setPassword] = useState('');
-  const [showPw, setShowPw] = useState(false);
   const [mobile, setMobile] = useState('');
   const [otpInfo, setOtpInfo] = useState(null);
   const [error, setError] = useState('');
+  const [failures, setFailures] = useState(0);
   const [busy, setBusy] = useState(false);
+
+  // Pre-fill the email used last time on this device.
+  useEffect(() => {
+    try { const saved = localStorage.getItem(EMAIL_KEY); if (saved) setEmail(saved); else setRemember(false); } catch { /* storage blocked */ }
+  }, []);
+  useEffect(() => { if (!otpEnabled && mode === 'otp') setMode('password'); }, [otpEnabled, mode]);
 
   const done = async () => {
     try { sessionStorage.setItem('crm:justLoggedIn', '1'); } catch { /* storage blocked */ }
@@ -114,15 +122,19 @@ function LoginInner() {
 
   const loginPassword = async (e) => {
     e.preventDefault();
+    if (!emailOk(email)) { setError('Enter a valid email address.'); return; }
+    if (!password) { setError('Enter your password.'); return; }
     setError(''); setBusy(true);
     try {
-      const r = await api('/auth/login', { method: 'POST', body: { email, password } });
+      try { if (remember) localStorage.setItem(EMAIL_KEY, email.trim()); else localStorage.removeItem(EMAIL_KEY); } catch { /* storage blocked */ }
+      const r = await api('/auth/login', { method: 'POST', body: { email: email.trim(), password } });
       if (r.requiresOtp) { setOtpInfo(r); setBusy(false); } else await done(); // stay busy while redirecting
-    } catch (err) { setError(apiMessage(err)); setBusy(false); }
+    } catch (err) { setError(apiMessage(err)); setFailures((n) => n + 1); setPassword(''); setBusy(false); }
   };
 
   const sendOtp = async (e) => {
     e.preventDefault();
+    if (!mobileOk(mobile)) { setError('Enter your 10-digit mobile number.'); return; }
     setError(''); setBusy(true);
     try {
       const r = await api('/auth/otp/send', { method: 'POST', body: { mobile } });
@@ -132,37 +144,63 @@ function LoginInner() {
 
   if (otpInfo) {
     return (
-      <AuthCard title="Verify it's you" description="Enter the code we sent by SMS.">
+      <AuthCard title="Enter verification code" description="We sent a one-time code by SMS.">
         <OtpStep info={otpInfo} onBack={() => setOtpInfo(null)} onDone={done} />
       </AuthCard>
     );
   }
 
+  const switchMode = (m) => { setMode(m); setError(''); };
+
   return (
     <AuthCard
-      title="Welcome back"
-      description="Sign in to the RMW CRM."
-      footer={<>Need an account? <Link href="/register" className="font-medium text-foreground hover:underline">Request access</Link></>}
+      title={mode === 'otp' ? 'Sign in with mobile' : 'Sign in to RMW CRM'}
+      description={mode === 'otp' ? "We'll text a one-time code to your registered number." : 'Welcome back. Enter your work email and password.'}
+      footer={<>New to the team? <Link href="/register" className="font-semibold text-primary hover:underline">Request an account</Link></>}
     >
-      <div className="mb-5 grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
-        <button className={`flex min-h-[44px] items-center justify-center gap-1.5 rounded-md py-2 text-sm font-medium lg:min-h-0 lg:py-1.5 ${mode === 'password' ? 'bg-white shadow-sm' : 'text-slate-600'}`} onClick={() => { setMode('password'); setError(''); }}><Mail className="h-4 w-4" />Email</button>
-        <button className={`flex min-h-[44px] items-center justify-center gap-1.5 rounded-md py-2 text-sm font-medium lg:min-h-0 lg:py-1.5 ${mode === 'otp' ? 'bg-white shadow-sm' : 'text-slate-600'}`} onClick={() => { setMode('otp'); setError(''); }}><Smartphone className="h-4 w-4" />Mobile OTP</button>
-      </div>
+      {params.get('next') && <Notice tone="info" className="mb-4">Your session ended. Sign in to continue where you left off.</Notice>}
       <FormError message={error} />
+      {failures >= 2 && mode === 'password' && (
+        <Notice tone="warning" className="mt-3">Having trouble? <Link href="/forgot-password" className="font-medium underline">Reset your password</Link>. Repeated failed attempts may lock the account for a while.</Notice>
+      )}
       {mode === 'password' ? (
-        <form onSubmit={loginPassword} className="mt-4 space-y-4">
-          <Field label="Email" htmlFor="email"><Input id="email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus /></Field>
-          <Field label="Password" htmlFor="password"><div className="relative"><Input id="password" type={showPw ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} className="pr-10" required /><button type="button" onClick={() => setShowPw((v) => !v)} aria-label={showPw ? 'Hide password' : 'Show password'} className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-800">{showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div></Field>
-          <div className="flex justify-end"><Link href="/forgot-password" className="-my-2 inline-block py-2 text-sm text-muted-foreground hover:text-foreground">Forgot password?</Link></div>
+        <form onSubmit={loginPassword} className={error || failures >= 2 ? 'mt-5 space-y-5' : 'space-y-5'} noValidate>
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-[13px] font-semibold text-slate-700">Work email</Label>
+            <IconInput icon={Mail} id="email" type="email" autoComplete="username" placeholder="name@company.com" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus={!email} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="password" className="text-[13px] font-semibold text-slate-700">Password</Label>
+            <PasswordInput withIcon id="password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} required autoFocus={Boolean(email)} />
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <label className="flex cursor-pointer items-center gap-2 text-[13.5px] text-slate-600">
+              <Checkbox checked={remember} onCheckedChange={(v) => setRemember(!!v)} />Remember me
+            </label>
+            <Link href="/forgot-password" className="text-[13.5px] font-semibold text-primary hover:underline">Forgot password?</Link>
+          </div>
           <Button type="submit" className="w-full" loading={busy}>{busy ? 'Signing in…' : 'Sign in'}</Button>
         </form>
       ) : (
-        <form onSubmit={sendOtp} className="mt-4 space-y-4">
-          <Field label="Mobile number" htmlFor="mobile" hint="We'll send a one-time code to your registered number.">
-            <Input id="mobile" type="tel" inputMode="tel" autoComplete="tel" placeholder="98XXXXXXXX" value={mobile} onChange={(e) => setMobile(e.target.value)} required autoFocus />
-          </Field>
+        <form onSubmit={sendOtp} className={error ? 'mt-5 space-y-5' : 'space-y-5'} noValidate>
+          <div className="space-y-1.5">
+            <Label htmlFor="mobile" className="text-[13px] font-semibold text-slate-700">Registered mobile number</Label>
+            <MobileInput id="mobile" value={mobile} onChange={setMobile} required autoFocus />
+          </div>
           <Button type="submit" className="w-full" loading={busy}>{busy ? 'Sending code…' : 'Send code'}</Button>
         </form>
+      )}
+
+      {otpEnabled && (
+        <>
+          <div className="my-6 flex items-center gap-3 text-[12px] font-medium uppercase tracking-wider text-slate-400" aria-hidden>
+            <span className="h-px flex-1 bg-slate-200" />or<span className="h-px flex-1 bg-slate-200" />
+          </div>
+          <button type="button" onClick={() => switchMode(mode === 'otp' ? 'password' : 'otp')}
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white text-[14.5px] font-semibold text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-50">
+            {mode === 'otp' ? <><Mail className="h-4 w-4" />Use email and password</> : <><Smartphone className="h-4 w-4" />Sign in with mobile OTP</>}
+          </button>
+        </>
       )}
     </AuthCard>
   );
