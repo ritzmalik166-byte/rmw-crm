@@ -1,4 +1,5 @@
 import { transaction, query, one } from '../config/db.js';
+import { env } from '../config/env.js';
 import { logger } from '../config/logger.js';
 import { getAdapter } from '../integrations/index.js';
 import { deriveSourceMedium } from '../integrations/canonical.js';
@@ -175,6 +176,9 @@ export async function upsertCanonicalLead(website, c, { silent = false, assignme
         link: `/crm/leads/${result.leadId}`, data: { leadId: result.leadId, sourceType },
       });
     }
+  } else if (env.AI_CALL_TEST_MODE && !isCareer && (result.created || !silent)) {
+    // TESTING: junk / internal / repeat / re-submitted leads still get an AI call.
+    await scheduleForNewLead(result.leadId);
   }
   return result;
 }

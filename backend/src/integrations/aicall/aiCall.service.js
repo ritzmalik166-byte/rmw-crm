@@ -73,10 +73,11 @@ async function loadLead(leadId) {
 /** Why this lead must not be called right now (a SKIP_LABEL key), or null when it can be. */
 async function ineligibility(lead, cfg, { manual = false } = {}) {
   if (!lead) return 'lead_missing';
-  if (lead.merged_into_lead_id) return 'merged';
-  if (lead.junk_reason) return 'junk';
   if (lead.do_not_call) return 'do_not_call';
   if (!toIndianMobileE164(lead.phone)) return 'invalid_phone';
+  if (env.AI_CALL_TEST_MODE) return manual || cfg.enabled ? null : 'disabled'; // testing: ignore junk / repeat / worked / website rules
+  if (lead.merged_into_lead_id) return 'merged';
+  if (lead.junk_reason) return 'junk';
   if (manual) return null;
   if (!cfg.enabled) return 'disabled';
   if (!cfg.websites.includes(lead.website_code)) return 'website_off';
