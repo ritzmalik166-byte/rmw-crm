@@ -9,7 +9,7 @@ export const IST_OFFSET_MS = 330 * 60_000;
 export const DEFAULT_CONFIG = Object.freeze({
   enabled: false,
   provider: 'simulator', // simulator | vapi | bolna
-  websites: ['MPF'], // website codes whose new leads get a call
+  websites: ['MPF', 'RMW', 'CT'], // website codes whose new website-form leads get a call
   delayMinutes: 5,
   windowStart: '09:00', // IST
   windowEnd: '21:00', // IST
@@ -46,6 +46,20 @@ export const DEFAULT_CONFIG = Object.freeze({
         'When is a good time for our strategist to call you or set up a meeting?',
       ],
     },
+    CT: {
+      agentId: '',
+      openingLine: 'Namaste {name}, this is the automated assistant from Contenaissance, calling about your enquiry on our website. This call is recorded for quality. Is this a good time to talk for two minutes?',
+      questions: [
+        'What is the name of your company or brand, and what do you do?',
+        'What content do you need: blogs and SEO content, website copy, social media content, video scripts, or a full content strategy?',
+        'What is the main goal: more traffic, more leads, brand awareness or thought leadership?',
+        'Roughly how much content do you need each month?',
+        'Are you working with any writers or an agency right now?',
+        'What monthly budget do you have in mind, roughly?',
+        'When would you like to start?',
+        'When is a good time for our content strategist to call you back?',
+      ],
+    },
   },
 });
 
@@ -63,7 +77,8 @@ export function resolveConfig(stored) {
   c.retryMinutes = (Array.isArray(c.retryMinutes) ? c.retryMinutes : DEFAULT_CONFIG.retryMinutes).map((n) => clampInt(n, 5, 1440, 60));
   c.websites = Array.isArray(c.websites) ? c.websites.map(String) : [];
   c.questions = cleanQuestions(c.questions);
-  c.profiles = cleanProfiles(c.profiles);
+  // Built-in scripts (RMW, CT) stay available unless the saved config sets that website's own script.
+  c.profiles = cleanProfiles({ ...DEFAULT_CONFIG.profiles, ...(stored?.profiles && typeof stored.profiles === 'object' ? stored.profiles : {}) });
   return c;
 }
 

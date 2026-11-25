@@ -425,11 +425,6 @@ export const leadService = {
     return [cols.join(','), ...rows.map((r) => cols.map((c) => esc(r[c])).join(','))].join('\n');
   },
 
-  /**
-   * Leads received per IST day over the last `days` days (today included), for dashboard sparklines.
-   * One grouped query; same visibility, merge and junk rules as pipelineCounts, business pipelines only (no career).
-   * Missing days are filled with zeros so the series always has `days` points.
-   */
   async dailyTrend(req, channel = null, days = 7) {
     const c = channelSql(channel);
     const vis = leadVisibilitySql(req);
