@@ -51,7 +51,7 @@ export async function getConfig() {
 
 export async function saveConfig(input, userId) {
   const cfg = resolveConfig({ ...(await getConfig()), ...input });
-  if (cfg.enabled) {
+  if (cfg.systemOn && cfg.enabled) {
     const p = getProvider(cfg.provider);
     if (!p.configured()) throw badRequest(`${p.label} isn't set up on the server yet (missing ${p.missing().join(', ')}). Add the keys to the backend .env first.`);
   }
@@ -60,7 +60,7 @@ export async function saveConfig(input, userId) {
     [JSON.stringify(cfg), userId],
   );
   cfgCache = null;
-  await audit('AI_CALL_CONFIG_UPDATED', { actorId: userId, entityType: 'ai_call_config', entityId: 1, meta: { enabled: cfg.enabled, provider: cfg.provider, websites: cfg.websites } });
+  await audit('AI_CALL_CONFIG_UPDATED', { actorId: userId, entityType: 'ai_call_config', entityId: 1, meta: { systemOn: cfg.systemOn, enabled: cfg.enabled, provider: cfg.provider, websites: cfg.websites } });
   return cfg;
 }
 
@@ -117,7 +117,7 @@ const activeCallFor = (leadId) => one(`SELECT id, status, scheduled_at FROM ai_c
 export async function scheduleForNewLead(leadId) {
   try {
     const cfg = await getConfig();
-    if (!cfg.enabled) return null;
+    if (!cfg.systemOn || !cfg.enabled) return null;
     const lead = await loadLead(leadId);
     const reason = await ineligibility(lead, cfg);
     if (reason || (await activeCallFor(leadId))) return null;
@@ -137,6 +137,7 @@ export async function scheduleForNewLead(leadId) {
 export async function scheduleManual(req, leadId) {
   await loadVisibleLead(req, leadId);
   const cfg = await getConfig();
+  if (!cfg.systemOn) throw badRequest('AI calling is switched off. A Super Admin can turn it on in Super Admin → AI calling.', 'AI_CALL_SYSTEM_OFF');
   const provider = getProvider(cfg.provider);
   if (!provider.configured()) throw badRequest(`${provider.label} isn't set up on the server yet. A Super Admin must add its keys first.`);
   const lead = await loadLead(leadId);
@@ -169,6 +170,8 @@ export async function runAiCallSweep() {
     `UPDATE ai_calls SET status = 'FAILED', ended_at = NOW(3), error = 'No result received from the provider within 30 minutes'
      WHERE status IN ('DIALING','IN_PROGRESS') AND updated_at < NOW(3) - INTERVAL 30 MINUTE`,
   );
+  // Master switch off: queued calls stay SCHEDULED and go out when it is switched back on (within calling hours).
+  if (!(await getConfig()).systemOn) return;
   const due = await query("SELECT id FROM ai_calls WHERE status = 'SCHEDULED' AND scheduled_at <= NOW(3) ORDER BY scheduled_at LIMIT 10");
   for (const { id } of due) {
     try { await claimAndPlace(id); } catch (err) { logger.error({ callId: id, err: err.message }, 'AI call placement failed'); }
@@ -181,6 +184,7 @@ async function claimAndPlace(callId) {
   if (!claimed.affectedRows) return;
   const call = await one('SELECT * FROM ai_calls WHERE id = ?', [callId]);
   const cfg = await getConfig();
+  if (!cfg.systemOn) { await query("UPDATE ai_calls SET status = 'SCHEDULED' WHERE id = ?", [callId]); return; }
   const lead = await loadLead(call.lead_id);
   const manual = call.trigger_type === 'MANUAL';
 
@@ -383,7 +387,36 @@ export async function listForLead(req, leadId) {
   );
   const cfg = await getConfig();
   const provider = getProvider(cfg.provider);
-  return { calls: rows.map(publicRow), doNotCall: Boolean(lead.do_not_call), canCall: provider.configured(), provider: provider.id };
+  // Recordings are for Owner / Super Admin only; others still see the summary and transcript.
+  const canHear = Boolean(req.auth?.ctx?.permissions?.has('area.super_admin'));
+  const calls = rows.map((c) => ({ ...publicRow(c), has_recording: canHear && Boolean(c.recording_path || c.recording_url) }));
+  return { calls, doNotCall: Boolean(lead.do_not_call), canCall: provider.configured(), provider: provider.id };
+}
+
+/** Super Admin → Call recordings: every call that has a recording, newest first. */
+export async function listRecordings({ page = 1, q, outcome }) {
+  const PAGE = 25;
+  const where = ['(c.recording_path IS NOT NULL OR c.recording_url IS NOT NULL)'];
+  const args = [];
+  if (q) {
+    where.push('(l.name LIKE ? OR c.to_phone LIKE ?)');
+    args.push(`%${q}%`, `%${q.replace(/\D/g, '') || q}%`);
+  }
+  if (outcome) { where.push('c.outcome = ?'); args.push(outcome); }
+  const sqlWhere = where.join(' AND ');
+  const from = 'FROM ai_calls c JOIN leads l ON l.id = c.lead_id JOIN websites w ON w.id = l.website_id';
+  const [rows, [{ n }]] = await Promise.all([
+    query(
+      `SELECT c.*, l.name AS lead_name, w.code AS website_code ${from} WHERE ${sqlWhere}
+       ORDER BY COALESCE(c.started_at, c.created_at) DESC, c.id DESC LIMIT ? OFFSET ?`,
+      [...args, PAGE, (page - 1) * PAGE],
+    ),
+    query(`SELECT COUNT(*) n ${from} WHERE ${sqlWhere}`, args),
+  ]);
+  return {
+    calls: rows.map((c) => ({ ...publicRow(c), to_phone: c.to_phone, lead_name: c.lead_name, website_code: c.website_code })),
+    page, pageSize: PAGE, total: Number(n),
+  };
 }
 
 export async function overview() {

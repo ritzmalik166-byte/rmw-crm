@@ -3,7 +3,7 @@ import express, { Router } from 'express';
 import { z } from 'zod';
 import { env } from '../../config/env.js';
 import { logger } from '../../config/logger.js';
-import { requirePermission as can, requireAnyPermission } from '../../middleware/auth.js';
+import { requirePermission as can, requireAnyPermission, requireArea } from '../../middleware/auth.js';
 import { validate } from '../../validators/common.js';
 import { asyncHandler as h, ok } from '../../utils/http.js';
 import { badRequest } from '../../utils/errors.js';
@@ -42,11 +42,13 @@ export const aiCallCrmRouter = Router();
 aiCallCrmRouter.get('/leads/:id/ai-calls', can('aicall.view'), h(async (req, res) => ok(res, await svc.listForLead(req, id(req.params.id)))));
 aiCallCrmRouter.post('/leads/:id/ai-calls', can('aicall.view'), can('lead.edit'), h(async (req, res) => ok(res, await svc.scheduleManual(req, id(req.params.id)), 'AI call requested', 201)));
 aiCallCrmRouter.post('/ai-calls/:id/cancel', can('aicall.view'), can('lead.edit'), h(async (req, res) => { await svc.cancelCall(req, id(req.params.id)); ok(res, null, 'Call cancelled'); }));
-aiCallCrmRouter.get('/ai-calls/:id/recording', can('aicall.view'), h(async (req, res) => svc.streamRecording(req, res, id(req.params.id))));
+// Recordings: Owner and Super Admin only (only they hold area.super_admin).
+aiCallCrmRouter.get('/ai-calls/:id/recording', can('aicall.view'), requireArea('super_admin'), h(async (req, res) => svc.streamRecording(req, res, id(req.params.id))));
 
 /* ---------- Super Admin (mounted inside /api/super-admin) ---------- */
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM (24-hour)');
 const configSchema = z.object({
+  systemOn: z.boolean(),
   enabled: z.boolean(),
   provider: z.enum(['simulator', 'vapi', 'bolna']),
   websites: z.array(z.string().max(20)).max(20),
@@ -69,4 +71,10 @@ const configSchema = z.object({
 
 export const aiCallSuperAdminRouter = Router();
 aiCallSuperAdminRouter.get('/ai-calling', requireAnyPermission('aicall.manage', 'settings.view'), h(async (_req, res) => ok(res, await svc.overview())));
+const recordingsQuery = z.object({
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+  q: z.string().trim().max(100).optional(),
+  outcome: z.string().trim().max(30).optional(),
+});
+aiCallSuperAdminRouter.get('/ai-call-recordings', can('aicall.view'), validate(recordingsQuery, 'query'), h(async (req, res) => ok(res, await svc.listRecordings(req.validQuery))));
 aiCallSuperAdminRouter.put('/ai-calling', can('aicall.manage'), validate(configSchema), h(async (req, res) => ok(res, await svc.saveConfig(req.body, req.auth.user.id), 'AI calling settings saved')));

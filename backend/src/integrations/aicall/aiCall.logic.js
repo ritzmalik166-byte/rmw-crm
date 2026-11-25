@@ -7,6 +7,7 @@ import { normalizePhone } from '../../utils/normalize.js';
 export const IST_OFFSET_MS = 330 * 60_000;
 
 export const DEFAULT_CONFIG = Object.freeze({
+  systemOn: true, // master switch: when false, no AI call of any kind is placed (auto, manual, retries)
   enabled: false,
   provider: 'simulator', // simulator | vapi | bolna
   websites: ['MPF', 'RMW', 'CT'], // website codes whose new website-form leads get a call
@@ -51,13 +52,13 @@ export const DEFAULT_CONFIG = Object.freeze({
       openingLine: 'Namaste {name}, this is the automated assistant from Contenaissance, calling about your enquiry on our website. This call is recorded for quality. Is this a good time to talk for two minutes?',
       questions: [
         'What is the name of your company or brand, and what do you do?',
-        'What content do you need: blogs and SEO content, website copy, social media content, video scripts, or a full content strategy?',
-        'What is the main goal: more traffic, more leads, brand awareness or thought leadership?',
-        'Roughly how much content do you need each month?',
-        'Are you working with any writers or an agency right now?',
-        'What monthly budget do you have in mind, roughly?',
-        'When would you like to start?',
-        'When is a good time for our content strategist to call you back?',
+        'What are you looking for: an AI brand film, social media content and reels, an AI-powered ad campaign, a logo or brand identity, or a 3D website?',
+        'What is it for: a product or brand launch, more leads and sales, social media presence, or a new brand look?',
+        'Do you have a deadline or launch date in mind?',
+        'Are you working with any agency or in-house team for this right now?',
+        'What budget do you have in mind for this, roughly?',
+        'Are you the decision maker, or should someone else join the discussion?',
+        'When is a good time for our creative strategist to call you back?',
       ],
     },
   },
