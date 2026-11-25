@@ -1,10 +1,13 @@
 /** Normalise Indian/intl phone numbers to digits; strips +91 / leading 0 for 10-digit Indian numbers. */
 export function normalizePhone(raw) {
   if (raw === null || raw === undefined) return null;
-  let digits = String(raw).replace(/\D/g, '');
+  // A field can hold several numbers ("98xxxxxxxx / 97xxxxxxxx"): keep the first one.
+  const first = String(raw).split(/[,;/|]|\s{2,}|\bor\b/i).map((s) => s.replace(/\D/g, '')).find((d) => d.length >= 6);
+  let digits = first || String(raw).replace(/\D/g, '');
   if (!digits) return null;
   if (digits.length === 12 && digits.startsWith('91')) digits = digits.slice(2);
   else if (digits.length === 11 && digits.startsWith('0')) digits = digits.slice(1);
+  else if (digits.length > 15) digits = /^[6-9]\d{9}/.test(digits) ? digits.slice(0, 10) : digits.slice(0, 15); // fits VARCHAR(20)
   return digits;
 }
 
