@@ -12,6 +12,7 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { query, one } from '../../config/db.js';
 import { env } from '../../config/env.js';
+import { LEAD_SOURCE_TYPES } from '../../config/leadSources.js';
 import { logger } from '../../config/logger.js';
 import { badRequest, conflict, notFound } from '../../utils/errors.js';
 import { audit } from '../../services/auditService.js';
@@ -34,6 +35,7 @@ const SKIP_LABEL = {
   merged: 'Lead was merged into another', junk: 'Lead is marked junk / test', do_not_call: 'Customer asked not to be called',
   invalid_phone: 'No valid Indian mobile number', already_worked: 'The team already started working this lead',
   called_recently: 'This number was called recently from another lead',
+  not_website_lead: 'Only website form leads get an automatic call',
 };
 
 /* ---------------- Config ---------------- */
@@ -75,12 +77,17 @@ async function ineligibility(lead, cfg, { manual = false } = {}) {
   if (!lead) return 'lead_missing';
   if (lead.do_not_call) return 'do_not_call';
   if (!toIndianMobileE164(lead.phone)) return 'invalid_phone';
-  if (env.AI_CALL_TEST_MODE) return manual || cfg.enabled ? null : 'disabled'; // testing: ignore junk / repeat / worked / website rules
+  if (manual && env.AI_CALL_TEST_MODE) return null; // testing: "Call with AI now" works on any lead, junk included
+  if (!manual) {
+    if (!cfg.enabled) return 'disabled';
+    if (!cfg.websites.includes(lead.website_code)) return 'website_off';
+    // Automatic calls only for website form leads: never Meta / landing-page / manual / WhatsApp leads.
+    if (lead.source_type && lead.source_type !== LEAD_SOURCE_TYPES.WEBSITE) return 'not_website_lead';
+    if (env.AI_CALL_TEST_MODE) return null; // testing: ignore junk / repeat / worked rules
+  }
   if (lead.merged_into_lead_id) return 'merged';
   if (lead.junk_reason) return 'junk';
   if (manual) return null;
-  if (!cfg.enabled) return 'disabled';
-  if (!cfg.websites.includes(lead.website_code)) return 'website_off';
   if (cfg.skipIfWorked) {
     const worked = await one(
       `SELECT (? <> 'NEW')
