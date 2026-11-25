@@ -79,6 +79,7 @@ const schema = z.object({
   // AI calling agent (calls new leads a few minutes after they arrive). Provider keys stay here; on/off, hours and script are set in Super Admin → AI calling.
   AI_CALL_WEBHOOK_SECRET: z.string().optional(), // random string; the provider's result webhook must send it (?token= or x-vapi-secret header)
   AI_CALL_RECORDINGS_DIR: z.string().default('storage/ai-call-recordings'), // local copies of call recordings
+  AI_CALL_TEST_MODE: bool(false), // TESTING ONLY: call every new lead, even junk / internal / repeat / already worked
   AI_CALL_ALLOW_SIMULATOR: bool(false), // allow the built-in simulator in production (it never dials; for demos only)
   VAPI_API_KEY: z.string().optional(),
   VAPI_ASSISTANT_ID: z.string().optional(),
