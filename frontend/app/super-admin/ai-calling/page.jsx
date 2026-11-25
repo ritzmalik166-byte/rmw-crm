@@ -8,6 +8,7 @@ import { api, apiMessage } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
 import { formatDateTime, cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { confirmAction } from '@/components/ui/confirm';
 import { Input, Select, Textarea } from '@/components/ui/input';
 import { Field } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -61,9 +62,16 @@ export default function AiCallingPage() {
     onError: (e) => toast.error(apiMessage(e)),
   });
   const togglePower = () => {
-    const turnOn = !data.config.systemOn;
-    if (!turnOn && !window.confirm('Switch OFF AI calling? No calls will be placed (automatic, manual or retries) until you switch it back on.')) return;
-    power.mutate(turnOn);
+    if (data.config.systemOn) {
+      confirmAction({
+        title: 'Switch OFF AI calling?',
+        description: 'No calls will be placed (automatic, manual or retries) until you switch it back on. Queued calls will wait.',
+        confirmText: 'Turn OFF',
+        tone: 'danger',
+      }, () => power.mutate(false));
+    } else {
+      power.mutate(true);
+    }
   };
 
   if (isLoading || (data && !f)) return <div className="space-y-4"><Skeleton className="h-16" /><Skeleton className="h-64" /></div>;
