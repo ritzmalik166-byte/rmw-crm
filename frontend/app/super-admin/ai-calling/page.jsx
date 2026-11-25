@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Bot, PhoneCall, PhoneMissed, Sparkles, Timer, CheckCircle2, AlertTriangle, FlaskConical } from 'lucide-react';
+import { Bot, Power, PhoneCall, PhoneMissed, Sparkles, Timer, CheckCircle2, AlertTriangle, FlaskConical } from 'lucide-react';
 import { api, apiMessage } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
 import { formatDateTime, cn } from '@/lib/utils';
@@ -52,6 +52,20 @@ export default function AiCallingPage() {
     onError: (e) => toast.error(apiMessage(e)),
   });
 
+  const power = useMutation({
+    mutationFn: (systemOn) => api('/super-admin/ai-calling', { method: 'PUT', body: { systemOn } }),
+    onSuccess: (cfg) => {
+      toast.success(cfg?.systemOn ? 'AI calling is ON' : 'AI calling is OFF. No calls will be placed.');
+      setF(null); qc.invalidateQueries({ queryKey: ['super-admin', 'ai-calling'] });
+    },
+    onError: (e) => toast.error(apiMessage(e)),
+  });
+  const togglePower = () => {
+    const turnOn = !data.config.systemOn;
+    if (!turnOn && !window.confirm('Switch OFF AI calling? No calls will be placed (automatic, manual or retries) until you switch it back on.')) return;
+    power.mutate(turnOn);
+  };
+
   if (isLoading || (data && !f)) return <div className="space-y-4"><Skeleton className="h-16" /><Skeleton className="h-64" /></div>;
   if (isError) return <Card><ErrorState error={error} onRetry={refetch} /></Card>;
 
@@ -71,8 +85,31 @@ export default function AiCallingPage() {
       <PageHeader
         title="AI calling agent"
         description="Calls every new lead a few minutes after it arrives, asks the project questions, and saves the recording, transcript and answers on the lead."
-        actions={canEdit && <Button loading={save.isPending} onClick={() => save.mutate()}>Save settings</Button>}
+        actions={canEdit && (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant={data.config.systemOn ? 'destructive' : 'default'}
+              loading={power.isPending}
+              onClick={togglePower}
+              aria-pressed={data.config.systemOn}
+            >
+              <Power className="mr-1.5 h-4 w-4" />{data.config.systemOn ? 'Turn AI calling OFF' : 'Turn AI calling ON'}
+            </Button>
+            <Button variant="outline" loading={save.isPending} onClick={() => save.mutate()}>Save settings</Button>
+          </div>
+        )}
       />
+
+      <div
+        role="status"
+        className={cn('mb-4 flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-[13px] font-medium',
+          data.config.systemOn ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-800')}
+      >
+        <span className={cn('h-2.5 w-2.5 rounded-full', data.config.systemOn ? 'bg-emerald-500' : 'bg-red-500')} aria-hidden />
+        {data.config.systemOn
+          ? 'AI calling system is ON. Calls are placed according to the settings below.'
+          : 'AI calling system is OFF. No calls are placed. Queued calls wait and go out when it is switched back on.'}
+      </div>
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard label="Calls placed (30 days)" value={placed} icon={PhoneCall} />

@@ -34,7 +34,7 @@ const ANSWER_LABELS = [
 
 const duration = (s) => (s == null ? null : s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`);
 
-function CallItem({ call, onCancel, cancelling }) {
+export function CallItem({ call, onCancel, cancelling }) {
   const [showTranscript, setShowTranscript] = useState(false);
   const st = STATUS[call.status] || STATUS.FAILED;
   const Icon = st.icon;
@@ -77,6 +77,7 @@ function CallItem({ call, onCancel, cancelling }) {
         </dl>
       )}
 
+      {/* has_recording is only true for Owner / Super Admin (the server hides it from everyone else). */}
       {call.has_recording && (
         // eslint-disable-next-line jsx-a11y/media-has-caption
         <audio controls preload="none" src={`/api/crm/ai-calls/${call.id}/recording`} className="mt-3 h-10 w-full" aria-label="Call recording" />
