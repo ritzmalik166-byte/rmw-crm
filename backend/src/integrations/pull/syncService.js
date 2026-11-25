@@ -115,7 +115,7 @@ export async function syncWebsite(code, { full = false } = {}) {
         if (result.errors.length < 10) result.errors.push({ id: row?.id ?? row?.externalId ?? null, error: err.message });
       }
     }
-    await query('UPDATE website_integrations SET last_received_at = NOW(3), last_success_at = NOW(3), success_count = success_count + ? WHERE website_id = ?', [result.created, website.id]);
+    await query('UPDATE website_integrations SET last_received_at = NOW(3), last_success_at = NOW(3), last_error = NULL, success_count = success_count + ? WHERE website_id = ?', [result.created, website.id]);
   } catch (err) {
     await query('UPDATE website_integrations SET last_failure_at = NOW(3), last_error = ?, failure_count = failure_count + 1 WHERE website_id = ?', [`Sync: ${err.message}`.slice(0, 1000), website.id]);
     throw err;
