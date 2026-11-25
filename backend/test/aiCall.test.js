@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   resolveConfig, inCallingWindow, nextWindowStart, plannedCallTime, toIndianMobileE164, fillTemplate, retryDelay,
-  normalizeAnswers, deriveOutcome, statusFromEnd, transcriptText, DEFAULT_CONFIG,
+  normalizeAnswers, deriveOutcome, statusFromEnd, transcriptText, DEFAULT_CONFIG, profileFor,
 } from '../src/integrations/aicall/aiCall.logic.js';
 import { PROVIDERS } from '../src/integrations/aicall/providers.js';
 
@@ -60,6 +60,21 @@ test('answers are normalised from different provider field names', () => {
 
 test('Bolna Auto Build field names are understood', () => {
   assert.deepEqual(normalizeAnswers({ bhk_type: '3 BHK', site_visit_interest: 'yes, Sunday' }), { configuration: '3 BHK', siteVisit: 'yes, Sunday' });
+});
+
+test('each website can have its own agent and script', () => {
+  const cfg = resolveConfig({ profiles: { RMW: { agentId: 'rmw-agent-1', questions: ['Which service?'], openingLine: '' } } });
+  assert.deepEqual(profileFor(cfg, 'RMW'), { agentId: 'rmw-agent-1', openingLine: cfg.openingLine, questions: ['Which service?'] });
+  assert.equal(profileFor(cfg, 'MPF').agentId, null);
+  assert.deepEqual(profileFor(cfg, 'MPF').questions, cfg.questions);
+  assert.equal(resolveConfig({ profiles: { RMW: { agentId: 'bad id;' } } }).profiles.RMW.agentId, '');
+});
+
+test('B2B answers from RMW calls are understood', () => {
+  assert.deepEqual(
+    normalizeAnswers({ service_interest: 'SEO', company_name: 'Acme', monthly_budget: '50k', meeting_time: 'Monday 11 am' }),
+    { service: 'SEO', company: 'Acme', budget: '50k', callbackTime: 'Monday 11 am' },
+  );
 });
 
 test('outcome: opt-out wins, then interest, then callback', () => {

@@ -40,9 +40,9 @@ const vapi = {
   label: 'Vapi',
   missing: () => ['VAPI_API_KEY', 'VAPI_ASSISTANT_ID', 'VAPI_PHONE_NUMBER_ID'].filter((k) => !env[k]),
   configured() { return this.missing().length === 0; },
-  async startCall({ aiCallId, leadId, to, name, variables }) {
+  async startCall({ aiCallId, leadId, to, name, variables, agentId }) {
     const r = await postJson('https://api.vapi.ai/call', env.VAPI_API_KEY, {
-      assistantId: env.VAPI_ASSISTANT_ID,
+      assistantId: agentId || env.VAPI_ASSISTANT_ID,
       phoneNumberId: env.VAPI_PHONE_NUMBER_ID,
       customer: { number: to, ...(name ? { name: String(name).slice(0, 40) } : {}) },
       assistantOverrides: { variableValues: variables },
@@ -84,9 +84,9 @@ const bolna = {
   label: 'Bolna',
   missing: () => ['BOLNA_API_KEY', 'BOLNA_AGENT_ID'].filter((k) => !env[k]),
   configured() { return this.missing().length === 0; },
-  async startCall({ aiCallId, leadId, to, variables }) {
+  async startCall({ aiCallId, leadId, to, variables, agentId }) {
     const r = await postJson('https://api.bolna.ai/call', env.BOLNA_API_KEY, {
-      agent_id: env.BOLNA_AGENT_ID,
+      agent_id: agentId || env.BOLNA_AGENT_ID,
       recipient_phone_number: to,
       ...(env.BOLNA_FROM_NUMBER ? { from_phone_number: env.BOLNA_FROM_NUMBER } : {}),
       user_data: { ...variables, ai_call_id: String(aiCallId), lead_id: String(leadId) },

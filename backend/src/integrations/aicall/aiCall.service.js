@@ -21,7 +21,7 @@ import { userRepo } from '../../repositories/userRepo.js';
 import { getProvider, providerList } from './providers.js';
 import {
   resolveConfig, plannedCallTime, inCallingWindow, nextWindowStart, toIndianMobileE164, fillTemplate, retryDelay,
-  normalizeAnswers, deriveOutcome, statusFromEnd,
+  normalizeAnswers, deriveOutcome, statusFromEnd, profileFor,
 } from './aiCall.logic.js';
 
 const ACTIVE = ['SCHEDULED', 'DIALING', 'IN_PROGRESS'];
@@ -193,6 +193,7 @@ async function claimAndPlace(callId) {
   }
 
   const brand = lead.website_name || lead.website_code;
+  const profile = profileFor(cfg, lead.website_code);
   const vars = {
     lead_name: lead.name || '',
     first_name: String(lead.name || '').trim().split(/\s+/)[0] || '',
@@ -201,15 +202,16 @@ async function claimAndPlace(callId) {
     city: lead.location || '',
     enquiry_message: String(lead.message || '').slice(0, 300),
     language: cfg.language,
-    questions: cfg.questions.map((q, i) => `${i + 1}. ${q}`).join('\n'),
+    questions: profile.questions.map((q, i) => `${i + 1}. ${q}`).join('\n'),
+    website_code: lead.website_code,
     call_id: String(callId),
   };
-  vars.opening_line = fillTemplate(cfg.openingLine, { name: vars.first_name, brand, project: vars.project, city: vars.city });
+  vars.opening_line = fillTemplate(profile.openingLine, { name: vars.first_name, brand, project: vars.project, city: vars.city });
 
   await query('UPDATE ai_calls SET provider = ? WHERE id = ?', [provider.id, callId]);
   try {
     const { providerCallId } = await provider.startCall(
-      { aiCallId: callId, leadId: lead.id, attempt: call.attempt, to: call.to_phone, name: lead.name, variables: vars },
+      { aiCallId: callId, leadId: lead.id, attempt: call.attempt, to: call.to_phone, name: lead.name, variables: vars, agentId: profile.agentId },
       (result) => handleResult(provider.id, result).catch((e) => logger.error({ err: e.message }, 'AI call result failed')),
     );
     await query('UPDATE ai_calls SET provider_call_id = ? WHERE id = ?', [providerCallId, callId]);

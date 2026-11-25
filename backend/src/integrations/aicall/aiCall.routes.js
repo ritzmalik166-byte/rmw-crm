@@ -60,6 +60,11 @@ const configSchema = z.object({
   openingLine: z.string().trim().min(10).max(600),
   questions: z.array(z.string().trim().min(3).max(300)).min(1).max(20),
   language: z.enum(['hinglish', 'hindi', 'english']),
+  profiles: z.record(z.string().regex(/^[A-Z0-9_]{1,20}$/), z.object({
+    agentId: z.string().trim().max(100).regex(/^[\w-]*$/, 'Agent ID: letters, numbers and dashes only').optional(),
+    openingLine: z.string().trim().max(600).optional(),
+    questions: z.array(z.string().trim().min(3).max(300)).max(20).optional(),
+  })),
 }).partial();
 
 export const aiCallSuperAdminRouter = Router();

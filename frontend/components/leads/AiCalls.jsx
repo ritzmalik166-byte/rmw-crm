@@ -26,6 +26,8 @@ const STATUS = {
 const OUTCOME_VARIANT = { INTERESTED: 'success', CALLBACK: 'info', NOT_INTERESTED: 'secondary', WRONG_NUMBER: 'warning', DO_NOT_CALL: 'danger', UNCLEAR: 'secondary' };
 
 const ANSWER_LABELS = [
+  ['company', 'Company'], ['service', 'Service needed'], ['goal', 'Goal'], ['currentMarketing', 'Current marketing'],
+  ['decisionMaker', 'Decision maker'], ['website', 'Website'],
   ['configuration', 'Configuration'], ['budget', 'Budget'], ['location', 'Preferred location'], ['purpose', 'Purpose'],
   ['timeline', 'Buying timeline'], ['siteVisit', 'Site visit'], ['callbackTime', 'Call back'], ['language', 'Language'], ['notes', 'Notes'],
 ];
