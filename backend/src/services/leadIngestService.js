@@ -154,15 +154,17 @@ export async function upsertCanonicalLead(website, c, { silent = false, assignme
     await audit('LEAD_CREATED', { entityType: 'lead', entityId: result.leadId, meta: { website: website.code, externalLeadId, via: 'integration', sourceType } });
     if (!isCareer) await scheduleForNewLead(result.leadId); // AI calling agent (no-op when switched off)
     const kind = isCareer ? 'career application' : 'lead';
-    const summary = { id: result.leadId, externalLeadId, website: website.code, name: c.name, interest: c.interest, kind, sourceType };
+    // Source-specific wording (e.g. "New Meta lead · Eldeco Group") is sent with the live event too, so the
+    // on-screen popup matches the notification instead of a generic "New MPF lead".
+    const title = c.notify?.title || `New ${website.code} ${kind}`;
+    const body = c.notify?.body || `${c.name || 'Unnamed'}${c.interest ? ` · ${c.interest}` : ''}`;
+    const summary = { id: result.leadId, externalLeadId, website: website.code, name: c.name, interest: c.interest, kind, sourceType, title, body };
     if (!isCareer) emitToWebsite(website.id, EVENTS.NEW_LEAD, summary);
     const watchers = await userRepo.usersWithPermission('lead.assign', website.id);
     if (isCareer) {
       const allowed = new Set((await userRepo.usersWithPermission('career.view', website.id)).map((w) => w.id));
       watchers.splice(0, watchers.length, ...watchers.filter((w) => allowed.has(w.id)));
     }
-    const title = c.notify?.title || `New ${website.code} ${kind}`;
-    const body = c.notify?.body || `${c.name || 'Unnamed'}${c.interest ? ` · ${c.interest}` : ''}`;
     await notificationService.notifyMany(watchers.map((w) => w.id).filter((id) => id !== result.assignee), {
       type: 'NEW_LEAD', title, body, link: `/crm/leads/${result.leadId}`, data: { leadId: result.leadId, sourceType },
     });
