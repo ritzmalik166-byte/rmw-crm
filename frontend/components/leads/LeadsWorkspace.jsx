@@ -14,6 +14,7 @@ import { PIPELINES, PipelineLogo, usePipelineOrder } from '@/lib/pipelines';
 import { cn, formatDateTime, timeAgo, toQuery } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/input';
+import { SearchInput } from '@/components/ui/search-input';
 import { DateRangeFilter, FILTER_MIN_DATE, filterMaxDate, useLeadsRange } from '@/components/ui/date-range';
 import { Checkbox, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/controls';
 import { StatusBadge, WebsiteBadge, Badge } from '@/components/ui/badge';
@@ -434,8 +435,13 @@ function LeadsWorkspaceV2({ pipelineKey = 'all', channel = null, title = null, d
               ))}
             </div>
             <div className="relative order-1 basis-full sm:order-none sm:min-w-[200px] sm:flex-1 sm:basis-auto">
-              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input className="pl-8" placeholder={channel === 'meta' ? 'Search name, phone, email, form, campaign…' : 'Search name, phone, email, lead ID…'} value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search leads" />
+              <SearchInput
+                shortcut
+                value={search}
+                onChange={setSearch}
+                placeholder={channel === 'meta' ? 'Search name, phone, email, form, campaign…' : 'Search name, phone, email, lead ID…'}
+                aria-label="Search leads"
+              />
             </div>
             <div className="order-3 grid w-full grid-cols-3 gap-2 sm:order-none sm:flex sm:w-auto sm:flex-wrap sm:items-center">
             {has('status') && (

@@ -216,7 +216,7 @@ export function SessionsTable() {
   return (
     <>
       <PageHeader title="Sessions & security" description="Active sessions across all users. Terminating a session signs that device out immediately and is audit-logged." />
-      <Card className="mb-4 p-3"><div className="relative w-full sm:max-w-sm"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input type="search" className="pl-8" placeholder="Search user, email or IP" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} /></div></Card>
+      <Card className="mb-4 p-3"><div className="relative w-full sm:max-w-sm"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input type="search" className="pl-8 lg:pl-8" placeholder="Search user, email or IP" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} /></div></Card>
       <Card className="overflow-hidden">
         {isLoading ? <TableSkeleton cols={6} /> : isError ? <ErrorState error={error} onRetry={refetch} /> : !data.rows.length ? <EmptyState title="No active sessions" /> : (
           <>

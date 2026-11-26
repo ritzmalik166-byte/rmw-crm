@@ -62,7 +62,7 @@ export function MetaPagesManager({ open, onOpenChange }) {
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-0 flex-1">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <Input className="pl-8" placeholder="Search Pages" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Input className="pl-8 lg:pl-8" placeholder="Search Pages" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <span className="text-[13px] text-slate-600">{activeCount} of {d?.pages?.length ?? 0} active</span>
           <Button variant="outline" loading={refresh.isPending} onClick={() => refresh.mutate()} title="Fetch Pages again from Meta (e.g. after you were given access to a new Page)">

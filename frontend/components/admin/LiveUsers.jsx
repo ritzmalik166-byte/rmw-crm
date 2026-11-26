@@ -129,7 +129,7 @@ export function LiveUsers() {
       </div>
 
       <Card className="mb-4 grid grid-cols-2 gap-2 p-3 sm:flex sm:flex-wrap sm:items-center">
-        <div className="relative col-span-2 w-full sm:max-w-sm"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input type="search" className="pl-8" placeholder="Search name or email" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+        <div className="relative col-span-2 w-full sm:max-w-sm"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input type="search" className="pl-8 lg:pl-8" placeholder="Search name or email" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
         <Select className="w-full sm:w-36" aria-label="Status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="">All statuses</option><option value="online">Online</option><option value="idle">Idle</option><option value="offline">Offline</option>
         </Select>

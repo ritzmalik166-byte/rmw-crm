@@ -289,7 +289,7 @@ export default function CallRecordingsPage() {
           <div className="space-y-2 border-b border-slate-100 p-3">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name or phone" className="pl-9" aria-label="Search recordings" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name or phone" className="pl-9 lg:pl-9" aria-label="Search recordings" />
             </div>
             <Select value={outcome} onChange={(e) => { setOutcome(e.target.value); setPage(1); setSelectedId(null); }} aria-label="Filter by outcome">
               {OUTCOMES.map(([v, label]) => <option key={v} value={v}>{label}</option>)}

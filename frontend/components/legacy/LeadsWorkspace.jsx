@@ -268,7 +268,7 @@ export function LeadsWorkspace({ pipelineKey = 'all', channel = null, title = nu
             </div>
             <div className="relative order-1 basis-full sm:order-none sm:min-w-[220px] sm:flex-1 sm:basis-auto">
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input className="pl-8" placeholder={channel === 'meta' ? 'Search name, phone, email, form name, campaign…' : 'Search name, phone, email, lead ID…'} value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search leads" />
+              <Input className="pl-8 lg:pl-8" placeholder={channel === 'meta' ? 'Search name, phone, email, form name, campaign…' : 'Search name, phone, email, lead ID…'} value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search leads" />
             </div>
             {has('status') && (
               <Select className="order-3 min-w-0 basis-[calc(50%-4px)] sm:order-none sm:w-36 sm:basis-auto" value={filters.statusId} onChange={(e) => setFilter({ statusId: e.target.value })} aria-label="Status">

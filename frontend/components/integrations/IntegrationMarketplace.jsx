@@ -77,7 +77,7 @@ export function IntegrationMarketplace({ open, onOpenChange, onManageMeta }) {
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-0 flex-1">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <Input className="pl-8" placeholder="Search integrations" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Input className="pl-8 lg:pl-8" placeholder="Search integrations" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <div className="flex flex-wrap gap-1">
             {CATEGORIES.map((c) => (

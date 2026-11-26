@@ -277,7 +277,7 @@ export function UsersManager({ superAdmin = false }) {
     <>
       <PageHeader title={superAdmin ? 'Users & admins' : 'Users'} description="Manage accounts, roles and website access." actions={can('user.create') && <Button onClick={() => setDialog({ type: 'create' })}><Plus />Create user</Button>} />
       <Card className="mb-4 grid grid-cols-1 gap-2 p-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="relative sm:col-span-2 lg:col-span-1"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-8" placeholder="Search name, email, mobile" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} /></div>
+        <div className="relative sm:col-span-2 lg:col-span-1"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-8 lg:pl-8" placeholder="Search name, email, mobile" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} /></div>
         <Select value={filters.status} onChange={(e) => { setFilters({ ...filters, status: e.target.value }); setPage(1); }} aria-label="Status">
           <option value="">All statuses</option>{['ACTIVE', 'PENDING_APPROVAL', 'DISABLED', 'SUSPENDED', 'BLOCKED', 'REJECTED'].map((s) => <option key={s} value={s}>{s.replace('_', ' ').toLowerCase()}</option>)}
         </Select>
