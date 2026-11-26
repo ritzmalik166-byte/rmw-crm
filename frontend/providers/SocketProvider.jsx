@@ -63,7 +63,12 @@ export function SocketProvider({ children }) {
       markNew(badgeKeyFor(l));
       invalidateLeads();
       qc.invalidateQueries({ queryKey: ['pipelines'] });
-      toast.info(`New ${l.website} ${l.kind || 'lead'}`, { duration: 10_000, description: l.name || l.externalLeadId, action: { label: 'Open', onClick: () => router.push(`/crm/leads/${l.id}`) } });
+      // The server sends the source-specific title (e.g. "New Meta lead · Eldeco Group (Instagram)").
+      toast.info(l.title || `New ${l.website} ${l.kind || 'lead'}`, {
+        duration: 10_000,
+        description: l.title ? (l.body || l.name || l.externalLeadId) : (l.name || l.externalLeadId),
+        action: { label: 'Open', onClick: () => router.push(`/crm/leads/${l.id}`) },
+      });
     });
     socket.on('LEAD_ASSIGNED', (l) => invalidateLeads(l.id));
     socket.on('LEAD_REASSIGNED', (l) => invalidateLeads(l.id));

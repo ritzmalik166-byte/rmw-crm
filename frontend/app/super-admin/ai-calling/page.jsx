@@ -14,10 +14,79 @@ import { Field } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge, WebsiteBadge } from '@/components/ui/badge';
 import { Switch, Checkbox } from '@/components/ui/controls';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ErrorState, PageHeader, Skeleton, StatCard, EmptyState } from '@/components/ui/feedback';
 
 const STATUS_VARIANT = { COMPLETED: 'success', NO_ANSWER: 'warning', BUSY: 'warning', FAILED: 'danger', SCHEDULED: 'info', DIALING: 'info', IN_PROGRESS: 'info', CANCELLED: 'secondary', SKIPPED: 'secondary' };
 const titleOf = (s) => s.charAt(0) + s.slice(1).toLowerCase().replace(/_/g, ' ');
+
+/** Confirmation shown before switching AI calling ON: what will happen, blockers, and a consent tick. */
+function TurnOnDialog({ open, onOpenChange, config, providers, loading, onConfirm }) {
+  const [agree, setAgree] = useState(false);
+  useEffect(() => { if (open) setAgree(false); }, [open]);
+  const provider = providers.find((p) => p.id === config.provider);
+  const notReady = provider && !provider.configured;
+  const simulated = config.provider === 'simulator';
+  const rows = [
+    ['Calling service', provider?.label || config.provider],
+    ['Automatic calls for new leads', config.enabled ? `On, ${config.delayMinutes} min after the lead arrives` : 'Off (only "Call with AI now")'],
+    ['Websites', config.websites?.length ? config.websites.join(', ') : 'None selected'],
+    ['Calling hours (IST)', `${config.windowStart} to ${config.windowEnd}`],
+    ['Retries', `${config.maxAttempts} attempts${config.retryMinutes?.length ? `, after ${config.retryMinutes.join(' / ')} min` : ''}`],
+  ];
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <div className="mb-1 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
+            <Power className="h-5 w-5" />
+          </div>
+          <DialogTitle>Turn ON AI calling?</DialogTitle>
+          <DialogDescription>
+            {simulated
+              ? 'The Simulator is selected, so no one will actually be dialled. Results are sample data.'
+              : 'The AI agent will start placing real phone calls to leads using these settings.'}
+          </DialogDescription>
+        </DialogHeader>
+
+        <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200 text-[13px]">
+          {rows.map(([k, v]) => (
+            <div key={k} className="flex items-start justify-between gap-4 px-3.5 py-2.5">
+              <dt className="text-slate-500">{k}</dt>
+              <dd className="text-right font-medium text-slate-800">{v}</dd>
+            </div>
+          ))}
+        </dl>
+
+        {notReady && (
+          <p className="flex gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-[12.5px] text-red-800">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            {provider.label} is not set up on the server (missing {provider.missing.join(', ')}). Calls will fail until its keys are added.
+          </p>
+        )}
+        {simulated && (
+          <p className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[12.5px] text-amber-800">
+            <FlaskConical className="mt-0.5 h-4 w-4 shrink-0" />Pick Bolna or Vapi and save settings first if you want real calls.
+          </p>
+        )}
+
+        {!simulated && (
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-lg bg-slate-50 p-3 text-[12.5px] text-slate-700">
+            <Checkbox checked={agree} onCheckedChange={(v) => setAgree(v === true)} className="mt-0.5" />
+            <span>I confirm leads have consented to automated calls, and the questions and calling hours above are correct.</span>
+          </label>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button loading={loading} disabled={(!simulated && !agree) || notReady} onClick={onConfirm}>
+            <Power className="mr-1.5 h-4 w-4" />Turn ON
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function AiCallingPage() {
   const { can } = useAuth();
@@ -26,6 +95,7 @@ export default function AiCallingPage() {
   const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: ['super-admin', 'ai-calling'], queryFn: () => api('/super-admin/ai-calling'), refetchInterval: 30_000 });
   const { data: pub } = useQuery({ queryKey: ['public-config'], queryFn: () => api('/auth/public-config'), staleTime: 300_000 });
   const [f, setF] = useState(null);
+  const [onOpen, setOnOpen] = useState(false);
   useEffect(() => {
     if (data && !f) {
       const profiles = Object.fromEntries(Object.entries(data.config.profiles || {}).map(([code, p]) => [code, { agentId: p.agentId || '', openingLine: p.openingLine || '', questionsText: (p.questions || []).join('\n') }]));
@@ -57,7 +127,7 @@ export default function AiCallingPage() {
     mutationFn: (systemOn) => api('/super-admin/ai-calling', { method: 'PUT', body: { systemOn } }),
     onSuccess: (cfg) => {
       toast.success(cfg?.systemOn ? 'AI calling is ON' : 'AI calling is OFF. No calls will be placed.');
-      setF(null); qc.invalidateQueries({ queryKey: ['super-admin', 'ai-calling'] });
+      setOnOpen(false); setF(null); qc.invalidateQueries({ queryKey: ['super-admin', 'ai-calling'] });
     },
     onError: (e) => toast.error(apiMessage(e)),
   });
@@ -70,7 +140,7 @@ export default function AiCallingPage() {
         tone: 'danger',
       }, () => power.mutate(false));
     } else {
-      power.mutate(true);
+      setOnOpen(true);
     }
   };
 
@@ -90,6 +160,7 @@ export default function AiCallingPage() {
 
   return (
     <>
+      <TurnOnDialog open={onOpen} onOpenChange={setOnOpen} config={data.config} providers={data.providers} loading={power.isPending} onConfirm={() => power.mutate(true)} />
       <PageHeader
         title="AI calling agent"
         description="Calls every new lead a few minutes after it arrives, asks the project questions, and saves the recording, transcript and answers on the lead."
