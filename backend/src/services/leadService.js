@@ -200,6 +200,11 @@ export const leadService = {
       return r.insertId;
     });
     await audit('LEAD_CREATED', { actorId: req.auth.user.id, entityType: 'lead', entityId: id, req, meta: { manual: true } });
+    if (env.AI_CALL_LOCAL_MODE) {
+      // Local testing: call the person on this hand-added lead (dynamic import avoids a circular import).
+      const { scheduleForManualLead } = await import('../integrations/aicall/aiCall.service.js');
+      await scheduleForManualLead(id, req.auth.user.id);
+    }
     return { id };
   },
 

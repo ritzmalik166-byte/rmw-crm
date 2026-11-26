@@ -115,6 +115,7 @@ const activeCallFor = (leadId) => one(`SELECT id, status, scheduled_at FROM ai_c
 
 /** Called right after a new lead is stored. Never throws: a calling problem must not break lead intake. */
 export async function scheduleForNewLead(leadId) {
+  if (env.AI_CALL_LOCAL_MODE) return null; // local testing: never auto-call website / Meta / synced leads
   try {
     const cfg = await getConfig();
     if (!cfg.systemOn || !cfg.enabled) return null;
@@ -129,6 +130,36 @@ export async function scheduleForNewLead(leadId) {
     return r.insertId;
   } catch (err) {
     logger.error({ leadId, err: err.message }, 'AI call scheduling failed');
+    return null;
+  }
+}
+
+/**
+ * LOCAL TESTING ONLY (AI_CALL_LOCAL_MODE): a lead added by hand in the CRM is called right away (calling hours
+ * still apply). Website, Meta and synced leads are never auto-called in this mode. Never throws.
+ */
+export async function scheduleForManualLead(leadId, userId) {
+  if (!env.AI_CALL_LOCAL_MODE) return null;
+  try {
+    const cfg = await getConfig();
+    if (!cfg.systemOn) { logger.info({ leadId }, 'Local mode: AI calling is switched off, not calling'); return null; }
+    if (!getProvider(cfg.provider).configured()) { logger.warn({ leadId, provider: cfg.provider }, 'Local mode: provider not configured'); return null; }
+    const lead = await loadLead(leadId);
+    const reason = await ineligibility(lead, cfg, { manual: true });
+    if (reason) { logger.info({ leadId, reason }, 'Local mode: lead not called'); return null; }
+    if (await activeCallFor(leadId)) return null;
+    const now = new Date();
+    const at = inCallingWindow(now, cfg.windowStart, cfg.windowEnd) ? now : nextWindowStart(now, cfg.windowStart);
+    const r = await query(
+      "INSERT INTO ai_calls (lead_id, attempt, status, trigger_type, scheduled_at, to_phone, created_by) VALUES (?, 1, 'SCHEDULED', 'MANUAL', ?, ?, ?)",
+      [leadId, at, toIndianMobileE164(lead.phone), userId],
+    );
+    await query("INSERT INTO lead_activities (lead_id, user_id, type, meta) VALUES (?, ?, 'AI_CALL_REQUESTED', ?)", [leadId, userId, JSON.stringify({ callId: r.insertId, scheduledAt: at, localMode: true })]);
+    if (at === now) setImmediate(() => claimAndPlace(r.insertId).catch((e) => logger.error({ err: e.message }, 'AI call start failed')));
+    logger.info({ leadId, callId: r.insertId, scheduledAt: at }, 'Local mode: AI call scheduled for manual lead');
+    return r.insertId;
+  } catch (err) {
+    logger.error({ leadId, err: err.message }, 'Local mode: AI call scheduling failed');
     return null;
   }
 }
@@ -166,6 +197,7 @@ export async function cancelCall(req, callId) {
 
 /* ---------------- Sweep: place due calls ---------------- */
 export async function runAiCallSweep() {
+  await reconcileFromProvider().catch((e) => logger.warn({ err: e.message }, 'AI call reconcile failed'));
   await query(
     `UPDATE ai_calls SET status = 'FAILED', ended_at = NOW(3), error = 'No result received from the provider within 30 minutes'
      WHERE status IN ('DIALING','IN_PROGRESS') AND updated_at < NOW(3) - INTERVAL 30 MINUTE`,
@@ -251,7 +283,28 @@ export async function handleResult(providerId, r) {
   }
   if (!call) { logger.warn({ providerId, providerCallId: r.providerCallId }, 'AI call result for an unknown call'); return false; }
   const open = ['DIALING', 'IN_PROGRESS'].includes(call.status) || (call.status === 'FAILED' && /^No result received/.test(call.error || ''));
-  if (!open) return true; // already applied (providers retry webhooks)
+  if (!open) {
+    // Already applied (providers retry webhooks). Bolna often sends the recording URL only in a later
+    // webhook or once the execution is fetched, so still pick up a recording we don't have yet.
+    if (r.final && r.recordingUrl && !call.recording_url && !call.recording_path) await attachRecording(call.id, r.recordingUrl);
+    // A result fetched before the provider finished processing can be empty. Fill whatever is still missing
+    // (never overwrite what we already have).
+    if (r.final && call.status === 'COMPLETED') {
+      const answers = normalizeAnswers(r.answers);
+      const hasAnswers = Object.keys(answers).length > 0;
+      await query(
+        `UPDATE ai_calls SET
+           duration_seconds = COALESCE(duration_seconds, ?), started_at = COALESCE(started_at, ?), ended_at = COALESCE(ended_at, ?),
+           summary = COALESCE(summary, ?), transcript = COALESCE(transcript, ?), extracted = COALESCE(extracted, ?),
+           outcome = COALESCE(outcome, ?)
+         WHERE id = ?`,
+        [r.durationSeconds ?? null, r.startedAt || null, r.endedAt || null,
+          r.summary ? String(r.summary).slice(0, 5000) : null, r.transcript ? String(r.transcript).slice(0, 200_000) : null,
+          hasAnswers ? JSON.stringify(answers) : null, hasAnswers ? deriveOutcome(answers) : null, call.id],
+      );
+    }
+    return true;
+  }
 
   if (!r.final) {
     if (r.inProgress) await query("UPDATE ai_calls SET status = 'IN_PROGRESS', started_at = COALESCE(started_at, NOW(3)), provider_call_id = COALESCE(provider_call_id, ?) WHERE id = ?", [String(r.providerCallId), call.id]);
@@ -325,6 +378,46 @@ async function afterCall(call, { status, outcome, answers, summary }) {
   }
 }
 
+/* ---------------- Pull results from the provider API ---------------- */
+// Webhooks can be missed or arrive before the recording is ready. For providers with an API lookup (Bolna),
+// fetch (a) calls still open after 2 minutes and (b) finished calls from the last 48 h that have no recording.
+async function reconcileFromProvider() {
+  const provider = getProvider('bolna');
+  if (!provider.configured()) return;
+  const rows = await query(
+    `SELECT id, provider_call_id FROM ai_calls
+      WHERE provider = 'bolna' AND provider_call_id IS NOT NULL AND (
+        (status IN ('DIALING','IN_PROGRESS') AND updated_at < NOW(3) - INTERVAL 2 MINUTE)
+        OR (status = 'FAILED' AND error LIKE 'No result received%' AND ended_at > NOW(3) - INTERVAL 48 HOUR)
+        OR (status IN ('COMPLETED','NO_ANSWER','BUSY') AND recording_url IS NULL AND recording_path IS NULL
+            AND ended_at > NOW(3) - INTERVAL 48 HOUR
+            AND (COALESCE(duration_seconds, 0) > 0 OR (status = 'COMPLETED' AND duration_seconds IS NULL))))
+      ORDER BY id DESC LIMIT 20`,
+  );
+  for (const row of rows) {
+    try {
+      const r = await provider.fetchResult(row.provider_call_id);
+      if (r?.final) await handleResult('bolna', r);
+    } catch (err) { logger.warn({ callId: row.id, err: err.message }, 'Bolna execution fetch failed'); }
+  }
+}
+
+/** Manual backfill for one call (e.g. from an admin action or a script). */
+export async function refreshFromProvider(callId) {
+  const call = await one('SELECT id, provider, provider_call_id FROM ai_calls WHERE id = ?', [callId]);
+  if (!call?.provider_call_id) throw notFound('Call not found or not placed with a provider');
+  const provider = getProvider(call.provider);
+  if (!provider.fetchResult) throw badRequest('This provider has no result lookup');
+  const r = await provider.fetchResult(call.provider_call_id);
+  if (r?.final) await handleResult(call.provider, r);
+  return one('SELECT id, status, recording_url, recording_path FROM ai_calls WHERE id = ?', [callId]);
+}
+
+async function attachRecording(callId, url) {
+  await query('UPDATE ai_calls SET recording_url = ? WHERE id = ? AND recording_url IS NULL', [String(url).slice(0, 1000), callId]);
+  saveRecording(callId, url).catch((e) => logger.warn({ callId, err: e.message }, 'Recording download failed'));
+}
+
 /* ---------------- Recordings ---------------- */
 const recordingsDir = () => path.resolve(process.cwd(), env.AI_CALL_RECORDINGS_DIR);
 const EXT = { 'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/wave': 'wav', 'audio/ogg': 'ogg', 'audio/webm': 'webm', 'audio/mp4': 'm4a' };
@@ -394,8 +487,9 @@ export async function listForLead(req, leadId) {
 }
 
 /** Super Admin → Call recordings: every call that has a recording, newest first. */
-export async function listRecordings({ page = 1, q, outcome }) {
+export async function listRecordings({ page = 1, q, outcome, website }) {
   const PAGE = 25;
+  // Filters shared by the list, the per-website tab counts and the summary (the website filter is applied separately).
   const where = ['(c.recording_path IS NOT NULL OR c.recording_url IS NOT NULL)'];
   const args = [];
   if (q) {
@@ -403,19 +497,35 @@ export async function listRecordings({ page = 1, q, outcome }) {
     args.push(`%${q}%`, `%${q.replace(/\D/g, '') || q}%`);
   }
   if (outcome) { where.push('c.outcome = ?'); args.push(outcome); }
-  const sqlWhere = where.join(' AND ');
+  const baseWhere = where.join(' AND ');
+  const listWhere = website ? `${baseWhere} AND w.code = ?` : baseWhere;
+  const listArgs = website ? [...args, website] : args;
   const from = 'FROM ai_calls c JOIN leads l ON l.id = c.lead_id JOIN websites w ON w.id = l.website_id';
-  const [rows, [{ n }]] = await Promise.all([
+  const [rows, [summary], websites] = await Promise.all([
     query(
-      `SELECT c.*, l.name AS lead_name, w.code AS website_code ${from} WHERE ${sqlWhere}
+      `SELECT c.*, l.name AS lead_name, w.code AS website_code, w.name AS website_name ${from} WHERE ${listWhere}
        ORDER BY COALESCE(c.started_at, c.created_at) DESC, c.id DESC LIMIT ? OFFSET ?`,
-      [...args, PAGE, (page - 1) * PAGE],
+      [...listArgs, PAGE, (page - 1) * PAGE],
     ),
-    query(`SELECT COUNT(*) n ${from} WHERE ${sqlWhere}`, args),
+    query(
+      `SELECT COUNT(*) n, COALESCE(SUM(c.duration_seconds), 0) secs,
+              SUM(c.outcome IN ('INTERESTED','CALLBACK')) positive, COUNT(DISTINCT c.lead_id) leads
+       ${from} WHERE ${listWhere}`,
+      listArgs,
+    ),
+    query(
+      `SELECT w.code, w.name, COUNT(c.id) n FROM websites w
+       LEFT JOIN leads l ON l.website_id = w.id
+       LEFT JOIN ai_calls c ON c.lead_id = l.id AND ${baseWhere}
+       GROUP BY w.id, w.code, w.name ORDER BY w.id`,
+      args,
+    ),
   ]);
   return {
-    calls: rows.map((c) => ({ ...publicRow(c), to_phone: c.to_phone, lead_name: c.lead_name, website_code: c.website_code })),
-    page, pageSize: PAGE, total: Number(n),
+    calls: rows.map((c) => ({ ...publicRow(c), to_phone: c.to_phone, lead_name: c.lead_name, website_code: c.website_code, website_name: c.website_name })),
+    page, pageSize: PAGE, total: Number(summary.n),
+    summary: { calls: Number(summary.n), seconds: Number(summary.secs), positive: Number(summary.positive || 0), leads: Number(summary.leads) },
+    websites: websites.map((w) => ({ code: w.code, name: w.name, count: Number(w.n) })),
   };
 }
 

@@ -81,6 +81,7 @@ const schema = z.object({
   AI_CALL_RECORDINGS_DIR: z.string().default('storage/ai-call-recordings'), // local copies of call recordings
   AI_CALL_TEST_MODE: bool(false), // TESTING ONLY: call every new lead, even junk / internal / repeat / already worked
   AI_CALL_ALLOW_SIMULATOR: bool(false), // allow the built-in simulator in production (it never dials; for demos only)
+  AI_CALL_LOCAL_MODE: bool(false), // LOCAL TESTING ONLY: auto-call only leads added by hand in the CRM; never website / Meta / synced leads
   VAPI_API_KEY: z.string().optional(),
   VAPI_ASSISTANT_ID: z.string().optional(),
   VAPI_PHONE_NUMBER_ID: z.string().optional(), // the Indian number (SIP trunk from Plivo / Exotel / Tata) imported into Vapi
@@ -97,4 +98,8 @@ if (!parsed.success) {
 
 export const env = parsed.data;
 export const isProd = env.NODE_ENV === 'production';
+if (isProd && env.AI_CALL_LOCAL_MODE) {
+  console.error('AI_CALL_LOCAL_MODE is for local testing only and must not be set when NODE_ENV=production.');
+  process.exit(1);
+}
 export const corsOrigins = env.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean);

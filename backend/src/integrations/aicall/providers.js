@@ -95,6 +95,17 @@ const bolna = {
     if (!id) throw new Error('Bolna did not return an execution id');
     return { providerCallId: String(id) };
   },
+  /** Pulls an execution from Bolna's API (GET /executions/{id}) and normalises it like a webhook. */
+  async fetchResult(executionId) {
+    const res = await fetch(`https://api.bolna.ai/executions/${encodeURIComponent(executionId)}`, {
+      headers: { Authorization: `Bearer ${env.BOLNA_API_KEY}` },
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!res.ok) throw new Error(`Bolna execution lookup failed (HTTP ${res.status})`);
+    const r = this.parseResult(await res.json());
+    if (r && !r.providerCallId) r.providerCallId = String(executionId);
+    return r;
+  },
   parseResult(body) {
     const b = body?.data || body;
     const providerCallId = pick(b?.execution_id, b?.id, b?.call_id);
