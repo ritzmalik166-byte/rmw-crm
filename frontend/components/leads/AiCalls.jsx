@@ -12,7 +12,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { confirmAction } from '@/components/ui/confirm';
 
-const STATUS = {
+export const STATUS = {
   SCHEDULED: { label: 'Scheduled', variant: 'info', icon: Clock },
   DIALING: { label: 'Calling…', variant: 'info', icon: PhoneCall },
   IN_PROGRESS: { label: 'On the call', variant: 'info', icon: PhoneCall },
@@ -23,16 +23,16 @@ const STATUS = {
   CANCELLED: { label: 'Cancelled', variant: 'secondary', icon: Ban },
   SKIPPED: { label: 'Skipped', variant: 'secondary', icon: Ban },
 };
-const OUTCOME_VARIANT = { INTERESTED: 'success', CALLBACK: 'info', NOT_INTERESTED: 'secondary', WRONG_NUMBER: 'warning', DO_NOT_CALL: 'danger', UNCLEAR: 'secondary' };
+export const OUTCOME_VARIANT = { INTERESTED: 'success', CALLBACK: 'info', NOT_INTERESTED: 'secondary', WRONG_NUMBER: 'warning', DO_NOT_CALL: 'danger', UNCLEAR: 'secondary' };
 
-const ANSWER_LABELS = [
+export const ANSWER_LABELS = [
   ['company', 'Company'], ['service', 'Service needed'], ['goal', 'Goal'], ['currentMarketing', 'Current marketing'],
   ['decisionMaker', 'Decision maker'], ['website', 'Website'],
   ['configuration', 'Configuration'], ['budget', 'Budget'], ['location', 'Preferred location'], ['purpose', 'Purpose'],
   ['timeline', 'Buying timeline'], ['siteVisit', 'Site visit'], ['callbackTime', 'Call back'], ['language', 'Language'], ['notes', 'Notes'],
 ];
 
-const duration = (s) => (s == null ? null : s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`);
+export const duration = (s) => (s == null ? null : s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`);
 
 export function CallItem({ call, onCancel, cancelling }) {
   const [showTranscript, setShowTranscript] = useState(false);
