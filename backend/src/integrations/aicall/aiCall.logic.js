@@ -245,3 +245,27 @@ export function transcriptText(t) {
   }
   return null;
 }
+
+/**
+ * Who ended a call: 'USER' (the customer hung up), 'AGENT' (the AI agent ended it), 'SYSTEM' (silence, time limit,
+ * network) or null when the provider didn't say.
+ *
+ * Bolna (verified against real executions): telephony_data.hangup_by is "Callee" with hangup_reason
+ * "Call recipient hungup" when the customer hangs up an outbound call, and "Caller" with "end_call_tool" when the
+ * agent ends it. On inbound calls the roles flip. Vapi and the simulator use endedReason
+ * ("customer-ended-call", "assistant-ended-call", "silence-timed-out", …).
+ */
+export function endedByFrom({ hangupBy, hangupReason, endedReason, callType } = {}) {
+  const reason = `${hangupReason || ''} ${endedReason || ''}`.toLowerCase();
+  if (/end_call_tool|assistant[-_ ]?(ended|said|forwarded)|agent[-_ ]?(ended|hung)|bot[-_ ]?(ended|hung)|hangup[-_ ]?prompt/.test(reason)) return 'AGENT';
+  if (/recipient hung|customer[-_ ]?(ended|hung)|user[-_ ]?(ended|hung)|caller hung|callee hung/.test(reason)) return 'USER';
+  if (/silence|timed?[-_ ]?out|max[-_ ]?duration|exceeded|inactivity|network|pipeline[-_ ]?error/.test(reason)) return 'SYSTEM';
+  const by = String(hangupBy || '').toLowerCase();
+  const inbound = /inbound/i.test(String(callType || ''));
+  if (by === 'callee') return inbound ? 'AGENT' : 'USER';
+  if (by === 'caller') return inbound ? 'USER' : 'AGENT';
+  if (/customer|user|recipient/.test(by)) return 'USER';
+  if (/agent|assistant|bot/.test(by)) return 'AGENT';
+  if (by) return 'SYSTEM';
+  return null;
+}

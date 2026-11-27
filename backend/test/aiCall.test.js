@@ -129,3 +129,16 @@ test('Bolna execution result is parsed', () => {
   assert.equal(PROVIDERS.bolna.parseResult({ id: 'e1', status: 'no-answer' }).endedReason, 'no-answer');
   assert.equal(PROVIDERS.bolna.parseResult({ id: 'e1', status: 'in-progress' }).final, false);
 });
+
+test('endedByFrom: who hung up, from real Bolna executions and Vapi reasons', async () => {
+  const { endedByFrom } = await import('../src/integrations/aicall/aiCall.logic.js');
+  assert.equal(endedByFrom({ hangupBy: 'Callee', hangupReason: 'Call recipient hungup' }), 'USER');
+  assert.equal(endedByFrom({ hangupBy: 'Caller', hangupReason: 'end_call_tool' }), 'AGENT');
+  assert.equal(endedByFrom({ hangupBy: 'Callee', callType: 'inbound' }), 'AGENT');
+  assert.equal(endedByFrom({ endedReason: 'customer-ended-call' }), 'USER');
+  assert.equal(endedByFrom({ endedReason: 'assistant-ended-call' }), 'AGENT');
+  assert.equal(endedByFrom({ endedReason: 'silence-timed-out' }), 'SYSTEM');
+  assert.equal(endedByFrom({}), null);
+  const r = PROVIDERS.bolna.parseResult({ id: 'e9', status: 'completed', telephony_data: { hangup_by: 'Callee', hangup_reason: 'Call recipient hungup', duration: 40 } });
+  assert.equal(r.endedBy, 'USER');
+});

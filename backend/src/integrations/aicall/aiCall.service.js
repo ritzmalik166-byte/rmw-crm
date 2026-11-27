@@ -22,7 +22,7 @@ import { userRepo } from '../../repositories/userRepo.js';
 import { getProvider, providerList } from './providers.js';
 import {
   resolveConfig, plannedCallTime, inCallingWindow, nextWindowStart, toIndianMobileE164, fillTemplate, retryDelay,
-  normalizeAnswers, deriveOutcome, statusFromEnd, profileFor,
+  normalizeAnswers, deriveOutcome, statusFromEnd, profileFor, endedByFrom,
 } from './aiCall.logic.js';
 
 const ACTIVE = ['SCHEDULED', 'DIALING', 'IN_PROGRESS'];
@@ -292,13 +292,15 @@ export async function handleResult(providerId, r) {
     if (r.final && call.status === 'COMPLETED') {
       const answers = normalizeAnswers(r.answers);
       const hasAnswers = Object.keys(answers).length > 0;
+      // UNKNOWN once the provider has answered without saying who hung up, so the backfill stops asking.
+      const endedBy = r.endedBy || endedByFrom({ endedReason: r.endedReason }) || 'UNKNOWN';
       await query(
-        `UPDATE ai_calls SET
+        `UPDATE ai_calls SET ended_by = COALESCE(ended_by, ?),
            duration_seconds = COALESCE(duration_seconds, ?), started_at = COALESCE(started_at, ?), ended_at = COALESCE(ended_at, ?),
            summary = COALESCE(summary, ?), transcript = COALESCE(transcript, ?), extracted = COALESCE(extracted, ?),
            outcome = COALESCE(outcome, ?)
          WHERE id = ?`,
-        [r.durationSeconds ?? null, r.startedAt || null, r.endedAt || null,
+        [endedBy, r.durationSeconds ?? null, r.startedAt || null, r.endedAt || null,
           r.summary ? String(r.summary).slice(0, 5000) : null, r.transcript ? String(r.transcript).slice(0, 200_000) : null,
           hasAnswers ? JSON.stringify(answers) : null, hasAnswers ? deriveOutcome(answers) : null, call.id],
       );
@@ -315,21 +317,22 @@ export async function handleResult(providerId, r) {
   if (status === 'COMPLETED' && !r.transcript && (r.durationSeconds ?? 0) < 5) status = 'NO_ANSWER';
   const answers = normalizeAnswers(r.answers);
   const outcome = status === 'COMPLETED' ? deriveOutcome(answers) : null;
+  const endedBy = status === 'COMPLETED' ? (r.endedBy || endedByFrom({ endedReason: r.endedReason })) : null;
   await query(
     `UPDATE ai_calls SET status = ?, provider_call_id = COALESCE(provider_call_id, ?), started_at = COALESCE(?, started_at), ended_at = COALESCE(?, NOW(3)),
-       duration_seconds = ?, ended_reason = ?, outcome = ?, summary = ?, transcript = ?, extracted = ?, recording_url = ?, cost_amount = ?, cost_currency = ?, error = NULL
+       duration_seconds = ?, ended_reason = ?, ended_by = ?, outcome = ?, summary = ?, transcript = ?, extracted = ?, recording_url = ?, cost_amount = ?, cost_currency = ?, error = NULL
      WHERE id = ?`,
     [status, String(r.providerCallId), r.startedAt || null, r.endedAt || null, r.durationSeconds ?? null, r.endedReason ? String(r.endedReason).slice(0, 120) : null,
-      outcome, r.summary ? String(r.summary).slice(0, 5000) : null, r.transcript ? String(r.transcript).slice(0, 200_000) : null,
+      endedBy, outcome, r.summary ? String(r.summary).slice(0, 5000) : null, r.transcript ? String(r.transcript).slice(0, 200_000) : null,
       Object.keys(answers).length ? JSON.stringify(answers) : null, r.recordingUrl ? String(r.recordingUrl).slice(0, 1000) : null,
       r.cost?.amount ?? null, r.cost?.currency ?? null, call.id],
   );
   if (r.recordingUrl) saveRecording(call.id, r.recordingUrl).catch((e) => logger.warn({ callId: call.id, err: e.message }, 'Recording download failed'));
-  await afterCall({ ...call, status }, { status, outcome, answers, summary: r.summary });
+  await afterCall({ ...call, status }, { status, outcome, answers, summary: r.summary, endedBy });
   return true;
 }
 
-async function afterCall(call, { status, outcome, answers, summary }) {
+async function afterCall(call, { status, outcome, answers, summary, endedBy }) {
   const cfg = await getConfig();
   const lead = await loadLead(call.lead_id);
   if (!lead) return;
@@ -340,7 +343,7 @@ async function afterCall(call, { status, outcome, answers, summary }) {
     : (await userRepo.usersWithPermission('lead.assign', lead.website_id)).map((u) => u.id);
 
   if (status === 'COMPLETED') {
-    await query("INSERT INTO lead_activities (lead_id, type, meta) VALUES (?, 'AI_CALL_COMPLETED', ?)", [lead.id, JSON.stringify({ callId: call.id, outcome, summary: summary ? String(summary).slice(0, 500) : null })]);
+    await query("INSERT INTO lead_activities (lead_id, type, meta) VALUES (?, 'AI_CALL_COMPLETED', ?)", [lead.id, JSON.stringify({ callId: call.id, outcome, endedBy: endedBy || null, summary: summary ? String(summary).slice(0, 500) : null })]);
     if (outcome === 'DO_NOT_CALL') await query('UPDATE leads SET do_not_call = 1 WHERE id = ?', [lead.id]);
     if (answers.callbackTime && lead.assigned_user_id && outcome !== 'DO_NOT_CALL' && outcome !== 'NOT_INTERESTED') {
       const due = plannedCallTime(new Date(), cfg, 120);
@@ -391,7 +394,9 @@ async function reconcileFromProvider() {
         OR (status = 'FAILED' AND error LIKE 'No result received%' AND ended_at > NOW(3) - INTERVAL 48 HOUR)
         OR (status IN ('COMPLETED','NO_ANSWER','BUSY') AND recording_url IS NULL AND recording_path IS NULL
             AND ended_at > NOW(3) - INTERVAL 48 HOUR
-            AND (COALESCE(duration_seconds, 0) > 0 OR (status = 'COMPLETED' AND duration_seconds IS NULL))))
+            AND (COALESCE(duration_seconds, 0) > 0 OR (status = 'COMPLETED' AND duration_seconds IS NULL)))
+        -- Backfill who hung up (User / Agent) for connected calls from the last 7 days.
+        OR (status = 'COMPLETED' AND ended_by IS NULL AND ended_at > NOW(3) - INTERVAL 7 DAY))
       ORDER BY id DESC LIMIT 20`,
   );
   for (const row of rows) {
@@ -468,6 +473,7 @@ const parseJson = (v) => (typeof v === 'string' ? (() => { try { return JSON.par
 const publicRow = (c) => ({
   id: c.id, lead_id: c.lead_id, attempt: c.attempt, status: c.status, trigger_type: c.trigger_type, scheduled_at: c.scheduled_at,
   provider: c.provider, started_at: c.started_at, ended_at: c.ended_at, duration_seconds: c.duration_seconds, ended_reason: c.ended_reason,
+  ended_by: ['USER', 'AGENT', 'SYSTEM'].includes(c.ended_by) ? c.ended_by : null,
   outcome: c.outcome, outcome_label: OUTCOME_LABEL[c.outcome] || null, summary: c.summary, transcript: c.transcript, answers: parseJson(c.extracted) || {},
   has_recording: Boolean(c.recording_path || c.recording_url), skip_reason: c.skip_reason, skip_label: SKIP_LABEL[c.skip_reason] || null,
   error: c.error, created_by_name: c.created_by_name || null, created_at: c.created_at,

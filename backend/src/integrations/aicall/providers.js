@@ -4,15 +4,15 @@
  *   startCall(input)          → { providerCallId }   (places the call)
  *   parseResult(body)         → null (ignore) or a normalised result (see below)
  *
- * Normalised result: { providerCallId, aiCallId?, final, endedReason?, startedAt?, endedAt?, durationSeconds?,
- *                      transcript?, summary?, answers?, recordingUrl?, cost? }
+ * Normalised result: { providerCallId, aiCallId?, final, endedReason?, endedBy? (USER | AGENT | SYSTEM), startedAt?,
+ *                      endedAt?, durationSeconds?, transcript?, summary?, answers?, recordingUrl?, cost? }
  *
  * The Vapi and Bolna field names follow their public docs; parsing is defensive (several paths per field) because
  * both evolve. Verify against a real call in each provider's dashboard before going live.
  */
 import { env, isProd } from '../../config/env.js';
 import { badRequest } from '../../utils/errors.js';
-import { transcriptText } from './aiCall.logic.js';
+import { endedByFrom, transcriptText } from './aiCall.logic.js';
 
 const pick = (...vals) => vals.find((v) => v !== undefined && v !== null && v !== '');
 const iso = (v) => { const d = v ? new Date(v) : null; return d && !Number.isNaN(d.getTime()) ? d : null; };
@@ -118,6 +118,7 @@ const bolna = {
     return {
       providerCallId, aiCallId: userData.ai_call_id, final: true,
       endedReason: /complete|disconnect|ended/.test(status) ? pick(tel.hangup_reason, status) : status,
+      endedBy: endedByFrom({ hangupBy: tel.hangup_by, hangupReason: tel.hangup_reason, callType: tel.call_type }),
       durationSeconds: Number(pick(tel.duration, b.conversation_duration, b.duration)) || undefined,
       startedAt: iso(b.initiated_at || b.created_at),
       transcript: transcriptText(b.transcript),
