@@ -32,7 +32,7 @@ function collect(children, group = null, out = []) {
     if (child.type === 'option') {
       const label = child.props.children;
       const value = child.props.value !== undefined ? String(child.props.value) : textOf(label);
-      out.push({ value, label, text: textOf(label), disabled: Boolean(child.props.disabled), group });
+      out.push({ value, label, text: textOf(label), disabled: Boolean(child.props.disabled), group, dot: child.props['data-dot'] });
     }
   });
   return out;
@@ -40,8 +40,22 @@ function collect(children, group = null, out = []) {
 
 const triggerBase = 'flex h-11 w-full items-center justify-between gap-2 rounded-lg border border-slate-200 bg-[linear-gradient(180deg,hsl(214_30%_98%),#fff)] px-3 text-left text-[16px] shadow-[inset_0_1px_2px_rgba(16,24,40,0.05)] transition-[border-color,box-shadow,background] hover:border-slate-300 focus-visible:border-[hsl(var(--ring))] focus-visible:bg-white focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[hsl(var(--ring)/0.18)] disabled:cursor-not-allowed disabled:opacity-50 lg:h-8 lg:px-2.5 lg:text-[13px]';
 
+/** Filter-chip trigger: compact pill that sizes to its content and tints blue while a filter is applied. */
+const triggerFilter = 'inline-flex h-9 w-auto max-w-full items-center gap-1.5 rounded-lg border border-slate-200 bg-white pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-700 shadow-[0_1px_2px_rgb(16_24_40/0.05)] transition-[border-color,box-shadow,background,color] hover:border-slate-300 hover:bg-slate-50 focus-visible:border-[hsl(var(--ring))] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[hsl(var(--ring)/0.18)] disabled:cursor-not-allowed disabled:opacity-50 lg:h-8';
+const triggerFilterActive = 'border-[hsl(var(--primary)/0.35)] bg-[hsl(var(--primary)/0.06)] text-[hsl(var(--primary))] hover:border-[hsl(var(--primary)/0.5)] hover:bg-[hsl(var(--primary)/0.09)]';
+
+/** Status colour names (lib/utils STATUS_COLORS) → dot colours. Raw CSS colours pass through. */
+const DOT = { blue: '#3b82f6', sky: '#0ea5e9', violet: '#8b5cf6', amber: '#f59e0b', indigo: '#6366f1', green: '#10b981', slate: '#94a3b8', red: '#ef4444' };
+const Dot = ({ color }) => <span aria-hidden className="h-2 w-2 shrink-0 rounded-full ring-2 ring-white" style={{ background: DOT[color] || color }} />;
+
 export const Select = React.forwardRef(function Select(
-  { value, defaultValue, onChange, children, className, disabled, id, name, required, placeholder, 'aria-label': ariaLabel, title, onBlur, ...rest },
+  {
+    value, defaultValue, onChange, children, className, disabled, id, name, required, placeholder, 'aria-label': ariaLabel, title, onBlur,
+    // variant="filter": chip look. `icon` (lucide component) and `label` ("Status") lead the trigger; the chip is
+    // highlighted whenever the value differs from `resetValue` (the "no filter" value, '' by default).
+    variant = 'default', icon: Icon, label: chipLabel, resetValue = '',
+    ...rest
+  },
   ref,
 ) {
   const items = React.useMemo(() => collect(children), [children]);
@@ -50,6 +64,8 @@ export const Select = React.forwardRef(function Select(
   const current = controlled ? (value == null ? '' : String(value)) : inner;
   const selected = items.find((i) => i.value === current) ?? items[0];
   const isPlaceholder = !selected || selected.value === '';
+  const isFilter = variant === 'filter';
+  const filterOn = isFilter && !!selected && selected.value !== String(resetValue);
 
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
@@ -223,6 +239,7 @@ export const Select = React.forwardRef(function Select(
                   it.disabled && 'cursor-not-allowed opacity-40',
                 )}
               >
+                {it.dot && <Dot color={it.dot} />}
                 <span className="min-w-0 flex-1 truncate">{it.label}</span>
                 {isSel && it.value !== '' && <Check className="h-4 w-4 shrink-0" aria-hidden />}
               </li>
@@ -241,11 +258,38 @@ export const Select = React.forwardRef(function Select(
         role="combobox" aria-haspopup="listbox" aria-expanded={open} aria-controls={open ? listId : undefined} aria-label={ariaLabel}
         aria-required={required || undefined}
         onClick={() => (open ? close() : openList())} onKeyDown={onTriggerKey} onBlur={onBlur}
-        className={cn(triggerBase, open && 'border-[hsl(var(--ring))] bg-white ring-[3px] ring-[hsl(var(--ring)/0.18)]', className)}
+        className={cn(
+          isFilter ? triggerFilter : triggerBase,
+          filterOn && triggerFilterActive,
+          open && (isFilter ? 'border-[hsl(var(--ring))] ring-[3px] ring-[hsl(var(--ring)/0.18)]' : 'border-[hsl(var(--ring))] bg-white ring-[3px] ring-[hsl(var(--ring)/0.18)]'),
+          className,
+        )}
         {...rest}
       >
-        <span className={cn('min-w-0 flex-1 truncate', isPlaceholder && 'text-slate-500')}>{selected?.label ?? placeholder ?? ''}</span>
-        <ChevronDown className={cn('h-4 w-4 shrink-0 text-slate-400 transition-transform duration-150', open && 'rotate-180')} aria-hidden />
+        {isFilter ? (
+          <>
+            {Icon && <Icon className={cn('h-3.5 w-3.5 shrink-0', filterOn ? 'text-[hsl(var(--primary))]' : 'text-slate-400')} aria-hidden />}
+            {filterOn || !chipLabel ? (
+              <span className="flex min-w-0 items-center gap-1.5">
+                {chipLabel && <span className="shrink-0 font-normal text-[hsl(var(--primary)/0.75)]">{chipLabel}:</span>}
+                {selected?.dot && <Dot color={selected.dot} />}
+                <span className="truncate">{selected?.label ?? placeholder ?? ''}</span>
+              </span>
+            ) : (
+              <span className="truncate">{chipLabel}</span>
+            )}
+            <ChevronDown className={cn('ml-0.5 h-3.5 w-3.5 shrink-0 opacity-60 transition-transform duration-200', open && 'rotate-180')} aria-hidden />
+          </>
+        ) : (
+          <>
+            {Icon && <Icon className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />}
+            <span className={cn('flex min-w-0 flex-1 items-center gap-2', isPlaceholder && 'text-slate-500')}>
+              {selected?.dot && <Dot color={selected.dot} />}
+              <span className="truncate">{selected?.label ?? placeholder ?? ''}</span>
+            </span>
+            <ChevronDown className={cn('h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200', open && 'rotate-180')} aria-hidden />
+          </>
+        )}
       </button>
       {name && <input type="hidden" name={name} value={current} />}
       {list}

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Bot, PhoneCall, PhoneMissed, PhoneOff, Clock, ChevronDown, Ban, FlaskConical } from 'lucide-react';
+import { Bot, PhoneCall, PhoneMissed, PhoneOff, Clock, ChevronDown, Ban, FlaskConical, PhoneIncoming, User, Wifi } from 'lucide-react';
 import { api, apiMessage } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
 import { formatDateTime, timeAgo, cn } from '@/lib/utils';
@@ -32,6 +32,38 @@ export const ANSWER_LABELS = [
   ['timeline', 'Buying timeline'], ['siteVisit', 'Site visit'], ['callbackTime', 'Call back'], ['language', 'Language'], ['notes', 'Notes'],
 ];
 
+/**
+ * Connect / disconnect badges for a call, from the provider's hangup data (Bolna: telephony_data.hangup_by).
+ * Connected = the customer picked up. Then who ended it: the customer (User) or the AI agent (Agent).
+ */
+const CONNECT_STATES = {
+  COMPLETED: { label: 'Connected', cls: 'bg-emerald-50 text-emerald-700 ring-emerald-200', dot: 'bg-emerald-500', icon: PhoneIncoming },
+  NO_ANSWER: { label: 'Not connected', cls: 'bg-amber-50 text-amber-800 ring-amber-200', dot: 'bg-amber-500', icon: PhoneMissed },
+  BUSY: { label: 'Not connected', cls: 'bg-amber-50 text-amber-800 ring-amber-200', dot: 'bg-amber-500', icon: PhoneMissed },
+  FAILED: { label: 'Not connected', cls: 'bg-red-50 text-red-700 ring-red-200', dot: 'bg-red-500', icon: PhoneOff },
+};
+const ENDED_BY = {
+  USER: { label: 'User disconnected', title: 'The customer hung up the call', cls: 'bg-sky-50 text-sky-700 ring-sky-200', icon: User },
+  AGENT: { label: 'Agent disconnected', title: 'The AI agent ended the call', cls: 'bg-violet-50 text-violet-700 ring-violet-200', icon: Bot },
+  SYSTEM: { label: 'Call dropped', title: 'Ended by silence, the time limit or the network', cls: 'bg-slate-100 text-slate-700 ring-slate-200', icon: Wifi },
+};
+const pill = 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset';
+
+export function CallConnectBadges({ call }) {
+  const c = CONNECT_STATES[call.status];
+  if (!c) return null;
+  const e = call.status === 'COMPLETED' ? ENDED_BY[call.ended_by] : null;
+  const CIcon = c.icon;
+  return (
+    <>
+      <span className={cn(pill, c.cls)} title={c.label === 'Connected' ? 'The customer answered the call' : 'The call did not connect'}>
+        <span className={cn('h-1.5 w-1.5 rounded-full', c.dot)} aria-hidden /><CIcon className="h-3 w-3" aria-hidden />{c.label}
+      </span>
+      {e && (() => { const EIcon = e.icon; return <span className={cn(pill, e.cls)} title={e.title}><EIcon className="h-3 w-3" aria-hidden />{e.label}</span>; })()}
+    </>
+  );
+}
+
 export const duration = (s) => (s == null ? null : s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`);
 
 export function CallItem({ call, onCancel, cancelling }) {
@@ -51,6 +83,7 @@ export function CallItem({ call, onCancel, cancelling }) {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-1.5">
               <Badge variant={st.variant}>{st.label}</Badge>
+              <CallConnectBadges call={call} />
               {call.outcome_label && <Badge variant={OUTCOME_VARIANT[call.outcome] || 'secondary'}>{call.outcome_label}</Badge>}
               {call.provider === 'simulator' && <Badge variant="outline"><FlaskConical className="mr-1 h-3 w-3" />Simulated</Badge>}
             </div>

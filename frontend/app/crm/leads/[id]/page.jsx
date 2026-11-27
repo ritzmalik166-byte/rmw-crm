@@ -142,7 +142,7 @@ function describeActivity(a) {
   if (a.type === 'FOLLOWUP_CREATED') return m.dueAt && `Due ${formatDateTime(m.dueAt)}`;
   if (a.type === 'META_LEAD_RECEIVED') return [m.campaign && `Campaign: ${m.campaign}`, m.form && `Form: ${m.form}`, m.platform && titleCase(m.platform)].filter(Boolean).join(' · ') || null;
   if (a.type === 'LEAD_SYNCED' && m.via === 'meta') return 'Re-delivered by Meta';
-  if (a.type === 'AI_CALL_COMPLETED') return m.summary || null;
+  if (a.type === 'AI_CALL_COMPLETED') return [{ USER: 'Connected · customer hung up', AGENT: 'Connected · agent ended the call', SYSTEM: 'Connected · call dropped' }[m.endedBy] || 'Connected', m.summary].filter(Boolean).join(' · ');
   if (a.type === 'AI_CALL_STARTED') return `Attempt ${m.attempt || 1}`;
   if (a.type === 'AI_CALL_UNANSWERED') return [`Attempt ${m.attempt || 1}: ${m.status === 'BUSY' ? 'busy' : 'no answer'}`, m.retryAt ? `trying again ${formatDateTime(m.retryAt)}` : m.final ? 'no more attempts' : null].filter(Boolean).join(' · ');
   if (a.type === 'LEAD_MERGED') return m.mergedExternalId ? `Merged ${m.mergedExternalId} into this lead` : 'Merged into another lead';

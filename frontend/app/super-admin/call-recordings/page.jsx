@@ -9,7 +9,7 @@ import { Input, Select } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge, WebsiteLogo } from '@/components/ui/badge';
 import { EmptyState, ErrorState, PageHeader, Skeleton } from '@/components/ui/feedback';
-import { ANSWER_LABELS, OUTCOME_VARIANT, STATUS, duration } from '@/components/leads/AiCalls';
+import { ANSWER_LABELS, CallConnectBadges, OUTCOME_VARIANT, STATUS, duration } from '@/components/leads/AiCalls';
 import { WaveformPlayer } from '@/components/leads/WaveformPlayer';
 import { formatDateTime, cn } from '@/lib/utils';
 
@@ -128,6 +128,7 @@ function CallDetail({ call }) {
 
       <div className="flex flex-wrap gap-1.5">
         <Badge variant={st.variant}>{st.label}</Badge>
+        <CallConnectBadges call={call} />
         {call.outcome_label && <Badge variant={OUTCOME_VARIANT[call.outcome] || 'secondary'}>{call.outcome_label}</Badge>}
         {call.provider === 'simulator' && <Badge variant="outline"><FlaskConical className="mr-1 h-3 w-3" />Simulated</Badge>}
       </div>

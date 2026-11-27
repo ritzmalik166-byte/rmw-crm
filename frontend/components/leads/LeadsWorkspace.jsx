@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { Download, Plus, Search, UserPlus, Tag, Copy, X, Phone, Mail, CalendarClock, SlidersHorizontal, RefreshCw, ArrowRightLeft, ChevronDown, Check, FileText } from 'lucide-react';
+import { Download, Plus, Search, UserPlus, Tag, Copy, X, Phone, Mail, CalendarClock, SlidersHorizontal, RefreshCw, ArrowRightLeft, ChevronDown, Check, FileText, CircleDot, UserRound, ArrowDownUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, apiMessage } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
@@ -21,6 +21,8 @@ import { StatusBadge, WebsiteBadge, Badge } from '@/components/ui/badge';
 import { EmptyState, ErrorState, Pagination, TableSkeleton } from '@/components/ui/feedback';
 import { AssignDialog, BulkStatusDialog, CreateLeadDialog } from '@/components/leads/LeadForms';
 import { LEAD_SOURCE_OPTIONS } from '@/lib/leadSources';
+
+const STATUS_DOT = { blue: '#3b82f6', sky: '#0ea5e9', violet: '#8b5cf6', amber: '#f59e0b', indigo: '#6366f1', green: '#10b981', slate: '#94a3b8', red: '#ef4444' };
 
 /** Status badge that doubles as a one-click status picker for users who can edit leads. */
 function StatusCell({ lead, editable }) {
@@ -45,7 +47,7 @@ function StatusCell({ lead, editable }) {
         <DropdownMenuSeparator />
         {lk?.statuses?.filter((s) => s.is_active).map((s) => (
           <DropdownMenuItem key={s.id} onSelect={() => s.id !== lead.status_id && m.mutate(s.id)}>
-            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.color || '#94a3b8' }} />
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: STATUS_DOT[s.color] || s.color || '#94a3b8' }} />
             <span className="flex-1">{s.name}</span>
             {s.id === lead.status_id && <Check className="text-[hsl(var(--primary))]" />}
           </DropdownMenuItem>
@@ -372,6 +374,9 @@ function LeadsWorkspaceV2({ pipelineKey = 'all', channel = null, title = null, d
   const toggle = (id) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   const has = (f) => p.filters.includes(f);
   const activeFilters = ['websiteId', 'statusId', 'source', 'sourceType', 'campaign', 'interest', 'formType', 'assignedUserId', 'from', 'to', 'junk'].filter((k) => filters[k]).length;
+  // Filters that live only in the "More filters" panel (status and owner have their own chips on wider screens).
+  const panelFilters = ['websiteId', 'source', 'sourceType', 'campaign', 'interest', 'formType', 'from', 'to', 'junk'].filter((k) => filters[k]).length;
+  const clearFilters = () => { setSearch(''); router.replace(params.get('channel') ? `${pathname}?channel=${params.get('channel')}` : pathname); };
   const formTypes = (pipe?.formTypes || []).filter((f) => !p.website || f.website === p.website).filter((f) => pipelineKey !== 'rmw' || f.form_type?.toLowerCase() !== 'career');
   const stats = pipelineKey === 'all' ? null : pipe?.counts?.[pipelineKey];
 
@@ -443,30 +448,39 @@ function LeadsWorkspaceV2({ pipelineKey = 'all', channel = null, title = null, d
                 aria-label="Search leads"
               />
             </div>
-            <div className="order-3 grid w-full grid-cols-3 gap-2 sm:order-none sm:flex sm:w-auto sm:flex-wrap sm:items-center">
-            {has('status') && (
-              <Select className="hidden min-w-0 sm:block sm:w-36" value={filters.statusId} onChange={(e) => setFilter({ statusId: e.target.value })} aria-label="Status">
-                <option value="">Any status</option>{lk?.statuses?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </Select>
-            )}
-            {has('owner') && (
-              <Select className="hidden min-w-0 sm:block sm:w-40" value={filters.assignedUserId} onChange={(e) => setFilter({ assignedUserId: e.target.value })} aria-label="Owner">
-                <option value="">Any owner</option><option value="me">Me</option>
-                {can('lead.view_all') && <option value="unassigned">Unassigned</option>}
-                {can('lead.view_all') && lk?.users?.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-              </Select>
-            )}
-            <Select className="hidden min-w-0 sm:block sm:w-36" value={`${filters.sort || 'created_at'}:${filters.dir || 'desc'}`} onChange={(e) => { const [sort, dir] = e.target.value.split(':'); setFilter({ sort, dir }); }} aria-label="Sort">
-              <option value="created_at:desc">Newest first</option><option value="created_at:asc">Oldest first</option>
-              <option value="updated_at:desc">Recently updated</option><option value="name:asc">Name A–Z</option><option value="status:asc">By status</option>
-            </Select>
-            <Button className="min-w-0" variant={moreFilters || activeFilters ? 'secondary' : 'outline'} size="sm" onClick={() => setMoreFilters((v) => !v)} aria-expanded={moreFilters}>
-              <SlidersHorizontal />Filters{activeFilters ? <span className="ml-0.5 rounded-full bg-[hsl(var(--primary))] px-1.5 text-[10.5px] font-semibold leading-[18px] text-white">{activeFilters}</span> : null}
-            </Button>
-            <Button className="min-w-0" variant="outline" size="sm" onClick={reloadAll} disabled={isFetching} title="Reload leads">
-              <RefreshCw className={isFetching ? 'animate-spin' : ''} /><span className="sm:sr-only xl:not-sr-only">Reload</span>
-            </Button>
-            {can('lead.export') && <Button className="min-w-0" variant="outline" size="sm" onClick={exportCsv} title="Export these leads as CSV"><Download /><span className="max-sm:sr-only">Export</span></Button>}
+            <div className="order-3 flex w-full items-center gap-2 sm:order-none sm:w-auto sm:flex-wrap">
+              {/* Filter chips (tablet/desktop). Each tints blue while it narrows the list. */}
+              <div className="hidden min-w-0 flex-wrap items-center gap-1.5 sm:flex">
+                {has('status') && (
+                  <Select variant="filter" icon={CircleDot} label="Status" value={filters.statusId} onChange={(e) => setFilter({ statusId: e.target.value })} aria-label="Status">
+                    <option value="">Any status</option>{lk?.statuses?.map((s) => <option key={s.id} value={s.id} data-dot={s.color || 'slate'}>{s.name}</option>)}
+                  </Select>
+                )}
+                {has('owner') && (
+                  <Select variant="filter" icon={UserRound} label="Owner" value={filters.assignedUserId} onChange={(e) => setFilter({ assignedUserId: e.target.value })} aria-label="Owner">
+                    <option value="">Any owner</option><option value="me">Me</option>
+                    {can('lead.view_all') && <option value="unassigned">Unassigned</option>}
+                    {can('lead.view_all') && lk?.users?.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+                  </Select>
+                )}
+                <Select variant="filter" icon={ArrowDownUp} resetValue="created_at:desc" value={`${filters.sort || 'created_at'}:${filters.dir || 'desc'}`} onChange={(e) => { const [sort, dir] = e.target.value.split(':'); setFilter({ sort, dir }); }} aria-label="Sort">
+                  <option value="created_at:desc">Newest first</option><option value="created_at:asc">Oldest first</option>
+                  <option value="updated_at:desc">Recently updated</option><option value="name:asc">Name A–Z</option><option value="status:asc">By status</option>
+                </Select>
+                <Button className={cn('min-w-0 sm:h-9 lg:h-8', (moreFilters || panelFilters) && 'border-[hsl(var(--primary)/0.35)] bg-[hsl(var(--primary)/0.06)] text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.09)] hover:text-[hsl(var(--primary))]')} variant="outline" size="sm" onClick={() => setMoreFilters((v) => !v)} aria-expanded={moreFilters}>
+                  <SlidersHorizontal />More filters{panelFilters ? <span className="ml-0.5 rounded-full bg-[hsl(var(--primary))] px-1.5 text-[10.5px] font-semibold leading-[18px] text-white">{panelFilters}</span> : null}
+                </Button>
+                {activeFilters > 0 && <Button className="min-w-0 text-slate-500 sm:h-9 lg:h-8" variant="ghost" size="sm" onClick={clearFilters}><X />Clear</Button>}
+              </div>
+              {/* Phones: one Filters button opens the panel that holds every filter. */}
+              <Button className="flex-1 sm:hidden" variant={moreFilters || activeFilters ? 'secondary' : 'outline'} size="sm" onClick={() => setMoreFilters((v) => !v)} aria-expanded={moreFilters}>
+                <SlidersHorizontal />Filters{activeFilters ? <span className="ml-0.5 rounded-full bg-[hsl(var(--primary))] px-1.5 text-[10.5px] font-semibold leading-[18px] text-white">{activeFilters}</span> : null}
+              </Button>
+              <span className="mx-0.5 hidden h-5 w-px bg-slate-200 sm:block" aria-hidden />
+              <Button className="min-w-0 sm:h-9 lg:h-8" variant="ghost" size="sm" onClick={reloadAll} disabled={isFetching} title="Reload leads">
+                <RefreshCw className={isFetching ? 'animate-spin' : ''} /><span className="sr-only xl:not-sr-only">Reload</span>
+              </Button>
+              {can('lead.export') && <Button className="min-w-0 sm:h-9 lg:h-8" variant="ghost" size="sm" onClick={exportCsv} title="Export these leads as CSV"><Download /><span className="max-sm:sr-only">Export</span></Button>}
             </div>
           </div>
 
@@ -475,7 +489,7 @@ function LeadsWorkspaceV2({ pipelineKey = 'all', channel = null, title = null, d
               {/* Phones: the primary selects live in this panel so the toolbar stays one row. */}
               {has('status') && (
                 <Select className="sm:hidden" value={filters.statusId} onChange={(e) => setFilter({ statusId: e.target.value })} aria-label="Status">
-                  <option value="">Any status</option>{lk?.statuses?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  <option value="">Any status</option>{lk?.statuses?.map((s) => <option key={s.id} value={s.id} data-dot={s.color || 'slate'}>{s.name}</option>)}
                 </Select>
               )}
               {has('owner') && (
@@ -504,7 +518,7 @@ function LeadsWorkspaceV2({ pipelineKey = 'all', channel = null, title = null, d
               {has('dates') && <Input type="date" min={filters.from || FILTER_MIN_DATE} max={filterMaxDate()} value={filters.to} onChange={(e) => setFilter({ to: e.target.value })} aria-label="Received to" title="Received to" />}
               {has('quality') && <Select value={filters.junk} onChange={(e) => setFilter({ junk: e.target.value })} aria-label="Lead quality"><option value="">Genuine leads</option><option value="only">Junk / spam only</option><option value="all">Include junk</option></Select>}
               <Button variant="outline" size="sm" className="sm:hidden" onClick={() => setMoreFilters(false)}>Done</Button>
-              {activeFilters > 0 && <Button variant="ghost" size="sm" onClick={() => { setSearch(''); router.replace(params.get('channel') ? `${pathname}?channel=${params.get('channel')}` : pathname); }}><X />Clear all</Button>}
+              {activeFilters > 0 && <Button variant="ghost" size="sm" onClick={clearFilters}><X />Clear all</Button>}
             </div>
           )}
 

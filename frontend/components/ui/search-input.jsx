@@ -3,11 +3,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-/**
- * Search field with the icon, a clear button and a "/" shortcut hint.
- *   <SearchInput value={q} onChange={setQ} placeholder="Search…" shortcut />
- * `onChange` receives the string, not the event.
- */
+
 export const SearchInput = forwardRef(function SearchInput(
   { value, onChange, placeholder = 'Search…', shortcut = false, className, inputClassName, 'aria-label': ariaLabel, ...props },
   ref,
